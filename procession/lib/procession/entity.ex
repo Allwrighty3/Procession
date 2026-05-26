@@ -24,6 +24,15 @@ defmodule Procession.Entity do
     GenServer.cast(via_tuple(id), {:message, message})
   end
 
+  def send_to(from_id, to_id, message) do
+    full_message =
+      message
+      |> Map.put(:from, from_id)
+      |> Map.put_new(:type, :message)
+
+    send_message(to_id, full_message)
+  end
+
   def get_state(id) do
     GenServer.call(via_tuple(id), :get_state)
   end
