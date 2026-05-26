@@ -37,6 +37,18 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), :get_state)
   end
 
+  def describe(id) do
+    GenServer.call(via_tuple(id), :describe)
+  end
+
+  def set_status(id, status) do
+    GenServer.call(via_tuple(id), {:set_status, status})
+  end
+
+  def move_to(id, location) do
+    GenServer.call(via_tuple(id), {:move_to, location})
+  end
+
   @impl true
   def init(state) do
     {:ok, struct(__MODULE__, state)}
@@ -54,6 +66,31 @@ defmodule Procession.Entity do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:describe, _from, state) do
+    description = %{
+      id: state.id,
+      name: state.name,
+      type: state.type,
+      location: state.location,
+      status: state.status
+    }
+
+    {:reply, description, state}
+  end
+
+  @impl true
+  def handle_call({:set_status, status}, _from, state) do
+    updated_state = %{state | status: status}
+    {:reply, :ok, updated_state}
+  end
+
+  @impl true
+  def handle_call({:move_to, location}, _from, state) do
+    updated_state = %{state | location: location}
+    {:reply, :ok, updated_state}
   end
 
   defp via_tuple(id) do

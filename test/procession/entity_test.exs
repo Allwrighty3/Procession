@@ -55,4 +55,26 @@ defmodule Procession.EntityTest do
              }
            ] = alice_state.short_memory
   end
+
+  test "entity can update status and location" do
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(:movement_test_npc, %{
+        name: "Mira",
+        type: :npc,
+        location: :town_square
+      })
+
+    assert :ok = Procession.Entity.set_status(:movement_test_npc, :walking)
+    assert :ok = Procession.Entity.move_to(:movement_test_npc, :blacksmith_shop)
+
+    description = Procession.Entity.describe(:movement_test_npc)
+
+    assert description == %{
+             id: :movement_test_npc,
+             name: "Mira",
+             type: :npc,
+             location: :blacksmith_shop,
+             status: :walking
+           }
+  end
 end
