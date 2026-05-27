@@ -91,6 +91,10 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), {:recall_by_tag, tag})
   end
 
+  def recall_by_metadata(id, key, value) do
+    GenServer.call(via_tuple(id), {:recall_by_metadata, key, value})
+  end
+
   def memory_summary(id) do
     GenServer.call(via_tuple(id), :memory_summary)
   end
@@ -236,6 +240,16 @@ defmodule Procession.Entity do
       state
       |> Procession.Memory.flatten()
       |> Procession.Memory.filter_by_tag(tag)
+
+    {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call({:recall_by_metadata, key, value}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.Memory.filter_by_metadata(key, value)
 
     {:reply, memories, state}
   end

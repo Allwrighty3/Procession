@@ -555,4 +555,75 @@ defmodule Procession.EntityTest do
              :quest in memory.tags
            end)
   end
+
+  test "entity can recall memories by metadata value" do
+    id = :recall_by_metadata_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall By Metadata Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer",
+      metadata: %{location: :village_square}
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      content: "A storm begins",
+      metadata: %{location: :forest}
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_by_metadata(id, :location, :village_square)
+
+    assert Enum.map(memories, & &1.content) == [
+             "The blacksmith lost his hammer"
+           ]
+  end
+
+  test "entity can recall memories by metadata list membership" do
+    id = :recall_by_metadata_list_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall By Metadata List Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer",
+      metadata: %{related_entities: [:blacksmith, :player]}
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      content: "A storm begins",
+      metadata: %{related_entities: [:weather]}
+    })
+
+    Process.sleep(20)
+
+    memories =
+      Procession.Entity.recall_by_metadata(
+        id,
+        :related_entities,
+        :blacksmith
+      )
+
+    assert Enum.map(memories, & &1.content) == [
+             "The blacksmith lost his hammer"
+           ]
+  end
 end

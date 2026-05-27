@@ -542,4 +542,26 @@ defmodule Procession.MemoryTest do
              }
            }
   end
+
+  test "filters memories by metadata value" do
+    memories = [
+      %{content: "Market rumor", metadata: %{location: :village_square}},
+      %{content: "Forest sound", metadata: %{location: :forest}}
+    ]
+
+    assert Procession.Memory.filter_by_metadata(memories, :location, :village_square) == [
+             %{content: "Market rumor", metadata: %{location: :village_square}}
+           ]
+  end
+
+  test "filters memories by metadata list membership" do
+    memories = [
+      %{content: "Blacksmith quest", metadata: %{related_entities: [:blacksmith, :player]}},
+      %{content: "Weather event", metadata: %{related_entities: [:weather]}}
+    ]
+
+    assert Procession.Memory.filter_by_metadata(memories, :related_entities, :blacksmith) == [
+             %{content: "Blacksmith quest", metadata: %{related_entities: [:blacksmith, :player]}}
+           ]
+  end
 end

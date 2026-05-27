@@ -97,6 +97,23 @@ defmodule Procession.Memory do
     }
   end
 
+  def filter_by_metadata(memories, key, value) do
+    Enum.filter(memories, fn memory ->
+      memory
+      |> Map.get(:metadata, %{})
+      |> Map.get(key)
+      |> matches_metadata_value?(value)
+    end)
+  end
+
+  defp matches_metadata_value?(actual, expected) when is_list(actual) do
+    expected in actual
+  end
+
+  defp matches_metadata_value?(actual, expected) do
+    actual == expected
+  end
+
   def from_message(message) when is_map(message) do
     content = Map.get(message, :content, "")
 
