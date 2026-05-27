@@ -172,7 +172,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 ### Phase 1 is complete when:
 
-- [ ] Entities can be started, stopped, looked up, and listed.
+- [x] Entities can be started, stopped, looked up, and listed.
 - [x] Entities can send structured messages to each other.
 - [ ] Message delivery failure is handled predictably.
 - [ ] Entity state can be updated through clear public APIs.
