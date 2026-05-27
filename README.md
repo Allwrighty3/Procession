@@ -17,3 +17,171 @@ Procession currently has a tested Phase 1/Phase 2 foundation:
 - Keyword-based memory recall
 - Full memory recall in priority order
 
+## Remaining Work
+
+### Phase 1: Core Entity System & Message Passing
+
+The basic entity system is working, but Phase 1 is not fully complete yet.
+
+#### Entity lifecycle
+
+- [ ] Add a public API for stopping/removing an entity.
+- [ ] Add tests for stopping an entity.
+- [ ] Decide what should happen if an entity is started with an ID that already exists.
+- [ ] Add tests for duplicate entity IDs.
+- [ ] Add a helper for checking whether an entity exists in the registry.
+
+#### Entity identity and lookup
+
+- [ ] Add a consistent entity ID strategy.
+  - At the moment entity IDs are atoms in tests.
+  - Later systems may need string IDs, UUIDs, or generated IDs.
+- [ ] Decide whether entity IDs should be atoms, strings, or another format.
+- [ ] Add helper functions for looking up entities by ID.
+- [ ] Add helper functions for listing active entities.
+
+#### Entity communication
+
+- [ ] Add support for typed messages beyond basic `:message` and `:dialogue`.
+- [ ] Define a small message schema.
+  - Example fields: `:from`, `:to`, `:type`, `:content`, `:importance`, `:timestamp`.
+- [ ] Add validation for incoming messages.
+- [ ] Decide what should happen when a message is sent to an entity that does not exist.
+- [ ] Add tests for failed message delivery.
+- [ ] Add entity-to-entity interaction examples.
+
+#### Entity state
+
+- [ ] Add a cleaner state update API for common changes.
+  - Example: traits, status, location, relationships.
+- [ ] Add tests for updating traits.
+- [ ] Add tests for updating entity metadata.
+- [ ] Decide which fields belong directly on an entity and which should become separate systems later.
+
+#### Supervision and fault tolerance
+
+- [ ] Add tests proving entity processes restart correctly after crashes.
+- [ ] Decide whether restarted entities should keep state, reset state, or reload state.
+- [ ] Add a basic crash/recovery test for the `DynamicSupervisor`.
+- [ ] Decide whether persistence is needed before Phase 3 or can wait.
+
+#### Developer ergonomics
+
+- [ ] Add convenience functions for spawning common entity types.
+  - Example: `start_npc/2`, `start_location/2`, `start_faction/2`.
+- [ ] Add documentation examples for starting entities and sending messages.
+- [ ] Add basic `iex` usage examples to the README.
+
+---
+
+### Phase 2: Hierarchical Memory System
+
+The basic memory system is working, but Phase 2 still needs refinement before it should be considered complete.
+
+#### Memory structure
+
+- [ ] Finalize the memory entry schema.
+  - Current fields include `:content`, `:type`, `:importance`, `:timestamp`, and `:from`.
+- [ ] Decide whether memory entries should include an ID.
+- [ ] Add optional metadata fields.
+  - Example: `:source`, `:tags`, `:location`, `:related_entities`.
+- [ ] Add tests for memory entries with metadata.
+- [ ] Decide whether memories should remain plain maps or become a struct.
+
+#### Memory promotion
+
+- [ ] Review current promotion behavior:
+  - short memory overflows into medium memory.
+  - medium memory overflows into long memory.
+- [ ] Decide whether promotion should happen purely by capacity or also by importance.
+- [ ] Add importance-based promotion rules.
+- [ ] Add tests for high-importance memories being retained longer.
+- [ ] Add tests for low-importance memories being dropped first.
+- [ ] Decide whether long memory should ever expire.
+
+#### Memory retrieval
+
+- [ ] Improve keyword search beyond basic substring matching.
+- [ ] Add search across memory metadata.
+  - Example: search by type, source, sender, tags, or location.
+- [ ] Add tests for searching by memory type.
+- [ ] Add tests for searching by sender.
+- [ ] Add tests for searching by tag.
+- [ ] Add a `recall_recent/2` helper.
+- [ ] Add a `recall_important/2` helper.
+- [ ] Add a `recall_by_type/2` helper.
+
+#### Entity memory API
+
+- [ ] Add entity-facing APIs for targeted recall.
+  - Example: `Entity.recall_recent(id, count)`.
+  - Example: `Entity.recall_by_type(id, :dialogue)`.
+  - Example: `Entity.recall_important(id, minimum_importance)`.
+- [ ] Add tests for each entity recall helper.
+- [ ] Decide whether `recall_all/1` should return all memories forever or require a limit.
+
+#### Memory ordering
+
+- [ ] Confirm desired ordering for all memory layers.
+  - Current behavior favors newest memories first.
+- [ ] Decide whether search results should preserve memory priority order.
+- [ ] Decide whether search results should rank by recency, importance, or both.
+- [ ] Add tests for search result ordering.
+
+#### Long-term memory behavior
+
+- [ ] Decide what long-term memory means in gameplay terms.
+- [ ] Add a rule for preserving important long-term memories.
+- [ ] Add a rule for forgetting less important long-term memories.
+- [ ] Add tests for long-memory limits and priority behavior.
+- [ ] Consider whether long memory should eventually be summarized.
+
+#### Summarization preparation
+
+- [ ] Add a placeholder design for memory summarization.
+- [ ] Decide when summaries should be created.
+  - Example: when medium memory overflows.
+  - Example: when long memory reaches its cap.
+- [ ] Decide whether summaries should be generated locally by deterministic code first.
+- [ ] Delay LLM-generated summaries until Phase 3.
+
+#### Persistence preparation
+
+- [ ] Decide whether memory should be persisted to disk.
+- [ ] Decide on a simple local persistence format.
+  - Example: JSON, ETS dump, DETS, SQLite, or plain files.
+- [ ] Add serialization helpers for memory entries.
+- [ ] Add tests for memory serialization.
+- [ ] Defer full persistence unless needed before AI integration.
+
+#### Debugging and inspection
+
+- [ ] Add a simple way to inspect memory counts per entity.
+  - Example: `%{short: 10, medium: 50, long: 200}`.
+- [ ] Add an entity API like `Entity.memory_summary(id)`.
+- [ ] Add tests for memory summary output.
+- [ ] Add README examples showing memory promotion and recall.
+
+---
+
+## Phase 1 and Phase 2 Completion Criteria
+
+### Phase 1 is complete when:
+
+- [ ] Entities can be started, stopped, looked up, and listed.
+- [ ] Entities can send structured messages to each other.
+- [ ] Message delivery failure is handled predictably.
+- [ ] Entity state can be updated through clear public APIs.
+- [ ] Supervision behavior is tested.
+- [ ] Basic usage is documented in the README.
+
+### Phase 2 is complete when:
+
+- [ ] Memories use a consistent structure.
+- [ ] Short, medium, and long memory layers are tested.
+- [ ] Promotion rules are clear and tested.
+- [ ] Entity APIs exist for common recall operations.
+- [ ] Search supports more than basic content matching.
+- [ ] Memory ordering is intentional and tested.
+- [ ] Memory inspection/debug helpers exist.
+- [ ] README examples show how entity memory works.
