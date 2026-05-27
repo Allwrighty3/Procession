@@ -1,21 +1,17 @@
 # Procession
 
-**TODO: Add description**
+## Current Status
 
-## Installation
+Procession currently has a tested Phase 1/Phase 2 foundation:
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `procession` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:procession, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/procession](https://hexdocs.pm/procession).
+- OTP application supervision with a registry and dynamic entity supervisor
+- Entity processes backed by GenServer
+- Entity-to-entity message passing
+- Structured memory entries created from messages
+- Hierarchical memory promotion:
+  - short memory: 10 entries
+  - medium memory: 50 entries
+  - long memory: 200 entries
+- Keyword-based memory recall
+- Full memory recall in priority order
 
