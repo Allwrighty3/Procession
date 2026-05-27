@@ -305,4 +305,36 @@ defmodule Procession.MemoryTest do
              ]
     end
   end
+
+  describe "search/2" do
+    test "returns memories whose content contains the query" do
+      memories = [
+        %{content: "The blacksmith lost his hammer"},
+        %{content: "The baker needs flour"},
+        %{content: "The guard saw a wolf"}
+      ]
+
+      assert Memory.search(memories, "hammer") == [
+               %{content: "The blacksmith lost his hammer"}
+             ]
+    end
+
+    test "search is case insensitive" do
+      memories = [
+        %{content: "Alice saw a DRAGON"}
+      ]
+
+      assert Memory.search(memories, "dragon") == [
+               %{content: "Alice saw a DRAGON"}
+             ]
+    end
+
+    test "returns an empty list when there are no matches" do
+      memories = [
+        %{content: "Nothing interesting here"}
+      ]
+
+      assert Memory.search(memories, "dragon") == []
+    end
+  end
 end

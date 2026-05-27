@@ -43,4 +43,16 @@ defmodule Procession.Memory do
   def flatten(state) do
     state.short_memory ++ state.medium_memory ++ state.long_memory
   end
+
+  def search(memories, query) when is_binary(query) do
+    normalized_query = String.downcase(query)
+
+    Enum.filter(memories, fn memory ->
+      memory
+      |> Map.get(:content, "")
+      |> to_string()
+      |> String.downcase()
+      |> String.contains?(normalized_query)
+    end)
+  end
 end
