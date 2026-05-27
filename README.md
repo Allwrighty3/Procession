@@ -37,7 +37,7 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
   - At the moment entity IDs are atoms in tests.
   - Later systems may need string IDs, UUIDs, or generated IDs.
 - [ ] Decide whether entity IDs should be atoms, strings, or another format.
-- [ ] Add helper functions for looking up entities by ID.
+- [x] Add helper functions for looking up entities by ID.
 - [ ] Add helper functions for listing active entities.
 
 #### Entity communication

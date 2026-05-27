@@ -36,6 +36,13 @@ defmodule Procession.EntitySupervisor do
     end
   end
 
+  def lookup_entity(id) do
+    case Registry.lookup(Procession.EntityRegistry, id) do
+      [{pid, _value}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
   @impl true
   def init(:ok) do
     DynamicSupervisor.init(strategy: :one_for_one)

@@ -25,4 +25,22 @@ defmodule Procession.EntitySupervisorTest do
     assert description.name == "Original NPC"
     assert description.location == :town_square
   end
+
+  test "can look up an entity by id" do
+    id = :lookup_test_npc
+
+    {:ok, pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Lookup Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    assert Procession.EntitySupervisor.lookup_entity(id) == {:ok, pid}
+  end
+
+  test "looking up a missing entity returns not found" do
+    assert Procession.EntitySupervisor.lookup_entity(:missing_lookup_test_npc) ==
+             {:error, :not_found}
+  end
 end
