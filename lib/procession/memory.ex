@@ -11,4 +11,13 @@ defmodule Procession.Memory do
     [message | short_memory]
     |> Enum.take(limit)
   end
+
+  def remember_short_with_overflow(short_memory, message, limit \\ 10) do
+    updated = [message | short_memory]
+
+    {
+      Enum.take(updated, limit),
+      Enum.drop(updated, limit)
+    }
+  end
 end
