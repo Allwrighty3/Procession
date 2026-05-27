@@ -17,6 +17,48 @@ Procession currently has a tested Phase 1/Phase 2 foundation:
 - Keyword-based memory recall
 - Full memory recall in priority order
 
+## IEx Examples
+
+Start an entity:
+
+```elixir
+{:ok, _pid} =
+  Procession.EntitySupervisor.start_entity(:alice, %{
+    name: "Alice",
+    type: :npc,
+    location: :village_square
+  })
+```
+
+Send the entity a memory-producing message:
+
+```elixir
+Procession.Entity.send_message(:alice, %{
+  from: :player,
+  type: :dialogue,
+  content: "The blacksmith lost his hammer."
+})
+```
+
+Recall memories by keyword:
+
+```elixir
+Procession.Entity.recall(:alice, "hammer")
+```
+
+Inspect memory counts:
+
+```elixir
+Procession.Entity.memory_summary(:alice)
+# %{short: 1, medium: 0, long: 0}
+```
+
+Memory promotion happens automatically as messages are added:
+
+- short memory keeps the 10 most recent memories
+- overflow from short memory moves into medium memory
+- overflow from medium memory moves into long memory
+
 ## Repository Map
 
 - `lib/procession/entity.ex` - GenServer entity process, messaging, state, and recall APIs.
@@ -171,9 +213,9 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 - [x] Add a simple way to inspect memory counts per entity.
   - Example: `%{short: 10, medium: 50, long: 200}`.
-- [ ] Add an entity API like `Entity.memory_summary(id)`.
-- [ ] Add tests for memory summary output.
-- [ ] Add README examples showing memory promotion and recall.
+- [x] Add an entity API like `Entity.memory_summary(id)`.
+- [x] Add tests for memory summary output.
+- [x] Add README examples showing memory promotion and recall.
 
 ---
 
@@ -197,4 +239,4 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [ ] Search supports more than basic content matching.
 - [x] Memory ordering is intentional and tested.
 - [ ] Memory inspection/debug helpers exist.
-- [ ] README examples show how entity memory works.
+- [x] README examples show how entity memory works.
