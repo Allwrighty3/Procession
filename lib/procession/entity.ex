@@ -87,6 +87,10 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), {:recall_by_sender, sender})
   end
 
+  def recall_by_tag(id, tag) do
+    GenServer.call(via_tuple(id), {:recall_by_tag, tag})
+  end
+
   def memory_summary(id) do
     GenServer.call(via_tuple(id), :memory_summary)
   end
@@ -222,6 +226,16 @@ defmodule Procession.Entity do
       state
       |> Procession.Memory.flatten()
       |> Procession.Memory.filter_by_sender(sender)
+
+    {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call({:recall_by_tag, tag}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.Memory.filter_by_tag(tag)
 
     {:reply, memories, state}
   end

@@ -78,12 +78,21 @@ defmodule Procession.Memory do
     end)
   end
 
+  def filter_by_tag(memories, tag) do
+    Enum.filter(memories, fn memory ->
+      memory
+      |> Map.get(:tags, [])
+      |> Enum.member?(tag)
+    end)
+  end
+
   def new_entry(content, attrs \\ %{}) do
     %{
       content: content,
       type: Map.get(attrs, :type, :event),
       importance: Map.get(attrs, :importance, 1),
-      timestamp: Map.get(attrs, :timestamp, DateTime.utc_now())
+      timestamp: Map.get(attrs, :timestamp, DateTime.utc_now()),
+      tags: Map.get(attrs, :tags, [])
     }
   end
 
@@ -93,7 +102,8 @@ defmodule Procession.Memory do
     new_entry(content, %{
       type: Map.get(message, :type, :message),
       importance: Map.get(message, :importance, 1),
-      timestamp: Map.get(message, :timestamp, DateTime.utc_now())
+      timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
+      tags: Map.get(message, :tags, [])
     })
     |> Map.put(:from, Map.get(message, :from))
   end

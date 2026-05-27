@@ -362,7 +362,8 @@ defmodule Procession.MemoryTest do
                content: "Met Alice",
                type: :dialogue,
                importance: 3,
-               timestamp: timestamp
+               timestamp: timestamp,
+               tags: []
              }
     end
   end
@@ -376,7 +377,8 @@ defmodule Procession.MemoryTest do
         type: :dialogue,
         content: "The blacksmith lost his hammer",
         importance: 3,
-        timestamp: timestamp
+        timestamp: timestamp,
+        tags: [:blacksmith, :quest]
       }
 
       entry = Memory.from_message(message)
@@ -386,7 +388,8 @@ defmodule Procession.MemoryTest do
                type: :dialogue,
                importance: 3,
                timestamp: timestamp,
-               from: :player
+               from: :player,
+               tags: [:blacksmith, :quest]
              }
     end
 
@@ -464,6 +467,28 @@ defmodule Procession.MemoryTest do
     assert Procession.Memory.filter_by_sender(memories, :player) == [
              %{from: :player, content: "Hello"},
              %{from: :player, content: "Goodbye"}
+           ]
+  end
+
+  test "creates memory entries with tags" do
+    entry =
+      Procession.Memory.new_entry("The blacksmith lost his hammer", %{
+        tags: [:quest, :blacksmith]
+      })
+
+    assert entry.tags == [:quest, :blacksmith]
+  end
+
+  test "filters memories by tag" do
+    memories = [
+      %{content: "Blacksmith quest", tags: [:quest, :blacksmith]},
+      %{content: "Rain starts", tags: [:weather]},
+      %{content: "Find the hammer", tags: [:quest]}
+    ]
+
+    assert Procession.Memory.filter_by_tag(memories, :quest) == [
+             %{content: "Blacksmith quest", tags: [:quest, :blacksmith]},
+             %{content: "Find the hammer", tags: [:quest]}
            ]
   end
 end

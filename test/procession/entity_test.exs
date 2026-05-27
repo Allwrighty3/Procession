@@ -518,4 +518,41 @@ defmodule Procession.EntityTest do
              memory.from == :player
            end)
   end
+
+  test "entity can recall memories by tag" do
+    id = :recall_by_tag_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall By Tag Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer",
+      tags: [:quest, :blacksmith]
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      content: "A storm begins",
+      tags: [:weather]
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_by_tag(id, :quest)
+
+    assert Enum.map(memories, & &1.content) == [
+             "The blacksmith lost his hammer"
+           ]
+
+    assert Enum.all?(memories, fn memory ->
+             :quest in memory.tags
+           end)
+  end
 end
