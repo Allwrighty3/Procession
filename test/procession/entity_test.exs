@@ -626,4 +626,79 @@ defmodule Procession.EntityTest do
              "The blacksmith lost his hammer"
            ]
   end
+
+  test "entity can be started with a string ID" do
+    id = "npc_string_id_test"
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "String ID Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    assert Procession.EntitySupervisor.exists?(id)
+  end
+
+  test "entity with string ID can receive messages" do
+    id = "npc_string_message_test"
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "String Message Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: "player_test",
+      type: :dialogue,
+      content: "Hello from a string ID"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_all(id)
+
+    assert Enum.map(memories, & &1.content) == [
+             "Hello from a string ID"
+           ]
+
+    assert hd(memories).from == "player_test"
+  end
+
+  test "entity with string ID can send to another string ID entity" do
+    sender_id = "npc_string_sender_test"
+    receiver_id = "npc_string_receiver_test"
+
+    {:ok, _sender_pid} =
+      Procession.EntitySupervisor.start_entity(sender_id, %{
+        name: "String Sender",
+        type: :npc,
+        location: :test_room
+      })
+
+    {:ok, _receiver_pid} =
+      Procession.EntitySupervisor.start_entity(receiver_id, %{
+        name: "String Receiver",
+        type: :npc,
+        location: :test_room
+      })
+
+    assert :ok =
+             Procession.Entity.send_to(sender_id, receiver_id, %{
+               type: :dialogue,
+               content: "String IDs work"
+             })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_all(receiver_id)
+
+    assert Enum.map(memories, & &1.content) == [
+             "String IDs work"
+           ]
+
+    assert hd(memories).from == sender_id
+  end
 end

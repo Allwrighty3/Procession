@@ -153,11 +153,11 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 #### Memory retrieval
 
 - [ ] Improve keyword search beyond basic substring matching.
-- [ ] Add search across memory metadata.
+- [x] Add search across memory metadata.
   - Example: search by type, source, sender, tags, or location.
 - [x] Add tests for searching by memory type.
 - [x] Add tests for searching by sender.
-- [ ] Add tests for searching by tag.
+- [x] Add tests for searching by tag.
 - [x] Add a `recall_recent/2` helper.
 - [x] Add a `recall_important/2` helper.
 - [x] Add a `recall_by_type/2` helper.
