@@ -92,7 +92,8 @@ defmodule Procession.Memory do
       type: Map.get(attrs, :type, :event),
       importance: Map.get(attrs, :importance, 1),
       timestamp: Map.get(attrs, :timestamp, DateTime.utc_now()),
-      tags: Map.get(attrs, :tags, [])
+      tags: Map.get(attrs, :tags, []),
+      metadata: Map.get(attrs, :metadata, %{})
     }
   end
 
@@ -103,7 +104,8 @@ defmodule Procession.Memory do
       type: Map.get(message, :type, :message),
       importance: Map.get(message, :importance, 1),
       timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
-      tags: Map.get(message, :tags, [])
+      tags: Map.get(message, :tags, []),
+      metadata: Map.get(message, :metadata, %{})
     })
     |> Map.put(:from, Map.get(message, :from))
   end

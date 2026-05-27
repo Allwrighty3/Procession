@@ -363,7 +363,8 @@ defmodule Procession.MemoryTest do
                type: :dialogue,
                importance: 3,
                timestamp: timestamp,
-               tags: []
+               tags: [],
+               metadata: %{}
              }
     end
   end
@@ -389,7 +390,8 @@ defmodule Procession.MemoryTest do
                importance: 3,
                timestamp: timestamp,
                from: :player,
-               tags: [:blacksmith, :quest]
+               tags: [:blacksmith, :quest],
+               metadata: %{}
              }
     end
 
@@ -490,5 +492,54 @@ defmodule Procession.MemoryTest do
              %{content: "Blacksmith quest", tags: [:quest, :blacksmith]},
              %{content: "Find the hammer", tags: [:quest]}
            ]
+  end
+
+  test "creates memory entries with metadata" do
+    entry =
+      Procession.Memory.new_entry("The blacksmith lost his hammer", %{
+        metadata: %{
+          source: :conversation,
+          location: :village_square,
+          related_entities: [:blacksmith]
+        }
+      })
+
+    assert entry.metadata == %{
+             source: :conversation,
+             location: :village_square,
+             related_entities: [:blacksmith]
+           }
+  end
+
+  test "creates memory from message with metadata" do
+    timestamp = DateTime.utc_now()
+
+    message = %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer",
+      importance: 3,
+      timestamp: timestamp,
+      tags: [:quest],
+      metadata: %{
+        source: :conversation,
+        location: :village_square,
+        related_entities: [:blacksmith]
+      }
+    }
+
+    assert Procession.Memory.from_message(message) == %{
+             content: "The blacksmith lost his hammer",
+             type: :dialogue,
+             importance: 3,
+             timestamp: timestamp,
+             from: :player,
+             tags: [:quest],
+             metadata: %{
+               source: :conversation,
+               location: :village_square,
+               related_entities: [:blacksmith]
+             }
+           }
   end
 end
