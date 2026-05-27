@@ -55,4 +55,68 @@ defmodule Procession.MemoryTest do
       ]
     end
   end
+
+  describe "remember_short_with_overflow/3" do
+    test "returns updated short memory and empty overflow when under the limit" do
+      {short_memory, overflow} =
+        Memory.remember_short_with_overflow(
+          [%{content: "Old"}],
+          %{content: "New"},
+          3
+        )
+
+      assert short_memory == [
+        %{content: "New"},
+        %{content: "Old"}
+      ]
+
+      assert overflow == []
+    end
+
+    test "returns overflowed memories when over the limit" do
+      existing_memory = [
+        %{content: "Message 1"},
+        %{content: "Message 2"},
+        %{content: "Message 3"}
+      ]
+
+      {short_memory, overflow} =
+        Memory.remember_short_with_overflow(
+          existing_memory,
+          %{content: "Message 4"},
+          3
+        )
+
+      assert short_memory == [
+        %{content: "Message 4"},
+        %{content: "Message 1"},
+        %{content: "Message 2"}
+      ]
+
+      assert overflow == [
+        %{content: "Message 3"}
+      ]
+    end
+
+    test "supports custom limits" do
+      {short_memory, overflow} =
+        Memory.remember_short_with_overflow(
+          [
+            %{content: "Two"},
+            %{content: "One"}
+          ],
+          %{content: "Three"},
+          2
+        )
+
+      assert short_memory == [
+        %{content: "Three"},
+        %{content: "Two"}
+      ]
+
+      assert overflow == [
+        %{content: "One"}
+      ]
+    end
+  end
 end
