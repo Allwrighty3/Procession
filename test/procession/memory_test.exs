@@ -3,6 +3,59 @@ defmodule Procession.MemoryTest do
 
   alias Procession.Memory
 
+  describe "remember_long/3" do
+    test "adds newest memory to the front" do
+      existing_memory = [
+        %{content: "Old message"}
+      ]
+
+      new_message = %{content: "New message"}
+
+      result = Memory.remember_long(existing_memory, new_message)
+
+      assert result == [
+               %{content: "New message"},
+               %{content: "Old message"}
+             ]
+    end
+
+    test "keeps only the default 200 most recent memories" do
+      existing_memory =
+        for n <- 1..200 do
+          %{content: "Message #{n}"}
+        end
+
+      new_message = %{content: "Message 201"}
+
+      result = Memory.remember_long(existing_memory, new_message)
+
+      assert length(result) == 200
+      assert hd(result).content == "Message 201"
+      assert List.last(result).content == "Message 199"
+    end
+
+    test "supports a custom memory limit" do
+      result =
+        []
+        |> Memory.remember_long(%{content: "One"}, 2)
+        |> Memory.remember_long(%{content: "Two"}, 2)
+        |> Memory.remember_long(%{content: "Three"}, 2)
+
+      assert result == [
+               %{content: "Three"},
+               %{content: "Two"}
+             ]
+    end
+
+    test "allows an empty starting memory list" do
+      result = Memory.remember_long([], %{content: "First memory"})
+
+      assert result == [
+               %{content: "First memory"}
+             ]
+    end
+  end
+
   describe "remember_medium/3" do
     test "adds newest memory to the front" do
       existing_memory = [
@@ -163,6 +216,70 @@ defmodule Procession.MemoryTest do
         )
 
       assert short_memory == [
+               %{content: "Three"},
+               %{content: "Two"}
+             ]
+
+      assert overflow == [
+               %{content: "One"}
+             ]
+    end
+  end
+
+  describe "remember_medium_with_overflow/3" do
+    test "returns updated medium memory and empty overflow when under the limit" do
+      {medium_memory, overflow} =
+        Memory.remember_medium_with_overflow(
+          [%{content: "Old"}],
+          %{content: "New"},
+          3
+        )
+
+      assert medium_memory == [
+               %{content: "New"},
+               %{content: "Old"}
+             ]
+
+      assert overflow == []
+    end
+
+    test "returns overflowed memories when over the limit" do
+      existing_memory = [
+        %{content: "Message 1"},
+        %{content: "Message 2"},
+        %{content: "Message 3"}
+      ]
+
+      {medium_memory, overflow} =
+        Memory.remember_medium_with_overflow(
+          existing_memory,
+          %{content: "Message 4"},
+          3
+        )
+
+      assert medium_memory == [
+               %{content: "Message 4"},
+               %{content: "Message 1"},
+               %{content: "Message 2"}
+             ]
+
+      assert overflow == [
+               %{content: "Message 3"}
+             ]
+    end
+
+    test "supports custom limits" do
+      {medium_memory, overflow} =
+        Memory.remember_medium_with_overflow(
+          [
+            %{content: "Two"},
+            %{content: "One"}
+          ],
+          %{content: "Three"},
+          2
+        )
+
+      assert medium_memory == [
                %{content: "Three"},
                %{content: "Two"}
              ]

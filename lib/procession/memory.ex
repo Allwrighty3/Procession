@@ -25,4 +25,18 @@ defmodule Procession.Memory do
     [message | medium_memory]
     |> Enum.take(limit)
   end
+
+  def remember_medium_with_overflow(medium_memory, message, limit \\ 50) do
+    updated = [message | medium_memory]
+
+    {
+      Enum.take(updated, limit),
+      Enum.drop(updated, limit)
+    }
+  end
+
+  def remember_long(long_memory, message, limit \\ 200) do
+    [message | long_memory]
+    |> Enum.take(limit)
+  end
 end
