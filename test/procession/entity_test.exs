@@ -218,4 +218,38 @@ defmodule Procession.EntityTest do
     assert length(state.medium_memory) == 50
     assert length(state.long_memory) == 200
   end
+
+  test "entity can recall memories by keyword" do
+    id = :recall_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, (%{
+        from: :player,
+        type: :dialogue,
+        content: "The blacksmith lost his hammer"
+      })
+    )
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The baker needs flour"
+    })
+
+    Process.sleep(20)
+
+    assert Procession.Entity.recall(id, "hammer") == [
+             %{
+               from: :player,
+               type: :dialogue,
+               content: "The blacksmith lost his hammer"
+             }
+           ]
+  end
 end
