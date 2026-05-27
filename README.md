@@ -80,17 +80,18 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 #### Memory structure
 
-- [ ] Finalize the memory entry schema.
+- [x] Finalize the memory entry schema.
   - Current fields include `:content`, `:type`, `:importance`, `:timestamp`, and `:from`.
 - [ ] Decide whether memory entries should include an ID.
 - [ ] Add optional metadata fields.
   - Example: `:source`, `:tags`, `:location`, `:related_entities`.
 - [ ] Add tests for memory entries with metadata.
 - [ ] Decide whether memories should remain plain maps or become a struct.
+  - Current implementation uses plain maps.
 
 #### Memory promotion
 
-- [ ] Review current promotion behavior:
+- [x] Review current promotion behavior:
   - short memory overflows into medium memory.
   - medium memory overflows into long memory.
 - [ ] Decide whether promotion should happen purely by capacity or also by importance.
@@ -113,7 +114,10 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 #### Entity memory API
 
-- [ ] Add entity-facing APIs for targeted recall.
+- [x] Add basic entity-facing recall APIs.
+  - Implemented: `Entity.recall/2`
+  - Implemented: `Entity.recall_all/1`
+- [ ] Add targeted entity-facing recall APIs.
   - Example: `Entity.recall_recent(id, count)`.
   - Example: `Entity.recall_by_type(id, :dialogue)`.
   - Example: `Entity.recall_important(id, minimum_importance)`.
@@ -169,7 +173,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 ### Phase 1 is complete when:
 
 - [ ] Entities can be started, stopped, looked up, and listed.
-- [ ] Entities can send structured messages to each other.
+- [x] Entities can send structured messages to each other.
 - [ ] Message delivery failure is handled predictably.
 - [ ] Entity state can be updated through clear public APIs.
 - [ ] Supervision behavior is tested.
@@ -177,11 +181,11 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 ### Phase 2 is complete when:
 
-- [ ] Memories use a consistent structure.
-- [ ] Short, medium, and long memory layers are tested.
-- [ ] Promotion rules are clear and tested.
-- [ ] Entity APIs exist for common recall operations.
+- [x] Memories use a consistent structure.
+- [x] Short, medium, and long memory layers are tested.
+- [x] Promotion rules are clear and tested.
+- [x] Entity APIs exist for common recall operations.
 - [ ] Search supports more than basic content matching.
-- [ ] Memory ordering is intentional and tested.
+- [x] Memory ordering is intentional and tested.
 - [ ] Memory inspection/debug helpers exist.
 - [ ] README examples show how entity memory works.
