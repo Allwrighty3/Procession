@@ -138,4 +138,30 @@ defmodule Procession.EntityTest do
              "Message 1"
            ]
   end
+
+  test "medium memory keeps only the 50 most recent promoted memories" do
+    id = :medium_memory_limit_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Medium Memory Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    for n <- 1..65 do
+      Procession.Entity.send_message(id, %{
+        from: :player,
+        type: :dialogue,
+        content: "Message #{n}"
+      })
+    end
+
+    Process.sleep(50)
+
+    state = Procession.Entity.get_state(id)
+
+    assert length(state.short_memory) == 10
+    assert length(state.medium_memory) == 50
+  end
 end
