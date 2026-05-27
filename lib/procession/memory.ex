@@ -64,4 +64,15 @@ defmodule Procession.Memory do
       timestamp: Map.get(attrs, :timestamp, DateTime.utc_now())
     }
   end
+
+  def from_message(message) when is_map(message) do
+    content = Map.get(message, :content, "")
+
+    new_entry(content, %{
+      type: Map.get(message, :type, :message),
+      importance: Map.get(message, :importance, 1),
+      timestamp: Map.get(message, :timestamp, DateTime.utc_now())
+    })
+    |> Map.put(:from, Map.get(message, :from))
+  end
 end

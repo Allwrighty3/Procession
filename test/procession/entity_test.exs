@@ -243,12 +243,16 @@ defmodule Procession.EntityTest do
 
     Process.sleep(20)
 
-    assert Procession.Entity.recall(id, "hammer") == [
+    assert [
              %{
                from: :player,
                type: :dialogue,
-               content: "The blacksmith lost his hammer"
+               content: "The blacksmith lost his hammer",
+               importance: 1,
+               timestamp: timestamp
              }
-           ]
+           ] = Procession.Entity.recall(id, "hammer")
+
+    assert %DateTime{} = timestamp
   end
 end

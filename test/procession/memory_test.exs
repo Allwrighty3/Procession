@@ -366,4 +366,52 @@ defmodule Procession.MemoryTest do
              }
     end
   end
+
+  describe "from_message/1" do
+    test "creates a structured memory entry from a message" do
+      timestamp = ~U[2026-01-01 00:00:00Z]
+
+      message = %{
+        from: :player,
+        type: :dialogue,
+        content: "The blacksmith lost his hammer",
+        importance: 3,
+        timestamp: timestamp
+      }
+
+      entry = Memory.from_message(message)
+
+      assert entry == %{
+               content: "The blacksmith lost his hammer",
+               type: :dialogue,
+               importance: 3,
+               timestamp: timestamp,
+               from: :player
+             }
+    end
+
+    test "uses defaults when optional message fields are missing" do
+      message = %{
+        content: "A wolf was seen near the road"
+      }
+
+      entry = Memory.from_message(message)
+
+      assert entry.content == "A wolf was seen near the road"
+      assert entry.type == :message
+      assert entry.importance == 1
+      assert entry.from == nil
+      assert %DateTime{} = entry.timestamp
+    end
+
+    test "uses empty content when message has no content" do
+      entry = Memory.from_message(%{})
+
+      assert entry.content == ""
+      assert entry.type == :message
+      assert entry.importance == 1
+      assert entry.from == nil
+      assert %DateTime{} = entry.timestamp
+    end
+  end
 end
