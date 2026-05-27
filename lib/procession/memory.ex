@@ -1,10 +1,10 @@
 # lib/procession/memory.ex
 defmodule Procession.Memory do
   @moduledoc """
-  Helpers for managing entity memory.
+  Hierarchical memory utilities for Procession entities.
 
-  For now this only handles short-term memory.
-  Medium and long-term memory can be added later.
+  Handles memory entry creation, short/medium/long memory promotion, flattening,
+  ordering, and keyword search.
   """
 
   def remember_short(short_memory, message, limit \\ 10) do

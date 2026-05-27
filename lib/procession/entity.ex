@@ -1,6 +1,16 @@
 defmodule Procession.Entity do
   use GenServer
 
+  @moduledoc """
+  A single world entity process.
+
+  Each entity is a GenServer registered by ID through `Procession.EntityRegistry`.
+  Entities can receive messages, store those messages as memories, update basic
+  state, and expose recall APIs.
+
+  Most external code should start entities through `Procession.EntitySupervisor`.
+  """
+
   defstruct [
     :id,
     :name,

@@ -3,6 +3,13 @@ defmodule Procession.EntitySupervisor do
 
   alias Procession.Entity
 
+  @moduledoc """
+  Dynamic supervisor for entity processes.
+
+  Provides public APIs for starting, stopping, checking, looking up, and listing
+  entities. Entity IDs are registered through `Procession.EntityRegistry`.
+  """
+
   def start_link(_opts) do
     DynamicSupervisor.start_link(__MODULE__, :ok, name: __MODULE__)
   end

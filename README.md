@@ -17,6 +17,15 @@ Procession currently has a tested Phase 1/Phase 2 foundation:
 - Keyword-based memory recall
 - Full memory recall in priority order
 
+## Repository Map
+
+- `lib/procession/entity.ex` - GenServer entity process, messaging, state, and recall APIs.
+- `lib/procession/entity_supervisor.ex` - DynamicSupervisor for starting, stopping, looking up, and listing entities.
+- `lib/procession/memory.ex` - Hierarchical memory creation, promotion, recall, and search.
+- `lib/procession/application.ex` - OTP application supervision tree.
+- `test/procession/entity_test.exs` - Entity, messaging, memory, recall, and lifecycle tests.
+- `test/procession/memory_test.exs` - Direct memory behavior tests.
+
 ## Remaining Work
 
 ### Phase 1: Core Entity System & Message Passing
