@@ -43,4 +43,25 @@ defmodule Procession.EntitySupervisorTest do
     assert Procession.EntitySupervisor.lookup_entity(:missing_lookup_test_npc) ==
              {:error, :not_found}
   end
+
+  test "can list active entities" do
+    {:ok, alpha_pid} =
+      Procession.EntitySupervisor.start_entity(:list_test_alpha, %{
+        name: "Alpha",
+        type: :npc,
+        location: :test_room
+      })
+
+    {:ok, beta_pid} =
+      Procession.EntitySupervisor.start_entity(:list_test_beta, %{
+        name: "Beta",
+        type: :npc,
+        location: :test_room
+      })
+
+    entities = Procession.EntitySupervisor.list_entities()
+
+    assert {:list_test_alpha, alpha_pid} in entities
+    assert {:list_test_beta, beta_pid} in entities
+  end
 end

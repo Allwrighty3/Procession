@@ -43,6 +43,12 @@ defmodule Procession.EntitySupervisor do
     end
   end
 
+  def list_entities do
+    Procession.EntityRegistry
+    |> Registry.select([{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}])
+    |> Enum.map(fn {id, pid} -> {id, pid} end)
+  end
+
   @impl true
   def init(:ok) do
     DynamicSupervisor.init(strategy: :one_for_one)
