@@ -90,6 +90,7 @@ defmodule Procession.Memory do
 
   def new_entry(content, attrs \\ %{}) do
     %Entry{
+      id: Map.get(attrs, :id, Procession.Id.memory()),
       content: content,
       type: Map.get(attrs, :type, :event),
       importance: Map.get(attrs, :importance, 1),
@@ -119,15 +120,20 @@ defmodule Procession.Memory do
   def from_message(message) when is_map(message) do
     content = Map.get(message, :content, "")
 
-    %Entry{
-      new_entry(content, %{
-        type: Map.get(message, :type, :message),
-        importance: Map.get(message, :importance, 1),
-        timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
-        tags: Map.get(message, :tags, []),
-        metadata: Map.get(message, :metadata, %{})
-      })
-      | from: Map.get(message, :from)
+    attrs = %{
+      type: Map.get(message, :type, :message),
+      importance: Map.get(message, :importance, 1),
+      timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
+      tags: Map.get(message, :tags, []),
+      metadata: Map.get(message, :metadata, %{})
     }
+
+    attrs =
+      case Map.fetch(message, :id) do
+        {:ok, id} when not is_nil(id) -> Map.put(attrs, :id, id)
+        _ -> attrs
+      end
+
+    %Entry{new_entry(content, attrs) | from: Map.get(message, :from)}
   end
 end

@@ -7,6 +7,7 @@ defmodule Procession.Memory.Entry do
   """
 
   defstruct [
+    :id,
     :content,
     :type,
     :importance,

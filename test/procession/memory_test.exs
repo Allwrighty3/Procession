@@ -353,12 +353,14 @@ defmodule Procession.MemoryTest do
 
       entry =
         Memory.new_entry("Met Alice", %{
+          id: "override_metadata_test",
           type: :dialogue,
           importance: 3,
           timestamp: timestamp
         })
 
       assert entry == %Procession.Memory.Entry{
+               id: "override_metadata_test",
                content: "Met Alice",
                type: :dialogue,
                importance: 3,
@@ -374,6 +376,7 @@ defmodule Procession.MemoryTest do
       timestamp = ~U[2026-01-01 00:00:00Z]
 
       message = %{
+        id: "structured_memory_test",
         from: :player,
         type: :dialogue,
         content: "The blacksmith lost his hammer",
@@ -385,6 +388,7 @@ defmodule Procession.MemoryTest do
       entry = Memory.from_message(message)
 
       assert entry == %Procession.Memory.Entry{
+               id: "structured_memory_test",
                content: "The blacksmith lost his hammer",
                type: :dialogue,
                importance: 3,
@@ -515,6 +519,7 @@ defmodule Procession.MemoryTest do
     timestamp = DateTime.utc_now()
 
     message = %{
+      id: "creates_metadata_memory_test",
       from: :player,
       type: :dialogue,
       content: "The blacksmith lost his hammer",
@@ -529,6 +534,7 @@ defmodule Procession.MemoryTest do
     }
 
     assert Procession.Memory.from_message(message) == %Procession.Memory.Entry{
+             id: "creates_metadata_memory_test",
              content: "The blacksmith lost his hammer",
              type: :dialogue,
              importance: 3,
