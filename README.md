@@ -25,11 +25,11 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 #### Entity lifecycle
 
-- [ ] Add a public API for stopping/removing an entity.
-- [ ] Add tests for stopping an entity.
+- [x] Add a public API for stopping/removing an entity.
+- [x] Add tests for stopping an entity.
 - [ ] Decide what should happen if an entity is started with an ID that already exists.
 - [ ] Add tests for duplicate entity IDs.
-- [ ] Add a helper for checking whether an entity exists in the registry.
+- [x] Add a helper for checking whether an entity exists in the registry.
 
 #### Entity identity and lookup
 

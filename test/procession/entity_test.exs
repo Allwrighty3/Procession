@@ -287,4 +287,37 @@ defmodule Procession.EntityTest do
              "First memory"
            ]
   end
+
+  test "can check whether an entity exists" do
+    id = :exists_test_npc
+
+    refute Procession.EntitySupervisor.exists?(id)
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Exists Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    assert Procession.EntitySupervisor.exists?(id)
+  end
+
+  test "can stop an entity" do
+    id = :stop_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Stop Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    assert Procession.EntitySupervisor.exists?(id)
+    assert :ok = Procession.EntitySupervisor.stop_entity(id)
+
+    Process.sleep(20)
+
+    refute Procession.EntitySupervisor.exists?(id)
+  end
 end

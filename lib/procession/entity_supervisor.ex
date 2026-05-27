@@ -16,6 +16,20 @@ defmodule Procession.EntitySupervisor do
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
+  def exists?(id) do
+    case Registry.lookup(Procession.EntityRegistry, id) do
+      [{_pid, _value}] -> true
+      [] -> false
+    end
+  end
+
+  def stop_entity(id) do
+    case Registry.lookup(Procession.EntityRegistry, id) do
+      [{pid, _value}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
+      [] -> {:error, :not_found}
+    end
+  end
+
   @impl true
   def init(:ok) do
     DynamicSupervisor.init(strategy: :one_for_one)
