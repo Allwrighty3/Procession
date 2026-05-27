@@ -104,4 +104,38 @@ defmodule Procession.EntityTest do
   assert hd(state.short_memory).content == "Message 12"
   assert List.last(state.short_memory).content == "Message 3"
   end
+
+  test "overflowed short memories move into medium memory" do
+    id = :memory_promotion_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Memory Promotion Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    for n <- 1..12 do
+      Procession.Entity.send_message(id, %{
+        from: :player,
+        type: :dialogue,
+        content: "Message #{n}"
+      })
+    end
+
+    Process.sleep(20)
+
+    state = Procession.Entity.get_state(id)
+
+    assert length(state.short_memory) == 10
+    assert length(state.medium_memory) == 2
+
+    assert hd(state.short_memory).content == "Message 12"
+    assert List.last(state.short_memory).content == "Message 3"
+
+    assert Enum.map(state.medium_memory, & &1.content) == [
+      "Message 2",
+      "Message 1"
+    ]
+  end
 end
