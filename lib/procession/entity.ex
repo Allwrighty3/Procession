@@ -57,8 +57,7 @@ defmodule Procession.Entity do
   @impl true
   def handle_cast({:message, message}, state) do
     updated_memory =
-      [message | state.short_memory]
-      |> Enum.take(10)
+      Procession.Memory.remember_short(state.short_memory, message)
 
     {:noreply, %{state | short_memory: updated_memory}}
   end

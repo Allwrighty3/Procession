@@ -10,8 +10,7 @@ defmodule Procession.EntitySupervisor do
   def start_entity(id, attrs) do
     child_spec = {
       Entity,
-      id: id,
-      state: Map.put(attrs, :id, id)
+      id: id, state: Map.put(attrs, :id, id)
     }
 
     DynamicSupervisor.start_child(__MODULE__, child_spec)

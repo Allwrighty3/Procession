@@ -77,4 +77,31 @@ defmodule Procession.EntityTest do
              status: :walking
            }
   end
+
+  test "short memory keeps only the 10 most recent messages" do
+    id = :memory_limit_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Memory Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    for n <- 1..12 do
+      Procession.Entity.send_message(id, %{
+        from: :player,
+        type: :dialogue,
+        content: "Message #{n}"
+      })
+    end
+
+  Process.sleep(20)
+
+  state = Procession.Entity.get_state(id)
+
+  assert length(state.short_memory) == 10
+  assert hd(state.short_memory).content == "Message 12"
+  assert List.last(state.short_memory).content == "Message 3"
+  end
 end
