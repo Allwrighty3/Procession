@@ -229,12 +229,11 @@ defmodule Procession.EntityTest do
         location: :test_room
       })
 
-    Procession.Entity.send_message(id, (%{
-        from: :player,
-        type: :dialogue,
-        content: "The blacksmith lost his hammer"
-      })
-    )
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer"
+    })
 
     Procession.Entity.send_message(id, %{
       from: :player,

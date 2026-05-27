@@ -55,4 +55,13 @@ defmodule Procession.Memory do
       |> String.contains?(normalized_query)
     end)
   end
+
+  def new_entry(content, attrs \\ %{}) do
+    %{
+      content: content,
+      type: Map.get(attrs, :type, :event),
+      importance: Map.get(attrs, :importance, 1),
+      timestamp: Map.get(attrs, :timestamp, DateTime.utc_now())
+    }
+  end
 end

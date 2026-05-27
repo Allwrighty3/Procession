@@ -337,4 +337,33 @@ defmodule Procession.MemoryTest do
       assert Memory.search(memories, "dragon") == []
     end
   end
+
+  describe "new_entry/2" do
+    test "creates a memory entry with defaults" do
+      entry = Memory.new_entry("Saw a wolf")
+
+      assert entry.content == "Saw a wolf"
+      assert entry.type == :event
+      assert entry.importance == 1
+      assert %DateTime{} = entry.timestamp
+    end
+
+    test "allows overriding metadata" do
+      timestamp = ~U[2026-01-01 00:00:00Z]
+
+      entry =
+        Memory.new_entry("Met Alice", %{
+          type: :dialogue,
+          importance: 3,
+          timestamp: timestamp
+        })
+
+      assert entry == %{
+               content: "Met Alice",
+               type: :dialogue,
+               importance: 3,
+               timestamp: timestamp
+             }
+    end
+  end
 end
