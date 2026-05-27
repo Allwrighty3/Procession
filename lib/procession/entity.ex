@@ -71,6 +71,10 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), :recall_all)
   end
 
+  def memory_summary(id) do
+    GenServer.call(via_tuple(id), :memory_summary)
+  end
+
   def via_tuple(id) do
     {:via, Registry, {Procession.EntityRegistry, id}}
   end
@@ -148,6 +152,17 @@ defmodule Procession.Entity do
       |> Procession.Memory.search(query)
 
     {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call(:memory_summary, _from, state) do
+    summary = %{
+      short: length(state.short_memory),
+      medium: length(state.medium_memory),
+      long: length(state.long_memory)
+    }
+
+    {:reply, summary, state}
   end
 
   @impl true

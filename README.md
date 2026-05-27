@@ -55,8 +55,8 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 - [ ] Define a small message schema.
   - Example fields: `:from`, `:to`, `:type`, `:content`, `:importance`, `:timestamp`.
 - [ ] Add validation for incoming messages.
-- [ ] Decide what should happen when a message is sent to an entity that does not exist.
-- [ ] Add tests for failed message delivery.
+- [x] Decide what should happen when a message is sent to an entity that does not exist.
+- [x] Add tests for failed message delivery.
 - [ ] Add entity-to-entity interaction examples.
 
 #### Entity state
@@ -169,7 +169,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 #### Debugging and inspection
 
-- [ ] Add a simple way to inspect memory counts per entity.
+- [x] Add a simple way to inspect memory counts per entity.
   - Example: `%{short: 10, medium: 50, long: 200}`.
 - [ ] Add an entity API like `Entity.memory_summary(id)`.
 - [ ] Add tests for memory summary output.
@@ -183,7 +183,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 - [x] Entities can be started, stopped, looked up, and listed.
 - [x] Entities can send structured messages to each other.
-- [ ] Message delivery failure is handled predictably.
+- [x] Message delivery failure is handled predictably.
 - [ ] Entity state can be updated through clear public APIs.
 - [ ] Supervision behavior is tested.
 - [ ] Basic usage is documented in the README.

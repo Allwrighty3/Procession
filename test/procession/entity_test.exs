@@ -340,4 +340,29 @@ defmodule Procession.EntityTest do
 
     refute Procession.EntitySupervisor.exists?(id)
   end
+
+  test "entity can summarize memory counts" do
+    id = :memory_summary_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Memory Summary Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "Remember this."
+    })
+
+    Process.sleep(20)
+
+    assert Procession.Entity.memory_summary(id) == %{
+             short: 1,
+             medium: 0,
+             long: 0
+           }
+  end
 end
