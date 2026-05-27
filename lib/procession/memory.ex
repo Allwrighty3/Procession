@@ -7,6 +7,8 @@ defmodule Procession.Memory do
   ordering, and keyword search.
   """
 
+  alias Procession.Memory.Entry
+
   def remember_short(short_memory, message, limit \\ 10) do
     [message | short_memory]
     |> Enum.take(limit)
@@ -87,7 +89,7 @@ defmodule Procession.Memory do
   end
 
   def new_entry(content, attrs \\ %{}) do
-    %{
+    %Entry{
       content: content,
       type: Map.get(attrs, :type, :event),
       importance: Map.get(attrs, :importance, 1),
@@ -117,13 +119,15 @@ defmodule Procession.Memory do
   def from_message(message) when is_map(message) do
     content = Map.get(message, :content, "")
 
-    new_entry(content, %{
-      type: Map.get(message, :type, :message),
-      importance: Map.get(message, :importance, 1),
-      timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
-      tags: Map.get(message, :tags, []),
-      metadata: Map.get(message, :metadata, %{})
-    })
-    |> Map.put(:from, Map.get(message, :from))
+    %Entry{
+      new_entry(content, %{
+        type: Map.get(message, :type, :message),
+        importance: Map.get(message, :importance, 1),
+        timestamp: Map.get(message, :timestamp, DateTime.utc_now()),
+        tags: Map.get(message, :tags, []),
+        metadata: Map.get(message, :metadata, %{})
+      })
+      | from: Map.get(message, :from)
+    }
   end
 end

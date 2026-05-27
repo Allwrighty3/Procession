@@ -136,9 +136,8 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [ ] Decide whether memory entries should include an ID.
 - [x] Add optional metadata fields.
   - Example: `:source`, `:tags`, `:location`, `:related_entities`.
-- [ ] Add tests for memory entries with metadata.
-- [ ] Decide whether memories should remain plain maps or become a struct.
-  - Current implementation uses plain maps.
+- [x] Add tests for memory entries with metadata.
+- [x] Decide whether memories should remain plain maps or become a struct.
 
 #### Memory promotion
 

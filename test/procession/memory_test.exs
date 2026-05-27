@@ -358,7 +358,7 @@ defmodule Procession.MemoryTest do
           timestamp: timestamp
         })
 
-      assert entry == %{
+      assert entry == %Procession.Memory.Entry{
                content: "Met Alice",
                type: :dialogue,
                importance: 3,
@@ -384,7 +384,7 @@ defmodule Procession.MemoryTest do
 
       entry = Memory.from_message(message)
 
-      assert entry == %{
+      assert entry == %Procession.Memory.Entry{
                content: "The blacksmith lost his hammer",
                type: :dialogue,
                importance: 3,
@@ -528,7 +528,7 @@ defmodule Procession.MemoryTest do
       }
     }
 
-    assert Procession.Memory.from_message(message) == %{
+    assert Procession.Memory.from_message(message) == %Procession.Memory.Entry{
              content: "The blacksmith lost his hammer",
              type: :dialogue,
              importance: 3,
@@ -563,5 +563,17 @@ defmodule Procession.MemoryTest do
     assert Procession.Memory.filter_by_metadata(memories, :related_entities, :blacksmith) == [
              %{content: "Blacksmith quest", metadata: %{related_entities: [:blacksmith, :player]}}
            ]
+  end
+
+  test "creates memory entries as structs" do
+    entry = Procession.Memory.new_entry("Met Alice")
+
+    assert %Procession.Memory.Entry{} = entry
+    assert entry.content == "Met Alice"
+    assert entry.type == :event
+    assert entry.importance == 1
+    assert entry.tags == []
+    assert entry.metadata == %{}
+    assert %DateTime{} = entry.timestamp
   end
 end
