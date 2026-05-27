@@ -7,6 +7,12 @@ defmodule Procession.EntitySupervisor do
     DynamicSupervisor.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
+  @doc """
+  Starts a new entity process registered by its ID.
+
+  If an entity with the same ID already exists, startup fails with
+  `{:error, {:already_started, pid}}` and the existing entity is left unchanged.
+  """
   def start_entity(id, attrs) do
     child_spec = {
       Entity,
