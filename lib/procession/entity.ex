@@ -53,6 +53,14 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), {:recall, query})
   end
 
+  def recall_all(id) do
+    GenServer.call(via_tuple(id), :recall_all)
+  end
+
+  def via_tuple(id) do
+    {:via, Registry, {Procession.EntityRegistry, id}}
+  end
+
   @impl true
   def init(state) do
     {:ok, struct(__MODULE__, state)}
@@ -128,7 +136,8 @@ defmodule Procession.Entity do
     {:reply, memories, state}
   end
 
-  def via_tuple(id) do
-    {:via, Registry, {Procession.EntityRegistry, id}}
+  @impl true
+  def handle_call(:recall_all, _from, state) do
+    {:reply, Procession.Memory.flatten(state), state}
   end
 end

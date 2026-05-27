@@ -255,4 +255,36 @@ defmodule Procession.EntityTest do
 
     assert %DateTime{} = timestamp
   end
+
+  test "entity can recall all memories in priority order" do
+    id = :recall_all_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall All Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "First memory"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "Second memory"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_all(id)
+
+    assert Enum.map(memories, & &1.content) == [
+             "Second memory",
+             "First memory"
+           ]
+  end
 end
