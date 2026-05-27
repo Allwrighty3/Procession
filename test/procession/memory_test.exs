@@ -289,4 +289,20 @@ defmodule Procession.MemoryTest do
              ]
     end
   end
+
+  describe "flatten/1" do
+    test "combines short, medium, and long memory in priority order" do
+      entity = %{
+        short_memory: [%{content: "short"}],
+        medium_memory: [%{content: "medium"}],
+        long_memory: [%{content: "long"}]
+      }
+
+      assert Memory.flatten(entity) == [
+               %{content: "short"},
+               %{content: "medium"},
+               %{content: "long"}
+             ]
+    end
+  end
 end

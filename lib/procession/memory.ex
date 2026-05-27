@@ -39,4 +39,8 @@ defmodule Procession.Memory do
     [message | long_memory]
     |> Enum.take(limit)
   end
+
+  def flatten(state) do
+    state.short_memory ++ state.medium_memory ++ state.long_memory
+  end
 end
