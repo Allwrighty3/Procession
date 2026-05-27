@@ -156,12 +156,12 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [ ] Improve keyword search beyond basic substring matching.
 - [ ] Add search across memory metadata.
   - Example: search by type, source, sender, tags, or location.
-- [ ] Add tests for searching by memory type.
-- [ ] Add tests for searching by sender.
+- [x] Add tests for searching by memory type.
+- [x] Add tests for searching by sender.
 - [ ] Add tests for searching by tag.
-- [ ] Add a `recall_recent/2` helper.
-- [ ] Add a `recall_important/2` helper.
-- [ ] Add a `recall_by_type/2` helper.
+- [x] Add a `recall_recent/2` helper.
+- [x] Add a `recall_important/2` helper.
+- [x] Add a `recall_by_type/2` helper.
 
 #### Entity memory API
 
@@ -172,7 +172,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
   - Example: `Entity.recall_recent(id, count)`.
   - Example: `Entity.recall_by_type(id, :dialogue)`.
   - Example: `Entity.recall_important(id, minimum_importance)`.
-- [ ] Add tests for each entity recall helper.
+- [x] Add tests for each entity recall helper.
 - [ ] Decide whether `recall_all/1` should return all memories forever or require a limit.
 
 #### Memory ordering

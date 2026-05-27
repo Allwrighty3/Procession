@@ -414,4 +414,56 @@ defmodule Procession.MemoryTest do
       assert %DateTime{} = entry.timestamp
     end
   end
+
+  test "filters memories by type" do
+    memories = [
+      %{type: :dialogue, content: "Hello"},
+      %{type: :event, content: "A bell rings"},
+      %{type: :dialogue, content: "Goodbye"}
+    ]
+
+    assert Procession.Memory.filter_by_type(memories, :dialogue) == [
+             %{type: :dialogue, content: "Hello"},
+             %{type: :dialogue, content: "Goodbye"}
+           ]
+  end
+
+  test "returns recent memories" do
+    memories = [
+      %{content: "Third memory"},
+      %{content: "Second memory"},
+      %{content: "First memory"}
+    ]
+
+    assert Procession.Memory.recent(memories, 2) == [
+             %{content: "Third memory"},
+             %{content: "Second memory"}
+           ]
+  end
+
+  test "filters important memories" do
+    memories = [
+      %{content: "Low", importance: 1},
+      %{content: "Medium", importance: 3},
+      %{content: "High", importance: 5}
+    ]
+
+    assert Procession.Memory.important(memories, 3) == [
+             %{content: "Medium", importance: 3},
+             %{content: "High", importance: 5}
+           ]
+  end
+
+  test "filters memories by sender" do
+    memories = [
+      %{from: :player, content: "Hello"},
+      %{from: :system, content: "A storm begins"},
+      %{from: :player, content: "Goodbye"}
+    ]
+
+    assert Procession.Memory.filter_by_sender(memories, :player) == [
+             %{from: :player, content: "Hello"},
+             %{from: :player, content: "Goodbye"}
+           ]
+  end
 end
