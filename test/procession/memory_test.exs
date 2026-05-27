@@ -3,6 +3,59 @@ defmodule Procession.MemoryTest do
 
   alias Procession.Memory
 
+  describe "remember_medium/3" do
+    test "adds newest memory to the front" do
+      existing_memory = [
+        %{content: "Old message"}
+      ]
+
+      new_message = %{content: "New message"}
+
+      result = Memory.remember_medium(existing_memory, new_message)
+
+      assert result == [
+        %{content: "New message"},
+        %{content: "Old message"}
+      ]
+    end
+
+    test "keeps only the default 50 most recent memories" do
+      existing_memory =
+        for n <- 1..50 do
+        %{content: "Message #{n}"}
+        end
+
+      new_message = %{content: "Message 51"}
+
+      result = Memory.remember_medium(existing_memory, new_message)
+
+      assert length(result) == 50
+      assert hd(result).content == "Message 51"
+      assert List.last(result).content == "Message 49"
+    end
+
+    test "supports a custom memory limit" do
+      result =
+        []
+        |> Memory.remember_medium(%{content: "One"}, 2)
+        |> Memory.remember_medium(%{content: "Two"}, 2)
+        |> Memory.remember_medium(%{content: "Three"}, 2)
+
+      assert result == [
+        %{content: "Three"},
+        %{content: "Two"}
+      ]
+    end
+
+    test "allows an empty starting memory list" do
+      result = Memory.remember_medium([], %{content: "First memory"})
+
+      assert result == [
+        %{content: "First memory"}
+      ]
+    end
+  end
+
   describe "remember_short/3" do
     test "adds newest memory to the front" do
       existing_memory = [

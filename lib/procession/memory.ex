@@ -20,4 +20,9 @@ defmodule Procession.Memory do
       Enum.drop(updated, limit)
     }
   end
+
+  def remember_medium(medium_memory, message, limit \\ 50) do
+    [message | medium_memory]
+    |> Enum.take(limit)
+  end
 end
