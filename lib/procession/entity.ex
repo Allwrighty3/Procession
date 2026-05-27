@@ -25,12 +25,16 @@ defmodule Procession.Entity do
   end
 
   def send_to(from_id, to_id, message) do
-    full_message =
-      message
-      |> Map.put(:from, from_id)
-      |> Map.put_new(:type, :message)
+    if Procession.EntitySupervisor.exists?(to_id) do
+      full_message =
+        message
+        |> Map.put(:from, from_id)
+        |> Map.put_new(:type, :message)
 
-    send_message(to_id, full_message)
+      send_message(to_id, full_message)
+    else
+      {:error, :entity_not_found}
+    end
   end
 
   def get_state(id) do

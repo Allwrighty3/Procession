@@ -56,6 +56,26 @@ defmodule Procession.EntityTest do
            ] = alice_state.short_memory
   end
 
+  test "sending a message to a missing entity returns an error" do
+    result =
+      Procession.Entity.send_to(:sender_test_npc, :missing_receiver_test_npc, %{
+        content: "Hello?"
+      })
+
+    assert result == {:error, :entity_not_found}
+  end
+
+  test "failed message delivery does not create an entity" do
+    refute Procession.EntitySupervisor.exists?(:_missing_receiver_side_effect_test)
+
+    assert {:error, :entity_not_found} =
+             Procession.Entity.send_to(:sender_test_npc, :missing_receiver_side_effect_test, %{
+               content: "Hello?"
+             })
+
+    refute Procession.EntitySupervisor.exists?(:missing_receiver_side_effect_test)
+  end
+
   test "entity can update status and location" do
     {:ok, _pid} =
       Procession.EntitySupervisor.start_entity(:movement_test_npc, %{
