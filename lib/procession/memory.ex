@@ -56,6 +56,22 @@ defmodule Procession.Memory do
     end)
   end
 
+  def filter_by_type(memories, type) do
+    Enum.filter(memories, fn memory ->
+      Map.get(memory, :type) == type
+    end)
+  end
+
+  def recent(memories, count) do
+    Enum.take(memories, count)
+  end
+
+  def important(memories, minimum_importance) do
+    Enum.filter(memories, fn memory ->
+      Map.get(memory, :importance, 1) >= minimum_importance
+    end)
+  end
+
   def new_entry(content, attrs \\ %{}) do
     %{
       content: content,

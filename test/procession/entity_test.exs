@@ -276,6 +276,124 @@ defmodule Procession.EntityTest do
     assert %DateTime{} = timestamp
   end
 
+  test "entity can recall memories by type" do
+    id = :recall_by_type_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall by Type Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The blacksmith lost his hammer"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      content: "A storm begins over the village"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_by_type(id, :dialogue)
+
+    assert Enum.map(memories, & &1.content) == [
+             "The blacksmith lost his hammer"
+           ]
+
+    assert Enum.all?(memories, fn memory ->
+             memory.type == :dialogue
+           end)
+  end
+
+  test "entity can recall important memories" do
+    id = :recall_important_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall Important Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      importance: 1,
+      content: "A casual greeting"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      importance: 5,
+      content: "The village is under attack"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      importance: 3,
+      content: "The blacksmith knows a secret"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_important(id, 3)
+
+    assert Enum.map(memories, & &1.content) == [
+             "The blacksmith knows a secret",
+             "The village is under attack"
+           ]
+
+    assert Enum.all?(memories, fn memory ->
+             memory.importance >= 3
+           end)
+  end
+
+  test "entity can recall recent memories" do
+    id = :recall_recent_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall Recent Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "First memory"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :dialogue,
+      content: "Second memory"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :dialogue,
+      content: "Third memory"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_recent(id, 2)
+
+    assert Enum.map(memories, & &1.content) == [
+             "Third memory",
+             "Second memory"
+           ]
+  end
+
   test "entity can recall all memories in priority order" do
     id = :recall_all_test_npc
 

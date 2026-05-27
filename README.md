@@ -168,7 +168,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Add basic entity-facing recall APIs.
   - Implemented: `Entity.recall/2`
   - Implemented: `Entity.recall_all/1`
-- [ ] Add targeted entity-facing recall APIs.
+- [x] Add targeted entity-facing recall APIs.
   - Example: `Entity.recall_recent(id, count)`.
   - Example: `Entity.recall_by_type(id, :dialogue)`.
   - Example: `Entity.recall_important(id, minimum_importance)`.

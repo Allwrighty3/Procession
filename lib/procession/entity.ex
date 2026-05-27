@@ -71,6 +71,18 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), :recall_all)
   end
 
+  def recall_by_type(id, type) do
+    GenServer.call(via_tuple(id), {:recall_by_type, type})
+  end
+
+  def recall_recent(id, count) do
+    GenServer.call(via_tuple(id), {:recall_recent, count})
+  end
+
+  def recall_important(id, minimum_importance) do
+    GenServer.call(via_tuple(id), {:recall_important, minimum_importance})
+  end
+
   def memory_summary(id) do
     GenServer.call(via_tuple(id), :memory_summary)
   end
@@ -168,5 +180,35 @@ defmodule Procession.Entity do
   @impl true
   def handle_call(:recall_all, _from, state) do
     {:reply, Procession.Memory.flatten(state), state}
+  end
+
+  @impl true
+  def handle_call({:recall_by_type, type}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.Memory.filter_by_type(type)
+
+    {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call({:recall_recent, count}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.Memory.recent(count)
+
+    {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call({:recall_important, minimum_importance}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.Memory.important(minimum_importance)
+
+    {:reply, memories, state}
   end
 end
