@@ -164,4 +164,31 @@ defmodule Procession.EntityTest do
     assert length(state.short_memory) == 10
     assert length(state.medium_memory) == 50
   end
+
+  test "medium memory overflow moves into long memory" do
+    id = :long_memory_promotion_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Long Memory Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    for n <- 1..65 do
+      Procession.Entity.send_message(id, %{
+        from: :player,
+        type: :dialogue,
+        content: "Message #{n}"
+      })
+    end
+
+    Process.sleep(50)
+
+    state = Procession.Entity.get_state(id)
+
+    assert length(state.short_memory) == 10
+    assert length(state.medium_memory) == 50
+    assert length(state.long_memory) == 5
+  end
 end

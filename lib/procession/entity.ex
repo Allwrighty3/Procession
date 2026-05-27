@@ -56,16 +56,30 @@ defmodule Procession.Entity do
 
   @impl true
   def handle_cast({:message, message}, state) do
-    {updated_short_memory, overflowed_memories} =
+    {updated_short_memory, short_overflow} =
       Procession.Memory.remember_short_with_overflow(state.short_memory, message)
 
-    updated_medium_memory =
-      Enum.reduce(overflowed_memories, state.medium_memory, fn overflowed_memory, medium_memory ->
-        Procession.Memory.remember_medium(medium_memory, overflowed_memory)
+    {updated_medium_memory, medium_overflow} =
+      Enum.reduce(short_overflow, {state.medium_memory, []}, fn memory,
+                                                                {medium_memory, all_overflow} ->
+        {updated_medium, overflow} =
+          Procession.Memory.remember_medium_with_overflow(medium_memory, memory)
+
+        {updated_medium, all_overflow ++ overflow}
+      end)
+
+    updated_long_memory =
+      Enum.reduce(medium_overflow, state.long_memory, fn memory, long_memory ->
+        Procession.Memory.remember_long(long_memory, memory)
       end)
 
     {:noreply,
-     %{state | short_memory: updated_short_memory, medium_memory: updated_medium_memory}}
+     %{
+       state
+       | short_memory: updated_short_memory,
+         medium_memory: updated_medium_memory,
+         long_memory: updated_long_memory
+     }}
   end
 
   @impl true
