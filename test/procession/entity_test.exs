@@ -191,4 +191,31 @@ defmodule Procession.EntityTest do
     assert length(state.medium_memory) == 50
     assert length(state.long_memory) == 5
   end
+
+  test "long memory keeps only the 200 most recent promoted memories" do
+    id = :long_memory_limit_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Long Memory Limit Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    for n <- 1..265 do
+      Procession.Entity.send_message(id, %{
+        from: :player,
+        type: :dialogue,
+        content: "Message #{n}"
+      })
+    end
+
+    Process.sleep(100)
+
+    state = Procession.Entity.get_state(id)
+
+    assert length(state.short_memory) == 10
+    assert length(state.medium_memory) == 50
+    assert length(state.long_memory) == 200
+  end
 end
