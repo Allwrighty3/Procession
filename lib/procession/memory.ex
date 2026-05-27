@@ -72,6 +72,12 @@ defmodule Procession.Memory do
     end)
   end
 
+  def filter_by_sender(memories, sender) do
+    Enum.filter(memories, fn memory ->
+      Map.get(memory, :from) == sender
+    end)
+  end
+
   def new_entry(content, attrs \\ %{}) do
     %{
       content: content,

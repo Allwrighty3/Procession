@@ -483,4 +483,39 @@ defmodule Procession.EntityTest do
              long: 0
            }
   end
+
+  test "entity can recall memories by sender" do
+    id = :recall_by_sender_test_npc
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_entity(id, %{
+        name: "Recall By Sender Tester",
+        type: :npc,
+        location: :test_room
+      })
+
+    Procession.Entity.send_message(id, %{
+      from: :player,
+      type: :dialogue,
+      content: "The player said hello"
+    })
+
+    Procession.Entity.send_message(id, %{
+      from: :system,
+      type: :event,
+      content: "A storm begins"
+    })
+
+    Process.sleep(20)
+
+    memories = Procession.Entity.recall_by_sender(id, :player)
+
+    assert Enum.map(memories, & &1.content) == [
+             "The player said hello"
+           ]
+
+    assert Enum.all?(memories, fn memory ->
+             memory.from == :player
+           end)
+  end
 end
