@@ -14,15 +14,15 @@ defmodule Procession.MemoryTest do
       result = Memory.remember_medium(existing_memory, new_message)
 
       assert result == [
-        %{content: "New message"},
-        %{content: "Old message"}
-      ]
+               %{content: "New message"},
+               %{content: "Old message"}
+             ]
     end
 
     test "keeps only the default 50 most recent memories" do
       existing_memory =
         for n <- 1..50 do
-        %{content: "Message #{n}"}
+          %{content: "Message #{n}"}
         end
 
       new_message = %{content: "Message 51"}
@@ -42,17 +42,17 @@ defmodule Procession.MemoryTest do
         |> Memory.remember_medium(%{content: "Three"}, 2)
 
       assert result == [
-        %{content: "Three"},
-        %{content: "Two"}
-      ]
+               %{content: "Three"},
+               %{content: "Two"}
+             ]
     end
 
     test "allows an empty starting memory list" do
       result = Memory.remember_medium([], %{content: "First memory"})
 
       assert result == [
-        %{content: "First memory"}
-      ]
+               %{content: "First memory"}
+             ]
     end
   end
 
@@ -67,15 +67,15 @@ defmodule Procession.MemoryTest do
       result = Memory.remember_short(existing_memory, new_message)
 
       assert result == [
-        %{content: "New message"},
-        %{content: "Old message"}
-      ]
+               %{content: "New message"},
+               %{content: "Old message"}
+             ]
     end
 
     test "keeps only the default 10 most recent memories" do
       existing_memory =
         for n <- 1..10 do
-        %{content: "Message #{n}"}
+          %{content: "Message #{n}"}
         end
 
       new_message = %{content: "Message 11"}
@@ -95,17 +95,17 @@ defmodule Procession.MemoryTest do
         |> Memory.remember_short(%{content: "Three"}, 2)
 
       assert result == [
-        %{content: "Three"},
-        %{content: "Two"}
-      ]
+               %{content: "Three"},
+               %{content: "Two"}
+             ]
     end
 
     test "allows an empty starting memory list" do
       result = Memory.remember_short([], %{content: "First memory"})
 
       assert result == [
-        %{content: "First memory"}
-      ]
+               %{content: "First memory"}
+             ]
     end
   end
 
@@ -119,9 +119,9 @@ defmodule Procession.MemoryTest do
         )
 
       assert short_memory == [
-        %{content: "New"},
-        %{content: "Old"}
-      ]
+               %{content: "New"},
+               %{content: "Old"}
+             ]
 
       assert overflow == []
     end
@@ -141,14 +141,14 @@ defmodule Procession.MemoryTest do
         )
 
       assert short_memory == [
-        %{content: "Message 4"},
-        %{content: "Message 1"},
-        %{content: "Message 2"}
-      ]
+               %{content: "Message 4"},
+               %{content: "Message 1"},
+               %{content: "Message 2"}
+             ]
 
       assert overflow == [
-        %{content: "Message 3"}
-      ]
+               %{content: "Message 3"}
+             ]
     end
 
     test "supports custom limits" do
@@ -163,13 +163,13 @@ defmodule Procession.MemoryTest do
         )
 
       assert short_memory == [
-        %{content: "Three"},
-        %{content: "Two"}
-      ]
+               %{content: "Three"},
+               %{content: "Two"}
+             ]
 
       assert overflow == [
-        %{content: "One"}
-      ]
+               %{content: "One"}
+             ]
     end
   end
 end

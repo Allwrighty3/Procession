@@ -59,14 +59,10 @@ defmodule Procession.Entity do
     {updated_short_memory, overflowed_memories} =
       Procession.Memory.remember_short_with_overflow(state.short_memory, message)
 
-    updated_medium_memory =
-      overflowed_memories ++ state.medium_memory
+    updated_medium_memory = overflowed_memories ++ state.medium_memory
 
     {:noreply,
-      %{state |
-        short_memory: updated_short_memory,
-        medium_memory: updated_medium_memory
-      }}
+     %{state | short_memory: updated_short_memory, medium_memory: updated_medium_memory}}
   end
 
   @impl true

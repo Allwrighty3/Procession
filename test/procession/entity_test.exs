@@ -96,13 +96,13 @@ defmodule Procession.EntityTest do
       })
     end
 
-  Process.sleep(20)
+    Process.sleep(20)
 
-  state = Procession.Entity.get_state(id)
+    state = Procession.Entity.get_state(id)
 
-  assert length(state.short_memory) == 10
-  assert hd(state.short_memory).content == "Message 12"
-  assert List.last(state.short_memory).content == "Message 3"
+    assert length(state.short_memory) == 10
+    assert hd(state.short_memory).content == "Message 12"
+    assert List.last(state.short_memory).content == "Message 3"
   end
 
   test "overflowed short memories move into medium memory" do
@@ -134,8 +134,8 @@ defmodule Procession.EntityTest do
     assert List.last(state.short_memory).content == "Message 3"
 
     assert Enum.map(state.medium_memory, & &1.content) == [
-      "Message 2",
-      "Message 1"
-    ]
+             "Message 2",
+             "Message 1"
+           ]
   end
 end
