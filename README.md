@@ -19,37 +19,78 @@ Procession currently has a tested Phase 1/Phase 2 foundation:
 
 ## IEx Examples
 
-Start an entity:
+Start the app in an interactive shell:
+
+```bash
+iex -S mix
+```
+
+Create a location with a generated string ID:
 
 ```elixir
-{:ok, _pid} =
-  Procession.EntitySupervisor.start_entity(:alice, %{
-    name: "Alice",
-    type: :npc,
-    location: :village_square
+{:ok, village_id, _pid} =
+  Procession.EntitySupervisor.create_location(%{
+    name: "Village Square"
   })
 ```
 
-Send the entity a memory-producing message:
+Create an NPC with a generated string ID:
 
 ```elixir
-Procession.Entity.send_message(:alice, %{
-  from: :player,
+{:ok, alice_id, _pid} =
+  Procession.EntitySupervisor.create_npc(%{
+    name: "Alice",
+    location: village_id
+  })
+```
+
+Start another NPC with an explicit string ID:
+
+```elixir
+{:ok, _pid} =
+  Procession.EntitySupervisor.start_npc("npc_bob", %{
+    name: "Bob",
+    location: village_id
+  })
+```
+
+Send a message from one entity to another:
+
+```elixir
+Procession.Entity.send_to(alice_id, "npc_bob", %{
   type: :dialogue,
-  content: "The blacksmith lost his hammer."
+  content: "The blacksmith lost his hammer.",
+  importance: 3,
+  tags: [:quest, :blacksmith],
+  metadata: %{
+    location: village_id,
+    related_entities: ["npc_bob"]
+  }
 })
 ```
 
 Recall memories by keyword:
 
 ```elixir
-Procession.Entity.recall(:alice, "hammer")
+Procession.Entity.recall("npc_bob", "hammer")
+```
+
+Recall memories by tag:
+
+```elixir
+Procession.Entity.recall_by_tag("npc_bob", :quest)
+```
+
+Recall memories by metadata:
+
+```elixir
+Procession.Entity.recall_by_metadata("npc_bob", :location, village_id)
 ```
 
 Inspect memory counts:
 
 ```elixir
-Procession.Entity.memory_summary(:alice)
+Procession.Entity.memory_summary("npc_bob")
 # %{short: 1, medium: 0, long: 0}
 ```
 
@@ -120,8 +161,8 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 - [x] Add convenience functions for spawning common entity types.
   - Example: `start_npc/2`, `start_location/2`, `start_faction/2`.
-- [ ] Add documentation examples for starting entities and sending messages.
-- [ ] Add basic `iex` usage examples to the README.
+- [x] Add documentation examples for starting entities and sending messages.
+- [x] Add basic `iex` usage examples to the README.
 
 ---
 
