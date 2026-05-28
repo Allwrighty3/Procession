@@ -294,21 +294,21 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 #### AI boundary
 
-- [ ] Add a small `Procession.AI` module as the public boundary for AI requests.
-- [ ] Define a simple request function.
+- [x] Add a small `Procession.AI` module as the public boundary for AI requests.
+- [x] Define a simple request function.
   - Example: `Procession.AI.generate(prompt, opts \\ [])`
-- [ ] Standardize return values.
+- [x] Standardize return values.
   - Example: `{:ok, response_text}` or `{:error, reason}`
-- [ ] Keep the AI boundary separate from entity and memory modules.
-- [ ] Add tests for the public AI API using a deterministic fake adapter.
+- [x] Keep the AI boundary separate from entity and memory modules.
+- [x] Add tests for the public AI API using a deterministic fake adapter.
 
 #### Adapter design
 
-- [ ] Define a simple adapter behavior for AI backends.
+- [x] Define a simple adapter behavior for AI backends.
   - Example: `generate(prompt, opts)`.
-- [ ] Add a fake adapter for tests and development.
+- [x] Add a fake adapter for tests and development.
 - [ ] Add an Ollama adapter only after the fake adapter works.
-- [ ] Keep adapter selection simple.
+- [x] Keep adapter selection simple.
   - Example: pass adapter through opts first.
   - Defer application config until needed.
 - [ ] Avoid adding a supervised AI process unless there is a clear need.
