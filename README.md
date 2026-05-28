@@ -443,16 +443,16 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
   - Example: Ollama not running.
   - Example: model not installed.
 - [x] Add tests that do not require Ollama to be running.
-- [ ] Add optional/manual test instructions for testing against a real local Ollama server.
+- [x] Add optional/manual test instructions for testing against a real local Ollama server.
 
 #### Prompt structure
 
-- [ ] Define a small prompt-building helper.
-- [ ] Start with plain strings before introducing complex prompt structs.
-- [ ] Add a basic system/context convention.
+- [x] Define a small prompt-building helper.
+- [x] Start with plain strings before introducing complex prompt structs.
+- [x] Add a basic system/context convention.
   - Example: world context, entity state, relevant memories, player input.
-- [ ] Keep prompts request-based.
-- [ ] Do not create persistent chat threads per entity.
+- [x] Keep prompts request-based.
+- [x] Do not create persistent chat threads per entity.
 
 #### Entity integration preparation
 
