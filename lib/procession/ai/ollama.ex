@@ -3,7 +3,7 @@ defmodule Procession.AI.Ollama do
   Minimal Ollama adapter for local text generation.
 
   This adapter calls a locally running Ollama server using Erlang's built-in
-  :hhtpc client. It intentionally supports only simple, non-streaming text
+  :httpc client. It intentionally supports only simple, non-streaming text
   generation for the first Phase 3 slice.
   """
 
@@ -72,15 +72,15 @@ defmodule Procession.AI.Ollama do
   end
 
   defp extract_response_value(body) do
-    # Minimal Json extraction for the first slice.
+    # Minimal JSON extraction for the first slice.
     #
-    # This intentionally avoids adding a JSON dependecy yet. It expects the
+    # This intentionally avoids adding a JSON dependency yet. It expects the
     # non-streaming Ollama response shape to contain:
     #
     #   "response": "generated text"
     #
     # If this gets annoying, the next sensible improvement is adding Jason.
-    case Regex.run(~r/"response"\s*:\s*"((?:[^"\\"]|\\.)*)"/, body) do
+    case Regex.run(~r/"response"\s*:\s*"((?:[^"\\]|\\.)*)"/, body) do
       [_, value] -> unescape_json_string(value)
       _ -> nil
     end

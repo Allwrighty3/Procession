@@ -17,7 +17,7 @@ defmodule Procession.AI.OllamaTest do
              )
   end
 
-  test "generate can be use through the public AI boundary" do
+  test "generate can be used through the public AI boundary" do
     fake_http_client = fn :post, _request, _http_opts, _opts ->
       {:ok,
        {

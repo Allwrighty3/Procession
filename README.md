@@ -307,22 +307,22 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 - [x] Define a simple adapter behavior for AI backends.
   - Example: `generate(prompt, opts)`.
 - [x] Add a fake adapter for tests and development.
-- [ ] Add an Ollama adapter only after the fake adapter works.
+- [x] Add an Ollama adapter only after the fake adapter works.
 - [x] Keep adapter selection simple.
   - Example: pass adapter through opts first.
   - Defer application config until needed.
-- [ ] Avoid adding a supervised AI process unless there is a clear need.
+- [x] Avoid adding a supervised AI process unless there is a clear need.
 
 #### Ollama integration
 
-- [ ] Decide the first local model to target.
+- [x] Decide the first local model to target.
   - Example: `llama3.2`, `mistral`, or another small local model.
-- [ ] Add a minimal Ollama client that calls the local HTTP API.
-- [ ] Support only the simplest text generation request first.
-- [ ] Handle basic connection failures.
+- [x] Add a minimal Ollama client that calls the local HTTP API.
+- [x] Support only the simplest text generation request first.
+- [x] Handle basic connection failures.
   - Example: Ollama not running.
   - Example: model not installed.
-- [ ] Add tests that do not require Ollama to be running.
+- [x] Add tests that do not require Ollama to be running.
 - [ ] Add optional/manual test instructions for testing against a real local Ollama server.
 
 #### Prompt structure
