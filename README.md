@@ -288,7 +288,94 @@ Phase 2 is complete by the criteria below. The remaining items here are backlog/
 
 ---
 
-## Phase 1 and Phase 2 Completion Criteria
+### Phase 3: Local AI Integration with Ollama
+
+Phase 3 should add a small, local AI boundary before any entity directly depends on an LLM. The goal is to make AI calls possible, testable, replaceable, and fully local.
+
+#### AI boundary
+
+- [ ] Add a small `Procession.AI` module as the public boundary for AI requests.
+- [ ] Define a simple request function.
+  - Example: `Procession.AI.generate(prompt, opts \\ [])`
+- [ ] Standardize return values.
+  - Example: `{:ok, response_text}` or `{:error, reason}`
+- [ ] Keep the AI boundary separate from entity and memory modules.
+- [ ] Add tests for the public AI API using a deterministic fake adapter.
+
+#### Adapter design
+
+- [ ] Define a simple adapter behavior for AI backends.
+  - Example: `generate(prompt, opts)`.
+- [ ] Add a fake adapter for tests and development.
+- [ ] Add an Ollama adapter only after the fake adapter works.
+- [ ] Keep adapter selection simple.
+  - Example: pass adapter through opts first.
+  - Defer application config until needed.
+- [ ] Avoid adding a supervised AI process unless there is a clear need.
+
+#### Ollama integration
+
+- [ ] Decide the first local model to target.
+  - Example: `llama3.2`, `mistral`, or another small local model.
+- [ ] Add a minimal Ollama client that calls the local HTTP API.
+- [ ] Support only the simplest text generation request first.
+- [ ] Handle basic connection failures.
+  - Example: Ollama not running.
+  - Example: model not installed.
+- [ ] Add tests that do not require Ollama to be running.
+- [ ] Add optional/manual test instructions for testing against a real local Ollama server.
+
+#### Prompt structure
+
+- [ ] Define a small prompt-building helper.
+- [ ] Start with plain strings before introducing complex prompt structs.
+- [ ] Add a basic system/context convention.
+  - Example: world context, entity state, relevant memories, player input.
+- [ ] Keep prompts request-based.
+- [ ] Do not create persistent chat threads per entity.
+
+#### Entity integration preparation
+
+- [ ] Decide the first entity AI use case.
+  - Example: generate a short NPC response.
+- [ ] Add an explicit entity-facing function only after the AI boundary works.
+  - Example: `Entity.generate_response(id, player_message)`.
+- [ ] Include only structured entity state and selected memories in the request.
+- [ ] Keep AI output as data returned to the caller first.
+- [ ] Do not automatically mutate entity state from AI output in the first version.
+- [ ] Add tests proving entity AI integration can be exercised with the fake adapter.
+
+#### Memory integration preparation
+
+- [ ] Decide how many memories should be included in an AI request.
+  - Example: recent 5 plus important memories.
+- [ ] Add a helper for selecting AI-relevant memories.
+- [ ] Keep memory selection deterministic before using AI summarization.
+- [ ] Defer LLM-generated memory summaries until basic generation works.
+- [ ] Add tests for memory selection before connecting it to Ollama.
+
+#### Developer ergonomics
+
+- [ ] Add README examples for calling the AI boundary from IEx.
+- [ ] Add README instructions for installing and running Ollama locally.
+- [ ] Document how to pull the chosen local model.
+- [ ] Document what happens if Ollama is not running.
+- [ ] Keep all Phase 3 examples small and copy-pasteable.
+
+#### Future refinements
+
+- [ ] Add configurable model names.
+- [ ] Add request timeouts.
+- [ ] Add structured output parsing.
+- [ ] Add response validation.
+- [ ] Add prompt templates.
+- [ ] Add AI-generated memory summaries.
+- [ ] Add richer NPC behavior using AI-generated intent or dialogue.
+- [ ] Consider a supervised AI worker only if concurrent calls, rate limiting, or queueing become necessary.
+
+---
+
+## Phase Completion Criteria
 
 ### Phase 1 is complete when:
 
@@ -309,3 +396,16 @@ Phase 2 is complete by the criteria below. The remaining items here are backlog/
 - [x] Memory ordering is intentional and tested.
 - [x] Memory inspection/debug helpers exist.
 - [x] README examples show how entity memory works.
+
+### Phase 3 is complete when:
+
+- [ ] A public AI boundary exists outside the entity and memory modules.
+- [ ] AI calls use a small adapter behavior.
+- [ ] A fake adapter supports deterministic tests.
+- [ ] An Ollama adapter can make a local request to a locally running model.
+- [ ] Ollama connection/model errors are handled predictably.
+- [ ] At least one simple IEx example can generate local AI text.
+- [ ] Entities can optionally request AI-generated output through a controlled public API.
+- [ ] Entity AI requests use structured state and selected memories.
+- [ ] Tests do not require Ollama to be installed or running.
+- [ ] README documentation explains local setup and basic usage.
