@@ -64,4 +64,40 @@ defmodule Procession.EntitySupervisorTest do
     assert {:list_test_alpha, alpha_pid} in entities
     assert {:list_test_beta, beta_pid} in entities
   end
+
+  test "entity process restarts after crashing" do
+    id = "npc_restart_test"
+
+    {:ok, original_pid} =
+      Procession.EntitySupervisor.start_npc(id, %{
+        name: "Restart Tester",
+        location: "loc_test_room"
+      })
+
+    ref = Process.monitor(original_pid)
+
+    Process.exit(original_pid, :kill)
+
+    assert_receive {:DOWN, ^ref, :process, ^original_pid, :killed}, 500
+
+    assert eventually(fn ->
+             case Procession.EntitySupervisor.lookup_entity(id) do
+               {:ok, new_pid} -> new_pid != original_pid and Process.alive?(new_pid)
+               _ -> false
+             end
+           end)
+  end
+
+  defp eventually(fun, attempts \\ 10)
+
+  defp eventually(fun, attempts) when attempts > 0 do
+    if fun.() do
+      true
+    else
+      Process.sleep(20)
+      eventually(fun, attempts - 1)
+    end
+  end
+
+  defp eventually(_fun, 0), do: false
 end

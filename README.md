@@ -159,9 +159,9 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 #### Supervision and fault tolerance
 
-- [ ] Add tests proving entity processes restart correctly after crashes.
+- [x] Add tests proving entity processes restart correctly after crashes.
 - [ ] Decide whether restarted entities should keep state, reset state, or reload state.
-- [ ] Add a basic crash/recovery test for the `DynamicSupervisor`.
+- [x] Add a basic crash/recovery test for the `DynamicSupervisor`.
 - [ ] Decide whether persistence is needed before Phase 3 or can wait.
 
 #### Developer ergonomics
@@ -274,7 +274,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Entities can send structured messages to each other.
 - [x] Message delivery failure is handled predictably.
 - [x] Entity status and location can be updated through clear public APIs.
-- [ ] Supervision behavior is tested.
+- [x] Supervision behavior is tested.
 - [x] Basic usage is documented in the README.
 
 ### Phase 2 is complete when:
