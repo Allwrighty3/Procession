@@ -111,6 +111,8 @@ Memory promotion happens automatically as messages are added:
 
 ## Remaining Work
 
+The detailed phase checklists include both completion blockers and future refinement ideas. The formal criteria for considering Phase 1 and Phase 2 complete are listed at the bottom of this section.
+
 ### Phase 1: Core Entity System & Message Passing
 
 The basic entity system is working, but Phase 1 is not fully complete yet.
@@ -149,7 +151,7 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
   - [x] Status updates: `Entity.set_status/2`
   - [x] Location updates: `Entity.move_to/2`
   - [x] Trait updates: `Entity.set_trait/3`
-  - [x] Entity metadata updates
+  - [x] Entity metadata updates: `Entity.set_metadata/3`
   - [ ] Relationship updates
 - [x] Add tests for updating traits.
 - [x] Add tests for updating entity metadata.
@@ -271,7 +273,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Entities can be started, stopped, looked up, and listed.
 - [x] Entities can send structured messages to each other.
 - [x] Message delivery failure is handled predictably.
-- [ ] Entity state can be updated through clear public APIs.
+- [x] Entity status and location can be updated through clear public APIs.
 - [ ] Supervision behavior is tested.
 - [x] Basic usage is documented in the README.
 
@@ -281,7 +283,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Short, medium, and long memory layers are tested.
 - [x] Promotion rules are clear and tested.
 - [x] Entity APIs exist for common recall operations.
-- [ ] Search supports more than basic content matching.
+- [x] Search supports content and metadata-based recall.
 - [x] Memory ordering is intentional and tested.
 - [x] Memory inspection/debug helpers exist.
 - [x] README examples show how entity memory works.
