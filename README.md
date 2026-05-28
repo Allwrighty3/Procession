@@ -4,18 +4,34 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession currently has a tested Phase 1/Phase 2 foundation:
+Procession has completed its initial Phase 1 and Phase 2 foundation.
+
+- [x] Phase 1: Core Entity System & Message Passing
+- [x] Phase 2: Hierarchical Memory System
+- [ ] Phase 3: Local AI Integration with Ollama
+- [ ] Phase 4: Procedural Game Generator
+- [ ] Phase 5: Gameplay Systems & Polish
+
+The current codebase includes:
 
 - OTP application supervision with a registry and dynamic entity supervisor
 - Entity processes backed by GenServer
+- String-based runtime IDs with generated ID helpers
+- Entity lifecycle helpers for starting, stopping, looking up, and listing entities
 - Entity-to-entity message passing
-- Structured memory entries created from messages
+- Public entity state updates for status, location, traits, and metadata
+- Basic supervision crash/recovery coverage
+- Structured memory entries with IDs, tags, metadata, timestamps, and importance
 - Hierarchical memory promotion:
   - short memory: 10 entries
   - medium memory: 50 entries
   - long memory: 200 entries
 - Keyword-based memory recall
+- Targeted recall by type, sender, tag, metadata, recency, and importance
 - Full memory recall in priority order
+- Memory inspection through `Entity.memory_summary/1`
+
+Current focus: Phase 3 — adding a small local AI boundary before wiring in Ollama.
 
 ## IEx Examples
 
@@ -102,12 +118,18 @@ Memory promotion happens automatically as messages are added:
 
 ## Repository Map
 
-- `lib/procession/entity.ex` - GenServer entity process, messaging, state, and recall APIs.
-- `lib/procession/entity_supervisor.ex` - DynamicSupervisor for starting, stopping, looking up, and listing entities.
-- `lib/procession/memory.ex` - Hierarchical memory creation, promotion, recall, and search.
-- `lib/procession/application.ex` - OTP application supervision tree.
-- `test/procession/entity_test.exs` - Entity, messaging, memory, recall, and lifecycle tests.
-- `test/procession/memory_test.exs` - Direct memory behavior tests.
+- `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
+- `lib/procession/application.ex` - OTP application supervision tree; starts the registry and dynamic entity supervisor.
+- `lib/procession/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, and memory integration.
+- `lib/procession/entity_supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types.
+- `lib/procession/id.ex` - Shared string ID generation helpers for entities and memory entries.
+- `lib/procession/memory.ex` - Hierarchical memory creation, promotion, flattening, search, and filtering helpers.
+- `lib/procession/memory/entry.ex` - Structured memory entry definition used by the memory system.
+- `test/procession/entity_test.exs` - Entity lifecycle, messaging, supervision, state update, recall, and helper API tests.
+- `test/procession/id_test.exs` - ID generation tests.
+- `test/procession/memory_test.exs` - Direct memory behavior, promotion, search, metadata, and entry struct tests.
+
+Phase 3 work should add new modules under `lib/procession/ai/` or similar rather than crowding AI behavior into the entity or memory modules.
 
 ## Remaining Work
 
@@ -115,7 +137,7 @@ The detailed phase checklists include both completion blockers and future refine
 
 ### Phase 1: Core Entity System & Message Passing
 
-The basic entity system is working, but Phase 1 is not fully complete yet.
+Phase 1 is complete by the criteria below. The remaining items here are backlog/refinement tasks.
 
 #### Entity lifecycle
 
@@ -175,7 +197,7 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 ### Phase 2: Hierarchical Memory System
 
-The basic memory system is working, but Phase 2 still needs refinement before it should be considered complete.
+Phase 2 is complete by the criteria below. The remaining items here are backlog/refinement tasks.
 
 #### Memory structure
 
