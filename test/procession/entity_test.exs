@@ -748,4 +748,51 @@ defmodule Procession.EntityTest do
     assert state.name == "Test Faction"
     assert state.type == :faction
   end
+
+  test "can create an NPC with a generated ID" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Generated NPC",
+        location: "loc_test_room"
+      })
+
+    assert String.starts_with?(id, "npc_")
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Generated NPC"
+    assert state.type == :npc
+    assert state.location == "loc_test_room"
+  end
+
+  test "can create a location with a generated ID" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_location(%{
+        name: "Generated Location"
+      })
+
+    assert String.starts_with?(id, "loc_")
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Generated Location"
+    assert state.type == :location
+  end
+
+  test "can create a faction with a generated ID" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_faction(%{
+        name: "Generated Faction"
+      })
+
+    assert String.starts_with?(id, "faction_")
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Generated Faction"
+    assert state.type == :faction
+  end
 end

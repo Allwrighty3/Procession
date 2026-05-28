@@ -84,10 +84,10 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 #### Entity identity and lookup
 
-- [ ] Add a consistent entity ID strategy.
+- [x] Add a consistent entity ID strategy.
   - At the moment entity IDs are atoms in tests.
   - Later systems may need string IDs, UUIDs, or generated IDs.
-- [ ] Decide whether entity IDs should be atoms, strings, or another format.
+- [x] Decide whether entity IDs should be atoms, strings, or another format.
 - [x] Add helper functions for looking up entities by ID.
 - [x] Add helper functions for listing active entities.
 
@@ -133,7 +133,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 - [x] Finalize the memory entry schema.
   - Current fields include `:content`, `:type`, `:importance`, `:timestamp`, and `:from`.
-- [ ] Decide whether memory entries should include an ID.
+- [x] Decide whether memory entries should include an ID.
 - [x] Add optional metadata fields.
   - Example: `:source`, `:tags`, `:location`, `:related_entities`.
 - [x] Add tests for memory entries with metadata.

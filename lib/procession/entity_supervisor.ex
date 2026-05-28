@@ -68,6 +68,33 @@ defmodule Procession.EntitySupervisor do
     |> Enum.map(fn {id, pid} -> {id, pid} end)
   end
 
+  def create_npc(attrs \\ %{}) do
+    id = Procession.Id.npc()
+
+    case start_npc(id, attrs) do
+      {:ok, pid} -> {:ok, id, pid}
+      error -> error
+    end
+  end
+
+  def create_location(attrs \\ %{}) do
+    id = Procession.Id.location()
+
+    case start_location(id, attrs) do
+      {:ok, pid} -> {:ok, id, pid}
+      error -> error
+    end
+  end
+
+  def create_faction(attrs \\ %{}) do
+    id = Procession.Id.faction()
+
+    case start_faction(id, attrs) do
+      {:ok, pid} -> {:ok, id, pid}
+      error -> error
+    end
+  end
+
   @impl true
   def init(:ok) do
     DynamicSupervisor.init(strategy: :one_for_one)
