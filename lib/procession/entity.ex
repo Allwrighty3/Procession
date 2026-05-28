@@ -20,6 +20,7 @@ defmodule Procession.Entity do
     medium_memory: [],
     long_memory: [],
     traits: %{},
+    metadata: %{},
     status: :idle
   ]
 
@@ -61,6 +62,10 @@ defmodule Procession.Entity do
 
   def set_trait(id, trait, value) do
     GenServer.call(via_tuple(id), {:set_trait, trait, value})
+  end
+
+  def set_metadata(id, key, value) do
+    GenServer.call(via_tuple(id), {:set_metadata, key, value})
   end
 
   def move_to(id, location) do
@@ -170,6 +175,14 @@ defmodule Procession.Entity do
   def handle_call({:set_trait, trait, value}, _from, state) do
     updated_traits = Map.put(state.traits, trait, value)
     updated_state = %{state | traits: updated_traits}
+
+    {:reply, :ok, updated_state}
+  end
+
+  @impl true
+  def handle_call({:set_metadata, key, value}, _from, state) do
+    updated_metadata = Map.put(state.metadata, key, value)
+    updated_state = %{state | metadata: updated_metadata}
 
     {:reply, :ok, updated_state}
   end

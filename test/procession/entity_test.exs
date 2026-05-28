@@ -132,6 +132,39 @@ defmodule Procession.EntityTest do
            }
   end
 
+  test "entity can set metadata" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Metadata Tester",
+        location: "loc_test_room"
+      })
+
+    assert :ok = Procession.Entity.set_metadata(id, :mood, :curious)
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.metadata == %{
+             mood: :curious
+           }
+  end
+
+  test "entity can update existing metadata" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Metadata Update Tester",
+        location: "loc_test_room"
+      })
+
+    assert :ok = Procession.Entity.set_metadata(id, :mood, :curious)
+    assert :ok = Procession.Entity.set_metadata(id, :mood, :suspicious)
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.metadata == %{
+             mood: :suspicious
+           }
+  end
+
   test "short memory keeps only the 10 most recent messages" do
     id = :memory_limit_test_npc
 
