@@ -126,8 +126,9 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 #### Entity identity and lookup
 
 - [x] Add a consistent entity ID strategy.
-  - At the moment entity IDs are atoms in tests.
-  - Later systems may need string IDs, UUIDs, or generated IDs.
+  - Runtime IDs use strings.
+  - Generated IDs use prefixes like `npc_`, `loc_`, `faction_`, and `mem_`.
+  - Some older tests may still use atoms during migration.
 - [x] Decide whether entity IDs should be atoms, strings, or another format.
 - [x] Add helper functions for looking up entities by ID.
 - [x] Add helper functions for listing active entities.
@@ -221,7 +222,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 
 #### Memory ordering
 
-- [ ] Confirm desired ordering for all memory layers.
+- [x] Confirm desired ordering for all memory layers.
   - Current behavior favors newest memories first.
 - [ ] Decide whether search results should preserve memory priority order.
 - [ ] Decide whether search results should rank by recency, importance, or both.
@@ -272,7 +273,7 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Message delivery failure is handled predictably.
 - [ ] Entity state can be updated through clear public APIs.
 - [ ] Supervision behavior is tested.
-- [ ] Basic usage is documented in the README.
+- [x] Basic usage is documented in the README.
 
 ### Phase 2 is complete when:
 
@@ -282,5 +283,5 @@ The basic memory system is working, but Phase 2 still needs refinement before it
 - [x] Entity APIs exist for common recall operations.
 - [ ] Search supports more than basic content matching.
 - [x] Memory ordering is intentional and tested.
-- [ ] Memory inspection/debug helpers exist.
+- [x] Memory inspection/debug helpers exist.
 - [x] README examples show how entity memory works.
