@@ -118,7 +118,7 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 
 #### Developer ergonomics
 
-- [ ] Add convenience functions for spawning common entity types.
+- [x] Add convenience functions for spawning common entity types.
   - Example: `start_npc/2`, `start_location/2`, `start_faction/2`.
 - [ ] Add documentation examples for starting entities and sending messages.
 - [ ] Add basic `iex` usage examples to the README.

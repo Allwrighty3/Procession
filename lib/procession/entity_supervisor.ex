@@ -29,6 +29,18 @@ defmodule Procession.EntitySupervisor do
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
+  def start_npc(id, attrs \\ %{}) do
+    start_entity(id, Map.put(attrs, :type, :npc))
+  end
+
+  def start_location(id, attrs \\ %{}) do
+    start_entity(id, Map.put(attrs, :type, :location))
+  end
+
+  def start_faction(id, attrs \\ %{}) do
+    start_entity(id, Map.put(attrs, :type, :faction))
+  end
+
   def exists?(id) do
     case Registry.lookup(Procession.EntityRegistry, id) do
       [{_pid, _value}] -> true

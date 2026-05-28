@@ -701,4 +701,51 @@ defmodule Procession.EntityTest do
 
     assert hd(memories).from == sender_id
   end
+
+  test "can start an NPC with convenience helper" do
+    id = "npc_helper_test"
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_npc(id, %{
+        name: "Helper NPC",
+        location: "loc_test_room"
+      })
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Helper NPC"
+    assert state.type == :npc
+    assert state.location == "loc_test_room"
+  end
+
+  test "can start a location with convenience helper" do
+    id = "loc_helper_test"
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_location(id, %{
+        name: "Test Room"
+      })
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Test Room"
+    assert state.type == :location
+  end
+
+  test "can start a faction with convenience helper" do
+    id = "faction_helper_test"
+
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_faction(id, %{
+        name: "Test Faction"
+      })
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.id == id
+    assert state.name == "Test Faction"
+    assert state.type == :faction
+  end
 end
