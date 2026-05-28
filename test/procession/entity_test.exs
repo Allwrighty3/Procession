@@ -77,20 +77,21 @@ defmodule Procession.EntityTest do
   end
 
   test "entity can update status and location" do
+    id = "npc_movement_test"
+
     {:ok, _pid} =
-      Procession.EntitySupervisor.start_entity(:movement_test_npc, %{
+      Procession.EntitySupervisor.start_npc(id, %{
         name: "Mira",
-        type: :npc,
         location: :town_square
       })
 
-    assert :ok = Procession.Entity.set_status(:movement_test_npc, :walking)
-    assert :ok = Procession.Entity.move_to(:movement_test_npc, :blacksmith_shop)
+    assert :ok = Procession.Entity.set_status(id, :walking)
+    assert :ok = Procession.Entity.move_to(id, :blacksmith_shop)
 
-    description = Procession.Entity.describe(:movement_test_npc)
+    description = Procession.Entity.describe(id)
 
     assert description == %{
-             id: :movement_test_npc,
+             id: id,
              name: "Mira",
              type: :npc,
              location: :blacksmith_shop,
