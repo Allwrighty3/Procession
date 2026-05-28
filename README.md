@@ -116,6 +116,126 @@ Memory promotion happens automatically as messages are added:
 - overflow from short memory moves into medium memory
 - overflow from medium memory moves into long memory
 
+## Local AI / Ollama Usage
+
+Phase 3 uses a small AI boundary before wiring local LLM behavior into entities.
+
+The public API is:
+
+```elixir
+Procession.AI.generate(prompt, opts \\ [])
+```
+
+By default, this uses the deterministic fake adapter. That keeps tests and early development from requiring Ollama to be installed or running.
+
+```elixir
+Procession.AI.generate("Describe the village blacksmith.")
+# {:ok, "AI response to: Describe the village blacksmith."}
+```
+
+To call a real local Ollama model, pass the Ollama adapter explicitly:
+
+```elixir
+Procession.AI.generate(
+  "Describe a tired village blacksmith in one sentence.",
+  adapter: Procession.AI.Ollama,
+  model: "llama3.2:1b"
+)
+```
+
+A successful local response looks like:
+
+```elixir
+{:ok, "The village blacksmith slumped against the forge..."}
+```
+
+### Installing Ollama in WSL / Ubuntu
+
+If developing inside WSL, install Ollama inside WSL rather than relying on a Windows install.
+
+First install `zstd`, which the Ollama installer requires for extraction:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y zstd
+```
+
+Then install Ollama:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+Verify the client is installed:
+
+```bash
+ollama -v
+```
+
+If WSL prints a warning like this:
+
+```text
+Warning: could not connect to a running Ollama instance
+```
+
+that usually means the Ollama client is installed but the Ollama server is not running yet.
+
+### Starting Ollama manually in WSL
+
+Some WSL installs do not run `systemd` by default, so the Ollama service may not start automatically.
+
+Start the server manually in one terminal:
+
+```bash
+ollama serve
+```
+
+Leave that terminal open.
+
+In a second terminal, pull the small test model:
+
+```bash
+ollama pull llama3.2:1b
+```
+
+Then test the model directly:
+
+```bash
+ollama run llama3.2:1b "Say hello in one sentence."
+```
+
+### Testing Procession against local Ollama
+
+From the repo root:
+
+```bash
+iex -S mix
+```
+
+Then run:
+
+```elixir
+Procession.AI.generate(
+  "Describe a tired village blacksmith in one sentence.",
+  adapter: Procession.AI.Ollama,
+  model: "llama3.2:1b"
+)
+```
+
+Expected shape:
+
+```elixir
+{:ok, "...generated text..."}
+```
+
+If Ollama is not running, the adapter should return an error tuple instead of crashing:
+
+```elixir
+{:error, {:ollama_unavailable, reason}}
+```
+
+This keeps local AI calls request-based and explicit. Entities should not directly depend on Ollama yet.
+
 ## Repository Map
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
@@ -356,11 +476,11 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 #### Developer ergonomics
 
-- [ ] Add README examples for calling the AI boundary from IEx.
-- [ ] Add README instructions for installing and running Ollama locally.
-- [ ] Document how to pull the chosen local model.
-- [ ] Document what happens if Ollama is not running.
-- [ ] Keep all Phase 3 examples small and copy-pasteable.
+- [x] Add README examples for calling the AI boundary from IEx.
+- [x] Add README instructions for installing and running Ollama locally.
+- [x] Document how to pull the chosen local model.
+- [x] Document what happens if Ollama is not running.
+- [x] Keep all Phase 3 examples small and copy-pasteable.
 
 #### Future refinements
 
