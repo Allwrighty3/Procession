@@ -148,10 +148,10 @@ The basic entity system is working, but Phase 1 is not fully complete yet.
 - [ ] Add a cleaner state update API for common changes.
   - [x] Status updates: `Entity.set_status/2`
   - [x] Location updates: `Entity.move_to/2`
-  - [ ] Trait updates
+  - [x] Trait updates: `Entity.set_trait/3`
   - [ ] Entity metadata updates
   - [ ] Relationship updates
-- [ ] Add tests for updating traits.
+- [x] Add tests for updating traits.
 - [ ] Add tests for updating entity metadata.
 - [ ] Decide which fields belong directly on an entity and which should become separate systems later.
 

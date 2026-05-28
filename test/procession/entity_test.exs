@@ -99,6 +99,39 @@ defmodule Procession.EntityTest do
            }
   end
 
+  test "entity can set a trait" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Trait Tester",
+        location: "loc_test_room"
+      })
+
+    assert :ok = Procession.Entity.set_trait(id, :bravery, 8)
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.traits == %{
+             bravery: 8
+           }
+  end
+
+  test "entity can update an existing trait" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Trait Update Tester",
+        location: "loc_test_room"
+      })
+
+    assert :ok = Procession.Entity.set_trait(id, :bravery, 5)
+    assert :ok = Procession.Entity.set_trait(id, :bravery, 9)
+
+    state = Procession.Entity.get_state(id)
+
+    assert state.traits == %{
+             bravery: 9
+           }
+  end
+
   test "short memory keeps only the 10 most recent messages" do
     id = :memory_limit_test_npc
 

@@ -59,6 +59,10 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), {:set_status, status})
   end
 
+  def set_trait(id, trait, value) do
+    GenServer.call(via_tuple(id), {:set_trait, trait, value})
+  end
+
   def move_to(id, location) do
     GenServer.call(via_tuple(id), {:move_to, location})
   end
@@ -159,6 +163,14 @@ defmodule Procession.Entity do
   @impl true
   def handle_call({:set_status, status}, _from, state) do
     updated_state = %{state | status: status}
+    {:reply, :ok, updated_state}
+  end
+
+  @impl true
+  def handle_call({:set_trait, trait, value}, _from, state) do
+    updated_traits = Map.put(state.traits, trait, value)
+    updated_state = %{state | traits: updated_traits}
+
     {:reply, :ok, updated_state}
   end
 
