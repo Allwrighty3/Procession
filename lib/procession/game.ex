@@ -62,4 +62,20 @@ defmodule Procession.Game do
        }}
     end
   end
+
+  @doc """
+  Performs a tiny deterministic player action.
+
+  The first supported action is `:look`, which delegates to `look/1`.
+  """
+  def perform(:look, opts) when is_list(opts) do
+    case Keyword.fetch(opts, :entity_id) do
+      {:ok, entity_id} -> look(entity_id)
+      :error -> {:error, :missing_target}
+    end
+  end
+
+  def perform(_action, _opts) do
+    {:error, :invalid_action}
+  end
 end

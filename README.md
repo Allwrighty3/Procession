@@ -829,16 +829,16 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Player actions
 
-- [ ] Define a tiny player action API.
+- [x] Define a tiny player action API.
   - Example: `Procession.Game.perform(action, opts)`
-- [ ] Start with one or two simple deterministic actions.
+- [x] Start with one or two simple deterministic actions.
   - Example: `:look`
   - Example: `:talk`
   - Example: `:move`
-- [ ] Keep actions as plain data before introducing command parsing.
-- [ ] Return action results without mutating more state than necessary.
-- [ ] Handle invalid actions predictably.
-- [ ] Add tests for valid and invalid player actions.
+- [x] Keep actions as plain data before introducing command parsing.
+- [x] Return action results without mutating more state than necessary.
+- [x] Handle invalid actions predictably.
+- [x] Add tests for valid and invalid player actions.
 
 #### Movement
 

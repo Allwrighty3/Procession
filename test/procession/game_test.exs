@@ -170,4 +170,28 @@ defmodule Procession.GameTest do
     assert Procession.Game.new_game(:not_a_prompt) == {:error, :invalid_prompt}
     assert Procession.Game.new_game(123) == {:error, :invalid_prompt}
   end
+
+  test "perform supports the look action" do
+    assert {:ok, _pid} =
+             Procession.EntitySupervisor.start_npc("npc_mira", %{
+               name: "Mira",
+               location: "loc_briar_village",
+               traits: %{role: "innkeeper", temperament: "watchful"}
+             })
+
+    assert {:ok, summary} = Procession.Game.perform(:look, entity_id: "npc_mira")
+
+    assert summary.id == "npc_mira"
+    assert summary.name == "Mira"
+    assert summary.type == :npc
+  end
+
+  test "perform returns a predictable error when look is missing an entity_id" do
+    assert Procession.Game.perform(:look, []) == {:error, :missing_target}
+  end
+
+  test "perform returns a predictable error for invalid actions" do
+    assert Procession.Game.perform(:not_a_valid_action, entity_id: "npc_mira") ==
+             {:error, :invalid_action}
+  end
 end
