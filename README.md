@@ -56,7 +56,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 - `docs/ROADMAP.md` - Detailed phase roadmap, task checklists, and phase completion criteria.
 - `docs/USAGE.md` - Copy-pasteable IEx examples for entities, memory, AI, generation, gameplay APIs, and manual world ticking.
-- Future architecture notes may move into `docs/ARCHITECTURE.md` once behavior schemas, world clocks, persistence, or UI design need more space.
+- `docs/ARCHITECTURE.md` - Core architecture principles, OTP ownership, AI validation boundaries, behavior metadata rules, and specialized subsystem guidance.
+- `docs/WORLD_GENERATION.md` - Long-term cascading world generation vision, blueprint hierarchy, lazy expansion, and selective spawning strategy.
 
 ### Tests
 
