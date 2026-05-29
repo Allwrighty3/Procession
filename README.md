@@ -149,6 +149,18 @@ A successful local response looks like:
 {:ok, "The village blacksmith slumped against the forge..."}
 ```
 
+### Generating an NPC response
+
+Entities can request AI-generated output through a controlled public API:
+
+```elixir
+Procession.Entity.generate_response(
+  "npc_bob",
+  "Can you help me find the blacksmith's hammer?",
+  adapter: Procession.AI.FakeAdapter
+)
+```
+
 ### Installing Ollama in WSL / Ubuntu
 
 If developing inside WSL, install Ollama inside WSL rather than relying on a Windows install.
@@ -519,13 +531,13 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 ### Phase 3 is complete when:
 
-- [ ] A public AI boundary exists outside the entity and memory modules.
-- [ ] AI calls use a small adapter behavior.
-- [ ] A fake adapter supports deterministic tests.
-- [ ] An Ollama adapter can make a local request to a locally running model.
-- [ ] Ollama connection/model errors are handled predictably.
-- [ ] At least one simple IEx example can generate local AI text.
-- [ ] Entities can optionally request AI-generated output through a controlled public API.
-- [ ] Entity AI requests use structured state and selected memories.
-- [ ] Tests do not require Ollama to be installed or running.
-- [ ] README documentation explains local setup and basic usage.
+- [x] A public AI boundary exists outside the entity and memory modules.
+- [x] AI calls use a small adapter behavior.
+- [x] A fake adapter supports deterministic tests.
+- [x] An Ollama adapter can make a local request to a locally running model.
+- [x] Ollama connection/model errors are handled predictably.
+- [x] At least one simple IEx example can generate local AI text.
+- [x] Entities can optionally request AI-generated output through a controlled public API.
+- [x] Entity AI requests use structured state and selected memories.
+- [x] Tests do not require Ollama to be installed or running.
+- [x] README documentation explains local setup and basic usage.
