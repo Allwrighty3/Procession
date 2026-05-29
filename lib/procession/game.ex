@@ -110,20 +110,13 @@ defmodule Procession.Game do
   """
 
   def tick_world do
-    event = %{
-      from: "npc_tobin",
-      to: "npc_mira",
-      type: :rumor,
-      content: "Tobin quietly warned Mira that the mine road was watched.",
-      importance: 2,
-      tags: [:mine, :road, :tobin],
-      metadata: %{source: :world_tick}
-    }
+    event = next_world_event()
 
     case Entity.send_to(event.from, event.to, event) do
       :ok ->
         {:ok,
          %{
+           tick: event.metadata.tick,
            events: [
              %{
                from: event.from,
@@ -192,5 +185,59 @@ defmodule Procession.Game do
       {:ok, value} -> {:ok, value}
       :error -> {:error, error_reason}
     end
+  end
+
+  defp next_world_event do
+    script = world_event_script()
+    tick = world_tick_count() + 1
+    index = rem(tick - 1, length(script))
+
+    event = Enum.at(script, index)
+
+    put_in(event.metadata.tick, tick)
+  end
+
+  defp world_tick_count do
+    EntitySupervisor.list_entities()
+    |> Enum.flat_map(fn {id, _pid} ->
+      Entity.recall_by_metadata(id, :source, :world_tick)
+    end)
+    |> length()
+  end
+
+  defp world_event_script do
+    [
+      %{
+        from: "npc_tobin",
+        to: "npc_mira",
+        type: :rumor,
+        content: "Tobin quietly warned Mira that the mine road was watched.",
+        importance: 2,
+        tags: [:mine, :road, :tobin],
+        metadata: %{source: :world_tick, tick: nil}
+      },
+      %{
+        from: "npc_elin",
+        to: "npc_tobin",
+        type: :observation,
+        content: "Elin reported fresh tracks near the Silent Mine.",
+        importance: 2,
+        tags: [:mine, :elin, :tracks],
+        metadata: %{source: :world_tick, tick: nil}
+      },
+      %{
+        from: "npc_mira",
+        to: "npc_elin",
+        type: :rumor,
+        content: "Mira warned Elin that Tobin may be hiding something.",
+        importance: 2,
+        tags: [:mira, :tobin, :warning],
+        metadata: %{source: :world_tick, tick: nil}
+      }
+    ]
+  end
+
+  defp scripted_world_event(index) do
+    Enum.at(world_event_script(), index)
   end
 end

@@ -1036,6 +1036,9 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 - [x] Add tests proving the world can change without direct player action.
 - [x] Add a helper for inspecting recent playerless events.
   - Example: `Procession.Game.recent_events(entity_id)`
+- [x] Support multiple deterministic world tick events.
+- [x] Track simple tick count in world activity metadata.
+- [x] Keep tick sequencing deterministic and testable.
 
 #### Future refinements
 

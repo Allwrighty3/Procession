@@ -333,7 +333,8 @@ defmodule Procession.GameTest do
                  type: :rumor,
                  content: "Tobin quietly warned Mira that the mine road was watched."
                }
-             ]
+             ],
+             tick: 1
            }
   end
 
@@ -357,6 +358,61 @@ defmodule Procession.GameTest do
 
   test "tick_world returns a predictable error when required NPCs do not exist" do
     assert Procession.Game.tick_world() == {:error, :entity_not_found}
+  end
+
+  test "tick_world advances through multiple deterministic world events" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, first_tick} = Procession.Game.tick_world()
+    assert first_tick.tick == 1
+
+    assert first_tick.events == [
+             %{
+               from: "npc_tobin",
+               to: "npc_mira",
+               type: :rumor,
+               content: "Tobin quietly warned Mira that the mine road was watched."
+             }
+           ]
+
+    assert {:ok, second_tick} = Procession.Game.tick_world()
+    assert second_tick.tick == 2
+
+    assert second_tick.events == [
+             %{
+               from: "npc_elin",
+               to: "npc_tobin",
+               type: :observation,
+               content: "Elin reported fresh tracks near the Silent Mine."
+             }
+           ]
+
+    assert {:ok, third_tick} = Procession.Game.tick_world()
+    assert third_tick.tick == 3
+
+    assert third_tick.events == [
+             %{
+               from: "npc_mira",
+               to: "npc_elin",
+               type: :rumor,
+               content: "Mira warned Elin that Tobin may be hiding something."
+             }
+           ]
+  end
+
+  test "tick_world stores tick metadata on generated memories" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, _first_tick} = Procession.Game.tick_world()
+
+    Process.sleep(10)
+
+    assert {:ok, events} = Procession.Game.recent_events("npc_mira")
+
+    assert Enum.any?(events, fn event ->
+             event.content == "Tobin quietly warned Mira that the mine road was watched." and
+               event.metadata.tick == 1
+           end)
   end
 
   test "recent_events returns world tick memories for an entity" do
