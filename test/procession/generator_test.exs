@@ -95,4 +95,140 @@ defmodule Procession.GeneratorTest do
     assert Procession.Generator.generate_world(:not_a_prompt) == {:error, :invalid_prompt}
     assert Procession.Generator.generate_world(123) == {:error, :invalid_prompt}
   end
+
+  test "generated locations include required fields" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert Enum.all?(blueprint.locations, fn location ->
+             Map.has_key?(location, :id) and
+               Map.has_key?(location, :name) and
+               Map.has_key?(location, :type) and
+               Map.has_key?(location, :description)
+           end)
+  end
+
+  test "generated NPCs include required fields" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert Enum.all?(blueprint.npcs, fn npc ->
+             Map.has_key?(npc, :id) and
+               Map.has_key?(npc, :name) and
+               Map.has_key?(npc, :type) and
+               Map.has_key?(npc, :location) and
+               Map.has_key?(npc, :traits)
+           end)
+  end
+
+  test "generated factions include required fields" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert Enum.all?(blueprint.factions, fn faction ->
+             Map.has_key?(faction, :id) and
+               Map.has_key?(faction, :name) and
+               Map.has_key?(faction, :type) and
+               Map.has_key?(faction, :description)
+           end)
+  end
+
+  test "starter memories include required fields" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert Enum.all?(blueprint.starter_memories, fn memory ->
+             Map.has_key?(memory, :entity_id) and
+               Map.has_key?(memory, :type) and
+               Map.has_key?(memory, :content) and
+               Map.has_key?(memory, :importance) and
+               Map.has_key?(memory, :tags)
+           end)
+  end
+
+  test "validate_blueprint accepts a generated blueprint" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert Procession.Generator.validate_blueprint(blueprint) == :ok
+  end
+
+  test "validate_blueprint rejects non-map blueprints" do
+    assert Procession.Generator.validate_blueprint(nil) == {:error, :invalid_blueprint}
+    assert Procession.Generator.validate_blueprint("nope") == {:error, :invalid_blueprint}
+  end
+
+  test "validate_blueprint rejects blueprints missing required fields" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    invalid_blueprint = Map.delete(blueprint, :locations)
+
+    assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, {:missing_field, :locations}}
+  end
+
+  test "validate_blueprint rejects duplicate entity IDs" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    duplicate_location = %{
+      id: "loc_crossroads",
+      name: "Duplicate Crossroads",
+      type: :location,
+      description: "This should not be allowed."
+    }
+
+    invalid_blueprint = %{
+      blueprint
+      | locations: [duplicate_location | blueprint.locations]
+    }
+
+    assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, :duplicate_entity_ids}
+  end
+
+  test "validate_blueprint rejects NPCs with unknown locations" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    [first_npc | rest_npcs] = blueprint.npcs
+    invalid_npc = %{first_npc | location: "loc_nowhere"}
+
+    invalid_blueprint = %{blueprint | npcs: [invalid_npc | rest_npcs]}
+
+    assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, {:unknown_location, invalid_npc.id, "loc_nowhere"}}
+  end
+
+  test "validate_blueprint rejects relationships with unown entities" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    invalid_relationship = %{
+      from: "npc_mira",
+      to: "npc_fake",
+      type: :knows,
+      descriptions: "This relationship points to a missing entity."
+    }
+
+    invalid_blueprint = %{
+      blueprint
+      | relationships: [invalid_relationship | blueprint.relationships]
+    }
+
+    assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, {:unknown_relationship_entity, invalid_relationship}}
+  end
+
+  test "validate_blueprint rejects invali starter memories" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    invalid_memory = %{
+      entity_id: "npc_fake",
+      type: :rumor,
+      content: "This memory belongs to nobody.",
+      importance: 1,
+      tags: []
+    }
+
+    invalid_blueprint = %{
+      blueprint
+      | starter_memories: [invalid_memory | blueprint.starter_memories]
+    }
+
+    assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, {:invalid_starter_memory, invalid_memory}}
+  end
 end

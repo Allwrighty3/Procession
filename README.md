@@ -568,14 +568,14 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 #### Blueprint validation
 
-- [ ] Add simple validation for generated blueprints.
-- [ ] Validate required top-level fields.
+- [x] Add simple validation for generated blueprints.
+- [x] Validate required top-level fields.
   - Example: `:name`, `:description`, `:locations`, `:npcs`, `:factions`.
-- [ ] Validate that entity IDs are present and unique.
-- [ ] Validate that NPC locations refer to known locations.
-- [ ] Validate that relationships refer to known entity IDs.
-- [ ] Validate starter memories have content and type.
-- [ ] Add tests for valid and invalid blueprints.
+- [x] Validate that entity IDs are present and unique.
+- [x] Validate that NPC locations refer to known locations.
+- [x] Validate that relationships refer to known entity IDs.
+- [x] Validate starter memories have content and type.
+- [x] Add tests for valid and invalid blueprints.
 
 #### Spawning generated worlds
 
