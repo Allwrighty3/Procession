@@ -1,6 +1,8 @@
 defmodule Procession.WorldClock do
   use GenServer
 
+  @name __MODULE__
+
   @moduledoc """
 
   Manually controlled world simulation clock.
@@ -14,18 +16,19 @@ defmodule Procession.WorldClock do
             last_tick: nil
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts)
+    name = Keyword.get(opts, :name, @name)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  def tick(clock) do
+  def tick(clock \\ @name) do
     GenServer.call(clock, :tick)
   end
 
-  def last_tick(clock) do
+  def last_tick(clock \\ @name) do
     GenServer.call(clock, :last_tick)
   end
 
-  def tick_count(clock) do
+  def tick_count(clock \\ @name) do
     GenServer.call(clock, :tick_count)
   end
 

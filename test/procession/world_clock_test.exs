@@ -12,7 +12,7 @@ defmodule Procession.WorldClockTest do
   end
 
   test "starts with no last tick and zero tick count" do
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert Procession.WorldClock.last_tick(clock) == nil
     assert Procession.WorldClock.tick_count(clock) == 0
@@ -20,7 +20,7 @@ defmodule Procession.WorldClockTest do
 
   test "manually coordinates one world tick" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert {:ok, summary} = Procession.WorldClock.tick(clock)
 
@@ -36,7 +36,7 @@ defmodule Procession.WorldClockTest do
 
   test "manual clock ticks preserve Game.tick_world behavior" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert {:ok, summary} = Procession.WorldClock.tick(clock)
 
@@ -47,7 +47,7 @@ defmodule Procession.WorldClockTest do
 
   test "multiple manual ticks increment the clock count" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert {:ok, first_summary} = Procession.WorldClock.tick(clock)
     assert {:ok, second_summary} = Procession.WorldClock.tick(clock)
@@ -75,7 +75,7 @@ defmodule Procession.WorldClockTest do
                }
              })
 
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert {:ok, summary} = Procession.WorldClock.tick(clock)
 
@@ -109,7 +109,7 @@ defmodule Procession.WorldClockTest do
                }
              })
 
-    assert {:ok, clock} = Procession.WorldClock.start_link([])
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
     assert {:ok, summary} = Procession.WorldClock.tick(clock)
 
@@ -125,5 +125,22 @@ defmodule Procession.WorldClockTest do
            end)
 
     assert Procession.WorldClock.last_tick(clock) == summary
+  end
+
+  test "supervised clock is available by default" do
+    assert Process.whereis(Procession.WorldClock)
+    assert is_integer(Procession.WorldClock.tick_count())
+  end
+
+  test "default clock API uses the supervised clock" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    initial_count = Procession.WorldClock.tick_count()
+
+    assert {:ok, summary} = Procession.WorldClock.tick()
+
+    assert summary.clock_tick == initial_count + 1
+    assert Procession.WorldClock.tick_count() == initial_count + 1
+    assert Procession.WorldClock.last_tick() == summary
   end
 end

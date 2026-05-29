@@ -654,14 +654,14 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Supervision
 
-- [ ] Add the world clock to supervision only after the manual clock API works.
-- [ ] Decide whether the clock is always started or started only for a game session.
-- [ ] Prevent duplicate world clocks from running accidentally.
-- [ ] Name/register the clock only if needed.
-- [ ] Keep failure behavior simple and idiomatic OTP.
-- [ ] Add tests for supervised clock startup.
+- [x] Add the world clock to supervision only after the manual clock API works.
+- [x] Decide whether the clock is always started or started only for a game session.
+- [x] Prevent duplicate world clocks from running accidentally.
+- [x] Name/register the clock only if needed.
+- [x] Keep failure behavior simple and idiomatic OTP.
+- [x] Add tests for supervised clock startup.
 - [ ] Add tests for predictable restart behavior if supervision is added.
-- [ ] Avoid adding a full game-session process in Phase 7 unless clearly needed.
+- [x] Avoid adding a full game-session process in Phase 7 unless clearly needed.
 
 #### Optional interval ticking
 
