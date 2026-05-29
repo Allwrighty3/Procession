@@ -467,12 +467,12 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 #### Memory integration preparation
 
-- [ ] Decide how many memories should be included in an AI request.
+- [x] Decide how many memories should be included in an AI request.
   - Example: recent 5 plus important memories.
-- [ ] Add a helper for selecting AI-relevant memories.
-- [ ] Keep memory selection deterministic before using AI summarization.
-- [ ] Defer LLM-generated memory summaries until basic generation works.
-- [ ] Add tests for memory selection before connecting it to Ollama.
+- [x] Add a helper for selecting AI-relevant memories.
+- [x] Keep memory selection deterministic before using AI summarization.
+- [x] Defer LLM-generated memory summaries until basic generation works.
+- [x] Add tests for memory selection before connecting it to Ollama.
 
 #### Developer ergonomics
 
