@@ -1025,20 +1025,43 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Autonomous world activity
 
-- [x] Add a tiny deterministic world tick helper.
-  - Example: `Procession.Game.tick_world()`
-- [x] Start with one scripted NPC-to-NPC interaction.
-- [x] Use existing entity messaging instead of creating a new simulation engine.
-- [x] Make playerless actions create memories through normal message delivery.
-- [x] Return a summary of what happened during the tick.
-- [x] Keep the first version manually triggered from IEx.
-- [x] Defer timers, schedulers, background loops, and complex NPC goals.
-- [x] Add tests proving the world can change without direct player action.
-- [x] Add a helper for inspecting recent playerless events.
-  - Example: `Procession.Game.recent_events(entity_id)`
-- [x] Support multiple deterministic world tick events.
-- [x] Track simple tick count in world activity metadata.
-- [x] Keep tick sequencing deterministic and testable.
+Autonomous world activity should support the core Procession vision: entities are lightweight OTP actors that can act from their own state, memory, traits, metadata, and relationships.
+
+The deterministic starter world may include named example NPCs for tests and IEx demos, but the autonomous behavior system must not depend on those names. Future AI-generated worlds may not include Mira, Tobin, Elin, or any specific hardcoded entity.
+
+The intended model is:
+
+- The world generator creates entities.
+- Generated entities may include behavior metadata.
+- Entities own their possible behaviors.
+- `Procession.Game.tick_world/0` coordinates a world tick.
+- Each tick asks live entities whether they act.
+- Entities inspect their own state and metadata before acting.
+- Playerless actions happen through normal entity messaging.
+- Messages become memories through the existing memory system.
+- The game layer returns a summary of what happened, but does not own the world’s plot logic.
+
+The current scripted tick implementation is treated as a spike/proof-of-concept. It proved that playerless world activity can create memories, but it should not grow into a global event engine.
+
+- [ ] Move autonomous behavior out of hardcoded game-level event scripts.
+- [ ] Add generic behavior metadata support for generated entities.
+  - Example: `metadata.behaviors`
+- [ ] Allow deterministic generator output to include one sample behavior for testing.
+- [ ] Keep behavior execution generic and independent of specific NPC names.
+- [ ] Add an entity-level tick API.
+  - Example: `Procession.Entity.tick(entity_id)`
+- [ ] Let ticked entities inspect their own metadata before acting.
+- [ ] Support one deterministic behavior action first.
+  - Example: `:send_message`
+- [ ] Use existing `Entity.send_to/3` for NPC-to-NPC actions.
+- [ ] Make playerless actions create memories through normal message delivery.
+- [ ] Keep `Procession.Game.tick_world/0` as a coordinator, not the source of behavior.
+- [ ] Make `Game.tick_world/0` discover live entities instead of assuming specific IDs.
+- [ ] Return a summary of entity-driven actions from each tick.
+- [ ] Keep the first version manually triggered from IEx.
+- [ ] Defer timers, schedulers, background loops, complex NPC goals, and AI-driven autonomy.
+- [ ] Add tests proving an entity can act from behavior metadata without direct player action.
+- [ ] Add tests proving `Game.tick_world/0` coordinates entity ticks rather than selecting hardcoded events.
 
 #### Future refinements
 
