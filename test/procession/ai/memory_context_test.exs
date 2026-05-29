@@ -18,7 +18,7 @@ defmodule Procession.AI.MemoryContextTest do
            ]
   end
 
-  test "select also includes imporatant memories outside the recent window" do
+  test "select also includes important memories outside the recent window" do
     memories = [
       %{id: "mem_1", content: "Recent memory", importance: 1},
       %{id: "mem_2", content: "Recent memory", importance: 1},
@@ -40,7 +40,7 @@ defmodule Procession.AI.MemoryContextTest do
            ]
   end
 
-  test "select does not duplicated memories that are both recent and important" do
+  test "select does not duplicate memories that are both recent and important" do
     memories = [
       %{id: "mem_1", content: "Important recent memory", importance: 5}
     ]

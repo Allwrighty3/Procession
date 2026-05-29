@@ -456,14 +456,14 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 #### Entity integration preparation
 
-- [ ] Decide the first entity AI use case.
+- [x] Decide the first entity AI use case.
   - Example: generate a short NPC response.
-- [ ] Add an explicit entity-facing function only after the AI boundary works.
+- [x] Add an explicit entity-facing function only after the AI boundary works.
   - Example: `Entity.generate_response(id, player_message)`.
-- [ ] Include only structured entity state and selected memories in the request.
-- [ ] Keep AI output as data returned to the caller first.
-- [ ] Do not automatically mutate entity state from AI output in the first version.
-- [ ] Add tests proving entity AI integration can be exercised with the fake adapter.
+- [x] Include only structured entity state and selected memories in the request.
+- [x] Keep AI output as data returned to the caller first.
+- [x] Do not automatically mutate entity state from AI output in the first version.
+- [x] Add tests proving entity AI integration can be exercised with the fake adapter.
 
 #### Memory integration preparation
 

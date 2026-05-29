@@ -108,6 +108,10 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), :memory_summary)
   end
 
+  def generate_response(id, player_message, opts \\ []) do
+    GenServer.call(via_tuple(id), {:generate_response, player_message, opts})
+  end
+
   def via_tuple(id) do
     {:via, Registry, {Procession.EntityRegistry, id}}
   end
@@ -277,5 +281,28 @@ defmodule Procession.Entity do
       |> Procession.Memory.filter_by_metadata(key, value)
 
     {:reply, memories, state}
+  end
+
+  @impl true
+  def handle_call({:generate_response, player_message, opts}, _from, state) do
+    memories =
+      state
+      |> Procession.Memory.flatten()
+      |> Procession.AI.MemoryContext.select(opts)
+
+    prompt =
+      Procession.AI.Prompt.npc_response(%{
+        name: state.name,
+        status: state.status,
+        location: state.location,
+        traits: state.traits,
+        memories: memories,
+        player_message: player_message
+      })
+
+    ai_opts = Keyword.drop(opts, [:recent_count, :minimum_importance])
+    result = Procession.AI.generate(prompt, ai_opts)
+
+    {:reply, result, state}
   end
 end

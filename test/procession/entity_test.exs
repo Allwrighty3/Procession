@@ -862,4 +862,42 @@ defmodule Procession.EntityTest do
     assert state.name == "Generated Faction"
     assert state.type == :faction
   end
+
+  test "entity can generate an AI response using the fake adapter" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Mira",
+        location: "blacksmith_shop"
+      })
+
+    result =
+      Procession.Entity.generate_response(id, "Can you help me?",
+        adapter: Procession.AI.FakeAdapter
+      )
+
+    assert {:ok, response} = result
+    assert response =~ "AI response to:"
+    assert response =~ "Name: Mira"
+    assert response =~ "Location: blacksmith_shop"
+    assert response =~ "Can you help me?"
+  end
+
+  test "entity AI response does not mutate memory" do
+    {:ok, id, _pid} =
+      Procession.EntitySupervisor.create_npc(%{
+        name: "Mira",
+        location: "blacksmith_shop"
+      })
+
+    before_summary = Procession.Entity.memory_summary(id)
+
+    assert {:ok, _response} =
+             Procession.Entity.generate_response(id, "Can you help me?",
+               adapter: Procession.AI.FakeAdapter
+             )
+
+    after_summary = Procession.Entity.memory_summary(id)
+
+    assert after_summary == before_summary
+  end
 end
