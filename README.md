@@ -785,13 +785,13 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 ### Phase 4 is complete when:
 
-- [ ] A public generator boundary exists outside the entity and AI modules.
+- [x] A public generator boundary exists outside the entity and AI modules.
 - [ ] A deterministic generator can create a small world blueprint from a prompt.
-- [ ] Generated blueprints include locations, NPCs, factions, relationships, and starter memories.
-- [ ] Blueprint validation catches missing fields, duplicate IDs, and broken references.
-- [ ] A generated blueprint can be spawned into live entity processes.
-- [ ] Generated entities use the existing supervisor and registry.
-- [ ] Starter memories can be attached to generated NPCs.
-- [ ] AI-assisted generation is optional and uses the existing AI boundary.
-- [ ] Tests do not require Ollama to be installed or running.
-- [ ] README documentation explains deterministic generation, spawning, and optional local AI generation.
+- [x] Generated blueprints include locations, NPCs, factions, relationships, and starter memories.
+- [x] Blueprint validation catches missing fields, duplicate IDs, and broken references.
+- [x] A generated blueprint can be spawned into live entity processes.
+- [x] Generated entities use the existing supervisor and registry.
+- [x] Starter memories can be attached to generated NPCs.
+- [x] AI-assisted generation is optional and uses the existing AI boundary.
+- [x] Tests do not require Ollama to be installed or running.
+- [x] README documentation explains deterministic generation, spawning, and optional local AI generation.
