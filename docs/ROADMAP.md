@@ -797,15 +797,15 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 ### Phase 6 is complete when:
 
-- [ ] Behavior metadata has a documented schema.
-- [ ] Generated behavior metadata is validated before unsafe use.
-- [ ] Invalid behavior metadata returns predictable errors.
-- [ ] Entity ticks execute only supported behavior actions.
-- [ ] At least two safe deterministic behavior actions are supported.
-- [ ] Behavior execution is generic and does not depend on named fixture NPCs.
-- [ ] Tests prove valid, invalid, and unsupported behaviors are handled correctly.
-- [ ] README documentation explains the behavior schema and its limits.
-- [ ] AI-generated behavior remains treated as untrusted data.
+- [x] Behavior metadata has a documented schema.
+- [x] Generated behavior metadata is validated before unsafe use.
+- [x] Invalid behavior metadata returns predictable errors.
+- [x] Entity ticks execute only supported behavior actions.
+- [x] At least two safe deterministic behavior actions are supported.
+- [x] Behavior execution is generic and does not depend on named fixture NPCs.
+- [x] Tests prove valid, invalid, and unsupported behaviors are handled correctly.
+- [x] README documentation explains the behavior schema and its limits.
+- [x] AI-generated behavior remains treated as untrusted data.
 
 ### Phase 7 is complete when:
 
