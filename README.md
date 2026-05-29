@@ -376,17 +376,57 @@ AI-assisted output is treated as untrusted text for now. The deterministic gener
 ## Repository Map
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
+- `lib/procession.ex` - Top-level Procession module.
 - `lib/procession/application.ex` - OTP application supervision tree; starts the registry and dynamic entity supervisor.
-- `lib/procession/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, and memory integration.
+
+### Core entity system
+
+- `lib/procession/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, AI response integration, and memory integration.
 - `lib/procession/entity_supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types.
 - `lib/procession/id.ex` - Shared string ID generation helpers for entities and memory entries.
+
+### Memory system
+
 - `lib/procession/memory.ex` - Hierarchical memory creation, promotion, flattening, search, and filtering helpers.
 - `lib/procession/memory/entry.ex` - Structured memory entry definition used by the memory system.
-- `test/procession/entity_test.exs` - Entity lifecycle, messaging, supervision, state update, recall, and helper API tests.
+
+### Local AI boundary
+
+- `lib/procession/ai.ex` - Public AI boundary for local text generation requests.
+- `lib/procession/ai/fake_adapter.ex` - Deterministic fake AI adapter used for tests and local development.
+- `lib/procession/ai/ollama.ex` - Minimal Ollama adapter for optional local model calls.
+- `lib/procession/ai/prompt.ex` - Prompt-building helpers for entity/NPC responses.
+- `lib/procession/ai/memory_context.ex` - Helper for selecting relevant memories for AI requests.
+
+### Procedural generation
+
+- `lib/procession/generator.ex` - Public generator boundary for deterministic world generation, blueprint validation, spawning generated worlds, relationship metadata attachment, starter memory attachment, and optional AI-assisted generation text.
+- `lib/procession/generator/prompt.ex` - Prompt-building helper for optional AI-assisted world blueprint generation.
+
+### Gameplay systems
+
+- Phase 5 gameplay modules should be added under `lib/procession/` without crowding the entity, memory, generator, or AI modules.
+- Planned first module: `lib/procession/game.ex` - Public gameplay boundary for player-facing inspection and actions.
+- Future gameplay modules may be split out only when the public `Procession.Game` boundary becomes too large.
+
+### Tests
+
+- `test/procession/entity_test.exs` - Entity lifecycle, messaging, supervision, state update, recall, memory integration, and entity AI integration tests.
+- `test/procession/entity_supervisor_test.exs` - Entity supervisor behavior tests, if split out from entity tests later.
 - `test/procession/id_test.exs` - ID generation tests.
 - `test/procession/memory_test.exs` - Direct memory behavior, promotion, search, metadata, and entry struct tests.
+- `test/procession/ai_test.exs` - Public AI boundary tests.
+- `test/procession/ai/prompt_test.exs` - Entity/NPC prompt construction tests.
+- `test/procession/ai/memory_context_test.exs` - AI memory context selection tests.
+- `test/procession/generator_test.exs` - Procedural generator, blueprint validation, spawning, starter memory, relationship metadata, and optional AI-generation boundary tests.
+- `test/procession/generator/prompt_test.exs` - Generator prompt construction tests.
+- Future Phase 5 tests should start with `test/procession/game_test.exs`.
 
-Phase 3 work should add new modules under `lib/procession/ai/` or similar rather than crowding AI behavior into the entity or memory modules.
+### Development direction
+
+- Phase 5 work should begin with `Procession.Game` as a small player-facing API.
+- Keep gameplay orchestration separate from `Entity`, `Memory`, `Generator`, and `AI`.
+- Build and test function-based gameplay APIs before adding command parsing, Phoenix LiveView, persistence, combat, inventory, or quests.
 
 ## Remaining Work
 
@@ -748,6 +788,123 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 ---
 
+### Phase 5: Gameplay Systems & Polish
+
+Phase 5 should turn the generated world into something the player can inspect, interact with, and eventually play. The goal is not to build a full RPG engine immediately. The first goal is to create a tiny player-facing gameplay boundary that uses the existing entity, memory, generator, and AI systems.
+
+Phase 5 should stay small, local, testable, and OTP-friendly. Build public gameplay APIs first, then add richer systems only after the basic loop works.
+
+#### Gameplay boundary
+
+- [ ] Add a small `Procession.Game` module as the public boundary for player-facing gameplay.
+- [ ] Keep gameplay orchestration separate from `Entity`, `Memory`, `Generator`, and `AI`.
+- [ ] Start with plain function calls before adding LiveView or UI behavior.
+- [ ] Standardize return values.
+  - Example: `{:ok, result}` or `{:error, reason}`
+- [ ] Add tests for the public gameplay API.
+- [ ] Avoid creating a supervised gameplay process unless stateful orchestration is clearly needed.
+
+#### World inspection
+
+- [ ] Add a basic function for inspecting a live entity.
+  - Example: `Procession.Game.look(entity_id)`
+- [ ] Return a player-friendly summary of entity state.
+  - Example fields: `:id`, `:name`, `:type`, `:location`, `:status`, `:traits`, `:relationships`, `:memory_summary`.
+- [ ] Handle missing entities predictably.
+  - Example: `{:error, :entity_not_found}`
+- [ ] Add tests for inspecting NPCs, locations, and factions.
+- [ ] Add tests for missing entity lookup.
+- [ ] Keep the first inspection result as plain data, not formatted prose.
+
+#### Generated world gameplay setup
+
+- [ ] Add a helper for creating a playable test world.
+  - Example: `Procession.Game.new_game(prompt)`
+- [ ] Use the deterministic generator first.
+- [ ] Validate the generated blueprint before spawning.
+- [ ] Spawn the generated world through `Procession.Generator.spawn_world/1`.
+- [ ] Return a summary that includes the world name and created entity IDs.
+- [ ] Do not use AI generation for the first playable setup path.
+- [ ] Add tests proving a new playable world can be created from a prompt.
+
+#### Player actions
+
+- [ ] Define a tiny player action API.
+  - Example: `Procession.Game.perform(action, opts)`
+- [ ] Start with one or two simple deterministic actions.
+  - Example: `:look`
+  - Example: `:talk`
+  - Example: `:move`
+- [ ] Keep actions as plain data before introducing command parsing.
+- [ ] Return action results without mutating more state than necessary.
+- [ ] Handle invalid actions predictably.
+- [ ] Add tests for valid and invalid player actions.
+
+#### Movement
+
+- [ ] Decide how locations are connected.
+  - Start with simple relationship or metadata links.
+- [ ] Add a minimal movement function.
+  - Example: `Procession.Game.move(entity_id, location_id)`
+- [ ] Use existing `Entity.move_to/2` when possible.
+- [ ] Validate that the destination location exists.
+- [ ] Defer maps, pathfinding, and travel rules until later.
+- [ ] Add tests for successful and failed movement.
+
+#### Dialogue
+
+- [ ] Add a simple player-to-NPC dialogue helper.
+  - Example: `Procession.Game.talk_to(npc_id, player_message, opts \\ [])`
+- [ ] Use `Entity.generate_response/3` for optional AI-backed dialogue.
+- [ ] Support deterministic fake-adapter dialogue in tests.
+- [ ] Keep generated dialogue as returned data first.
+- [ ] Do not automatically mutate NPC state from AI dialogue yet.
+- [ ] Add tests proving dialogue can be requested safely.
+
+#### Memory-driven interaction
+
+- [ ] Add a simple helper for recalling what an NPC knows.
+  - Example: `Procession.Game.ask_about(npc_id, topic)`
+- [ ] Use existing entity recall helpers.
+- [ ] Keep recall deterministic before adding AI summarization.
+- [ ] Return matching memories as data.
+- [ ] Add tests for asking about known and unknown topics.
+
+#### Gameplay loop preparation
+
+- [ ] Define the first tiny gameplay loop.
+  - Example: create world, inspect NPC, talk to NPC, inspect memory.
+- [ ] Keep the loop runnable from IEx.
+- [ ] Add README examples for the first playable loop.
+- [ ] Avoid building command parsing until the function-based loop works.
+- [ ] Avoid building Phoenix LiveView until core gameplay APIs feel stable.
+
+#### Developer ergonomics
+
+- [ ] Add README examples for `Procession.Game.look/1`.
+- [ ] Add README examples for creating a playable deterministic world.
+- [ ] Add README examples for the first player action.
+- [ ] Keep all examples copy-pasteable in IEx.
+- [ ] Document which Phase 5 features are deterministic and which optionally use AI.
+- [ ] Document cleanup steps for generated test worlds.
+
+#### Future refinements
+
+- [ ] Add a command parser for text commands.
+  - Example: `"look at Mira"` or `"talk to Mira"`
+- [ ] Add quest generation.
+- [ ] Add inventory.
+- [ ] Add items and item ownership.
+- [ ] Add location exits and travel restrictions.
+- [ ] Add faction reputation.
+- [ ] Add NPC goals.
+- [ ] Add scheduled world events.
+- [ ] Add conflict/combat only after basic interaction works.
+- [ ] Add persistence for active game sessions.
+- [ ] Add Phoenix LiveView UI for inspecting and interacting with the world.
+
+---
+
 ## Phase Completion Criteria
 
 ### Phase 1 is complete when:
@@ -786,7 +943,7 @@ The first goal is not to generate a massive world. The first goal is to generate
 ### Phase 4 is complete when:
 
 - [x] A public generator boundary exists outside the entity and AI modules.
-- [ ] A deterministic generator can create a small world blueprint from a prompt.
+- [x] A deterministic generator can create a small world blueprint from a prompt.
 - [x] Generated blueprints include locations, NPCs, factions, relationships, and starter memories.
 - [x] Blueprint validation catches missing fields, duplicate IDs, and broken references.
 - [x] A generated blueprint can be spawned into live entity processes.
@@ -795,3 +952,19 @@ The first goal is not to generate a massive world. The first goal is to generate
 - [x] AI-assisted generation is optional and uses the existing AI boundary.
 - [x] Tests do not require Ollama to be installed or running.
 - [x] README documentation explains deterministic generation, spawning, and optional local AI generation.
+
+### Phase 5 is complete when:
+
+- [ ] A public gameplay boundary exists outside the entity, memory, generator, and AI modules.
+- [ ] The player can inspect live entities through a simple gameplay API.
+- [ ] Missing or invalid gameplay targets return predictable errors instead of crashing.
+- [ ] A deterministic playable world can be created from a prompt.
+- [ ] Generated worlds can be inspected through gameplay functions after spawning.
+- [ ] At least one simple player action works through a public gameplay API.
+- [ ] Basic movement works between valid generated locations.
+- [ ] Player-to-NPC dialogue can be requested safely.
+- [ ] Dialogue tests do not require Ollama to be installed or running.
+- [ ] NPC memories can be queried through a gameplay-facing helper.
+- [ ] The first tiny gameplay loop is runnable from IEx.
+- [ ] README documentation explains the first playable loop.
+- [ ] Tests cover the core gameplay boundary and first player actions.
