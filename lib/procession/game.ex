@@ -118,6 +118,14 @@ defmodule Procession.Game do
     end
   end
 
+  def perform(:talk_to, opts) when is_list(opts) do
+    with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target),
+         {:ok, message} <- fetch_required_opt(opts, :message, :missing_message) do
+      ai_opts = Keyword.drop(opts, [:entity_id, :message])
+      talk_to(entity_id, message, ai_opts)
+    end
+  end
+
   def perform(_action, _opts) do
     {:error, :invalid_action}
   end

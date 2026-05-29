@@ -283,4 +283,40 @@ defmodule Procession.GameTest do
     assert Procession.Game.perform(:ask_about, entity_id: "npc_mira", topic: nil) ==
              {:error, :invalid_topic}
   end
+
+  test "perform supports the talk_to action" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, response} =
+             Procession.Game.perform(:talk_to,
+               entity_id: "npc_mira",
+               message: "What do you know about Tobin?",
+               adapter: Procession.AI.FakeAdapter
+             )
+
+    assert response =~ "AI response to:"
+    assert response =~ "What do you know about Tobin?"
+  end
+
+  test "perform talk_to returns a predictable error when missing entity_id" do
+    assert Procession.Game.perform(:talk_to,
+             message: "Hello?",
+             adapter: Procession.AI.FakeAdapter
+           ) == {:error, :missing_target}
+  end
+
+  test "perform talk_to returns a predictable error when missing message" do
+    assert Procession.Game.perform(:talk_to,
+             entity_id: "npc_mira",
+             adapter: Procession.AI.FakeAdapter
+           ) == {:error, :missing_message}
+  end
+
+  test "perform talk_to delegates invalid messages to talk_to" do
+    assert Procession.Game.perform(:talk_to,
+             entity_id: "npc_mira",
+             message: nil,
+             adapter: Procession.AI.FakeAdapter
+           ) == {:error, :invalid_message}
+  end
 end
