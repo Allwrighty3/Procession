@@ -727,6 +727,642 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 ---
 
+### Phase 8: Game Session & Active Entity Ownership
+
+Phase 8 introduces a runtime session boundary.
+
+The goal is to stop treating all live entities as one global game and start tracking which entities belong to a specific active play session. This prepares Procession for larger worlds where only the current active scope should be live, while distant or inactive content can remain blueprint data.
+
+This phase should not add persistence, command parsing, Phoenix LiveView, complex travel, or scoped world expansion yet. The first goal is ownership and cleanup.
+
+#### Session boundary
+
+* [ ] Add a dedicated game session module.
+
+  * Example: `Procession.GameSession`
+* [ ] Implement the session as a GenServer.
+* [ ] Keep `Procession.GameSession` separate from `Procession.Game`.
+* [ ] Keep `Procession.Game` as the gameplay API boundary for now.
+* [ ] Keep `Procession.WorldClock` as the clock/scheduling boundary.
+* [ ] Do not move entity behavior execution into the session.
+* [ ] Do not move generation logic into the session.
+* [ ] Add tests for starting a session process.
+
+#### Session state
+
+* [ ] Define simple session state.
+
+  * Example fields: `:session_id`, `:world`, `:active_entities`, `:active_scope`, `:status`.
+* [ ] Generate stable string session IDs.
+
+  * Example: `session_...`
+* [ ] Store the current generated game summary in session state.
+* [ ] Store active entity IDs owned by the session.
+* [ ] Track session status.
+
+  * Example: `:new`, `:active`, `:cleaned_up`.
+* [ ] Expose a public session summary API.
+
+  * Example: `Procession.GameSession.summary(session)`
+* [ ] Add tests for initial session state.
+* [ ] Add tests for session summary output.
+
+#### Starting a generated game in a session
+
+* [ ] Add a session API for creating a new game.
+
+  * Example: `Procession.GameSession.new_game(session, prompt)`
+* [ ] Delegate deterministic game creation to `Procession.Game.new_game/1`.
+* [ ] Store the returned game summary in session state.
+* [ ] Store all generated entity IDs as session-owned active entities.
+
+  * Example: locations + NPCs + factions.
+* [ ] Return a player-facing session/game summary.
+* [ ] Keep generated world spawning behavior unchanged.
+* [ ] Do not introduce scoped spawning yet.
+* [ ] Add tests proving a session can create a deterministic game.
+* [ ] Add tests proving generated entities are live after session game creation.
+* [ ] Add tests proving the session tracks all generated entity IDs.
+
+#### Active entity ownership
+
+* [ ] Add an API for listing active session entities.
+
+  * Example: `Procession.GameSession.active_entities(session)`
+* [ ] Add an API for checking whether an entity belongs to a session.
+
+  * Example: `Procession.GameSession.owns_entity?(session, entity_id)`
+* [ ] Keep ownership as plain string IDs.
+* [ ] Do not create atoms from generated IDs.
+* [ ] Avoid relying on fixture-specific NPC names in session logic.
+* [ ] Add tests for active entity listing.
+* [ ] Add tests for ownership checks.
+* [ ] Add tests proving unknown entities are not owned by the session.
+
+#### Session cleanup
+
+* [ ] Add a cleanup API.
+
+  * Example: `Procession.GameSession.cleanup(session)`
+* [ ] Stop all active entities owned by the session.
+* [ ] Mark the session as cleaned up.
+* [ ] Clear or retain owned entity IDs intentionally.
+
+  * Recommended first version: retain IDs for inspection, but mark session as cleaned up.
+* [ ] Make cleanup safe to call more than once.
+* [ ] Return a cleanup summary as plain data.
+
+  * Example: `%{stopped: [...], missing: [...], status: :cleaned_up}`
+* [ ] Add tests proving cleanup stops session-owned entities.
+* [ ] Add tests proving cleanup does not crash if an owned entity is already stopped.
+* [ ] Add tests proving cleanup is idempotent.
+* [ ] Add tests proving the session process remains alive after cleanup.
+
+#### Session and clock relationship
+
+* [ ] Decide how sessions relate to the existing supervised world clock.
+* [ ] Keep the first version simple.
+
+  * Recommended first version: session does not own a private clock.
+* [ ] Document that `WorldClock` still ticks all live entities for now.
+* [ ] Defer session-scoped ticking until after ownership is stable.
+* [ ] Add tests proving existing `WorldClock` behavior still works with session-created entities.
+* [ ] Do not add per-session clocks yet unless clearly needed.
+
+#### Documentation and IEx demos
+
+* [ ] Add README or USAGE examples for starting a game session.
+* [ ] Add examples for creating a generated game through a session.
+* [ ] Add examples for inspecting a session summary.
+* [ ] Add examples for listing active session entities.
+* [ ] Add examples for cleaning up a session.
+* [ ] Document that sessions own live entity IDs but do not yet implement persistence.
+* [ ] Document that inactive blueprint scopes are still future work.
+
+#### Deferred from Phase 8
+
+* [ ] Defer command parsing.
+* [ ] Defer player entity creation.
+* [ ] Defer location travel.
+* [ ] Defer scoped ticking.
+* [ ] Defer persistence.
+* [ ] Defer Phoenix LiveView.
+* [ ] Defer lazy world expansion.
+* [ ] Defer multi-session persistence or save/load behavior.
+
+---
+
+### Phase 9: Session-Aware Gameplay API
+
+Phase 9 routes gameplay actions through a game session.
+
+The goal is to make player-facing actions aware of session ownership before adding command parsing or UI. This prevents future gameplay from depending on global entity lookup alone.
+
+This phase should keep the existing `Procession.Game` APIs working. Session-aware APIs should wrap or delegate to existing gameplay functions first.
+
+#### Session gameplay boundary
+
+* [ ] Add session-aware gameplay helpers.
+
+  * Example: `Procession.GameSession.look(session, entity_id)`
+  * Example: `Procession.GameSession.ask_about(session, entity_id, topic)`
+  * Example: `Procession.GameSession.talk_to(session, entity_id, message, opts \\ [])`
+* [ ] Keep existing `Procession.Game.look/1`, `ask_about/2`, and `talk_to/3` usable.
+* [ ] Delegate to `Procession.Game` where possible.
+* [ ] Require target entities to belong to the session.
+* [ ] Return predictable errors for entities outside the session.
+
+  * Example: `{:error, :entity_not_in_session}`
+* [ ] Add tests for successful session-aware look.
+* [ ] Add tests for successful session-aware memory queries.
+* [ ] Add tests for successful session-aware dialogue.
+* [ ] Add tests for missing or non-owned target entities.
+
+#### Session-aware ticking
+
+* [ ] Add a session tick API.
+
+  * Example: `Procession.GameSession.tick(session)`
+* [ ] First version may delegate to `Procession.Game.tick_world/0`.
+* [ ] Document that session tick is not yet scoped to session-owned entities unless implemented.
+* [ ] Return the tick summary as plain data.
+* [ ] Store the latest tick summary in session state if useful.
+* [ ] Add tests proving session tick coordinates world behavior.
+* [ ] Add tests proving failed behavior actions are still returned as data.
+* [ ] Do not duplicate entity tick logic inside `GameSession`.
+
+#### Session event inspection
+
+* [ ] Add session-aware recent event inspection.
+
+  * Example: `Procession.GameSession.recent_events(session, entity_id)`
+* [ ] Require the entity to belong to the session.
+* [ ] Delegate to existing event/memory APIs where possible.
+* [ ] Return predictable errors for non-session entities.
+* [ ] Add tests for recent events through the session boundary.
+* [ ] Add tests for invalid or outside-session event requests.
+
+#### Session action API
+
+* [ ] Add a generic session action helper if useful.
+
+  * Example: `Procession.GameSession.perform(session, :look, entity_id: "npc_mira")`
+* [ ] Keep actions as atoms and keyword options.
+* [ ] Do not parse text commands yet.
+* [ ] Delegate existing player actions to session-aware helpers.
+* [ ] Return predictable errors for invalid actions.
+* [ ] Add tests for supported session actions.
+* [ ] Add tests for unsupported session actions.
+* [ ] Add tests for missing action arguments.
+
+#### Session summary improvements
+
+* [ ] Include active entity counts in session summary.
+* [ ] Include world name or generated game name in session summary.
+* [ ] Include session status.
+* [ ] Include last tick summary if stored.
+* [ ] Keep summary as plain data.
+* [ ] Add tests for useful session summary output.
+
+#### Documentation and IEx demos
+
+* [ ] Add examples for looking at entities through a session.
+* [ ] Add examples for asking NPCs about memories through a session.
+* [ ] Add examples for dialogue through a session.
+* [ ] Add examples for ticking through a session.
+* [ ] Add examples for inspecting recent events through a session.
+* [ ] Document that session-aware APIs protect against interacting with unrelated live entities.
+
+#### Deferred from Phase 9
+
+* [ ] Defer command parsing.
+* [ ] Defer player entity.
+* [ ] Defer location-relative commands.
+* [ ] Defer scoped ticking unless it becomes trivial.
+* [ ] Defer UI.
+* [ ] Defer persistence.
+
+---
+
+### Phase 10: Player Entity & Location Context
+
+Phase 10 introduces the player as explicit game state.
+
+The goal is to stop treating the player as an implied caller and start representing the player inside the active session. This enables natural commands like `look`, travel, inventory, player memory, and location-aware interaction later.
+
+This phase should keep the first player model small and deterministic.
+
+#### Player entity foundation
+
+* [ ] Decide whether the player should be a normal `Procession.Entity` process or session state first.
+
+  * Recommended first version: player as a normal entity process owned by the session.
+* [ ] Add a player ID convention.
+
+  * Example: `player_main` or generated `player_...`
+* [ ] Add a helper for starting a player entity.
+
+  * Example: `EntitySupervisor.start_player/2` if useful.
+* [ ] Give the player a name, location, status, and metadata.
+* [ ] Keep player memory support available through the existing entity memory system.
+* [ ] Add tests for starting a player entity.
+* [ ] Add tests proving the session owns the player entity.
+
+#### Session player ownership
+
+* [ ] Add player ID to session state.
+* [ ] Add a session API for fetching the current player.
+
+  * Example: `Procession.GameSession.player(session)`
+* [ ] Add a session API for fetching player location.
+
+  * Example: `Procession.GameSession.player_location(session)`
+* [ ] Include the player in session cleanup.
+* [ ] Add tests proving cleanup stops the player entity.
+* [ ] Add tests for player summary output.
+
+#### Location context
+
+* [ ] Add a helper for looking at the player's current location.
+
+  * Example: `Procession.GameSession.look(session)`
+* [ ] Keep `look(session, entity_id)` available for specific targets.
+* [ ] Return current location summary when no target is provided.
+* [ ] Include known NPCs or entities at the current location if simple.
+* [ ] Add tests for location-relative look.
+* [ ] Add tests for looking at a specific entity from the session.
+* [ ] Add predictable errors when the player has no valid location.
+
+#### Local entity discovery
+
+* [ ] Add a helper for listing entities at the player's current location.
+
+  * Example: `Procession.GameSession.local_entities(session)`
+* [ ] Use live entity state to determine locations.
+* [ ] Limit results to session-owned entities.
+* [ ] Add tests proving only session-owned entities are listed.
+* [ ] Add tests proving entities in other locations are excluded.
+* [ ] Add tests proving unknown global entities are excluded.
+
+#### Player memory preparation
+
+* [ ] Decide whether player actions should create memories immediately.
+* [ ] First version may avoid automatic player memory.
+* [ ] Add a basic player memory example only if useful.
+* [ ] Defer richer journaling or quest logs.
+* [ ] Document the decision.
+
+#### Documentation and IEx demos
+
+* [ ] Add examples for creating a session with a player.
+* [ ] Add examples for checking player location.
+* [ ] Add examples for `look` using player location context.
+* [ ] Add examples for listing local entities.
+* [ ] Document that player inventory, quests, and stats are deferred.
+
+#### Deferred from Phase 10
+
+* [ ] Defer inventory.
+* [ ] Defer stats and character creation.
+* [ ] Defer combat.
+* [ ] Defer quests.
+* [ ] Defer player persistence.
+* [ ] Defer complex movement rules.
+
+---
+
+### Phase 11: Deterministic Command Parser
+
+Phase 11 adds a small text command boundary.
+
+The goal is to make the game playable through simple text commands without adding Phoenix, a full CLI, or AI-driven command interpretation yet.
+
+The parser should translate strings into existing session-aware gameplay APIs. It should not own gameplay logic.
+
+#### Command boundary
+
+* [ ] Add a command module.
+
+  * Example: `Procession.Command`
+* [ ] Define a public command API.
+
+  * Example: `Procession.Command.run(session, command_text)`
+* [ ] Require command input to be a binary string.
+* [ ] Return predictable errors for invalid input.
+
+  * Example: `{:error, :invalid_command}`
+* [ ] Keep command parsing deterministic.
+* [ ] Do not call AI for command parsing.
+* [ ] Add tests for invalid command input.
+* [ ] Add tests for unknown commands.
+
+#### Basic command support
+
+* [ ] Support `look`.
+
+  * Looks at the player's current location.
+* [ ] Support `look at <target>`.
+
+  * Looks at a session-owned entity by name or ID.
+* [ ] Support `ask <npc> about <topic>`.
+* [ ] Support `talk to <npc>: <message>`.
+* [ ] Support `wait`.
+
+  * Coordinates one session/world tick.
+* [ ] Support `events for <entity>`.
+
+  * Shows recent events for a session-owned entity.
+* [ ] Add tests for each supported command.
+* [ ] Add tests for missing targets or malformed command text.
+
+#### Entity name resolution
+
+* [ ] Add simple entity name lookup within a session.
+* [ ] Match exact entity IDs first.
+* [ ] Match entity names second.
+* [ ] Limit lookup to session-owned entities.
+* [ ] Return predictable errors for ambiguous names.
+
+  * Example: `{:error, {:ambiguous_entity, matches}}`
+* [ ] Return predictable errors for unknown names.
+
+  * Example: `{:error, :entity_not_found}`
+* [ ] Add tests for ID lookup.
+* [ ] Add tests for name lookup.
+* [ ] Add tests for unknown and ambiguous names.
+
+#### Command result formatting
+
+* [ ] Return command results as plain data first.
+* [ ] Avoid human-readable prose formatting until command data is stable.
+* [ ] Use consistent result shapes.
+
+  * Example: `{:ok, %{command: :look, result: summary}}`
+* [ ] Add tests for command result shapes.
+* [ ] Defer rich text rendering.
+
+#### Documentation and IEx demos
+
+* [ ] Add IEx examples for command parsing.
+* [ ] Show a tiny command-based play loop.
+* [ ] Document supported commands.
+* [ ] Document that command parsing is deterministic and local.
+* [ ] Document that AI command interpretation is deferred.
+
+#### Deferred from Phase 11
+
+* [ ] Defer fuzzy command parsing.
+* [ ] Defer natural language AI command parsing.
+* [ ] Defer CLI loop.
+* [ ] Defer Phoenix LiveView.
+* [ ] Defer command history.
+* [ ] Defer aliases and shortcuts unless trivial.
+
+---
+
+### Phase 12: Basic Travel & Active Scope Preparation
+
+Phase 12 adds simple location movement and prepares for active scopes.
+
+The goal is not full maps or pathfinding. The goal is to let the player move between known locations in the starter world using simple deterministic exits.
+
+#### Location exits
+
+* [ ] Decide how location exits are represented.
+
+  * Recommended first version: location metadata.
+  * Example: `metadata.exits`
+* [ ] Define a simple exit shape.
+
+  * Example: `%{to: "loc_silent_mine", label: "mine road"}`
+* [ ] Add deterministic exits to the starter generated world.
+* [ ] Validate that exit destinations reference known locations.
+* [ ] Do not add pathfinding yet.
+* [ ] Do not add travel time yet unless trivial.
+* [ ] Add tests for valid exits.
+* [ ] Add tests for invalid exit destinations.
+
+#### Player movement
+
+* [ ] Add a session-aware movement API.
+
+  * Example: `Procession.GameSession.travel(session, destination)`
+* [ ] Require the player entity to exist.
+* [ ] Require the destination to be reachable from the current location.
+* [ ] Update player location through existing entity state APIs.
+* [ ] Return a plain movement summary.
+
+  * Example: `%{from: "loc_a", to: "loc_b"}`
+* [ ] Return predictable errors for unreachable destinations.
+* [ ] Return predictable errors for unknown destinations.
+* [ ] Add tests for successful movement.
+* [ ] Add tests for failed movement.
+
+#### Travel commands
+
+* [ ] Add command support for travel.
+
+  * Example: `go to Silent Mine`
+  * Example: `travel to Crossroads`
+* [ ] Resolve destination by location ID or name.
+* [ ] Require the destination to be reachable.
+* [ ] Add tests for successful travel commands.
+* [ ] Add tests for invalid travel commands.
+
+#### Location-relative gameplay
+
+* [ ] Update `look` to show the player's current location after travel.
+* [ ] Update local entity listing after travel.
+* [ ] Ensure entities from other locations are not shown as local.
+* [ ] Add tests proving local context changes after travel.
+* [ ] Add tests for looking after movement.
+
+#### Active scope preparation
+
+* [ ] Add a simple active scope concept to session state if useful.
+
+  * Example: `active_scope: "scope_starter_area"`
+* [ ] Keep active scope as metadata or plain data first.
+* [ ] Do not implement lazy spawning yet.
+* [ ] Document that all starter locations are still live in this phase.
+* [ ] Add tests for active scope summary if implemented.
+
+#### Documentation and IEx demos
+
+* [ ] Add examples for location exits.
+* [ ] Add examples for player travel.
+* [ ] Add examples for command-based travel.
+* [ ] Add examples showing `look` before and after travel.
+* [ ] Document that maps, pathfinding, travel time, and large-world scope loading are deferred.
+
+#### Deferred from Phase 12
+
+* [ ] Defer pathfinding.
+* [ ] Defer travel time.
+* [ ] Defer random encounters.
+* [ ] Defer locked exits.
+* [ ] Defer region-to-region travel.
+* [ ] Defer lazy spawning and hydration.
+* [ ] Defer large-scale maps.
+
+---
+
+### Phase 13: First Playable Vertical Slice
+
+Phase 13 packages the existing systems into a tiny playable loop.
+
+The goal is to make Procession playable for 5-10 minutes through deterministic commands in IEx. This is not the final UI, not a full game, and not a content-complete experience. It is the first cohesive prototype.
+
+#### Vertical slice setup
+
+* [ ] Add a helper for starting the first playable prototype.
+
+  * Example: `Procession.GameSession.start_demo/1`
+  * Or keep setup as documented IEx commands if a helper is premature.
+* [ ] Create a deterministic game session.
+* [ ] Create a player entity.
+* [ ] Spawn the starter world.
+* [ ] Track active session entities.
+* [ ] Ensure player starts at a valid location.
+* [ ] Return a useful startup summary.
+* [ ] Add tests for vertical slice setup.
+
+#### Minimum playable command loop
+
+* [ ] Ensure the player can run `look`.
+* [ ] Ensure the player can run `look at <npc>`.
+* [ ] Ensure the player can run `ask <npc> about <topic>`.
+* [ ] Ensure the player can run `talk to <npc>: <message>`.
+* [ ] Ensure the player can run `wait`.
+* [ ] Ensure the player can inspect recent events.
+* [ ] Ensure the player can travel between starter locations.
+* [ ] Add tests for a multi-command play sequence.
+
+#### World reactivity
+
+* [ ] Ensure `wait` triggers world ticking.
+* [ ] Ensure NPC behavior can create visible events or memories.
+* [ ] Ensure failed NPC behavior remains visible as structured data.
+* [ ] Ensure the clock is not required for manual play.
+* [ ] Optionally allow interval ticking during the demo.
+* [ ] Add tests proving playerless behavior affects later player inspection.
+
+#### Demo content expectations
+
+* [ ] Keep demo content deterministic.
+* [ ] Use the current starter world unless a small content update is needed.
+* [ ] Ensure at least one NPC has useful memory to ask about.
+* [ ] Ensure at least one NPC behavior creates a visible change.
+* [ ] Ensure at least two locations are reachable.
+* [ ] Avoid adding a quest system yet.
+* [ ] Avoid adding inventory yet.
+* [ ] Avoid adding combat yet.
+
+#### Result shaping
+
+* [ ] Decide whether command results should remain raw data or include simple display text.
+* [ ] If display text is added, keep it separate from core gameplay state.
+* [ ] Add small formatting helpers only if needed for playability.
+* [ ] Do not let formatting own gameplay logic.
+* [ ] Add tests for any display formatting helpers.
+
+#### Documentation and demo script
+
+* [ ] Add a documented 5-minute IEx demo script.
+* [ ] Include setup commands.
+* [ ] Include at least one `look`.
+* [ ] Include at least one NPC interaction.
+* [ ] Include at least one `wait`.
+* [ ] Include at least one travel command.
+* [ ] Include cleanup instructions.
+* [ ] Document what is deterministic and what is optional AI.
+
+#### Deferred from Phase 13
+
+* [ ] Defer full CLI.
+* [ ] Defer Phoenix LiveView.
+* [ ] Defer inventory.
+* [ ] Defer quests.
+* [ ] Defer combat.
+* [ ] Defer save/load.
+* [ ] Defer large-world expansion.
+* [ ] Defer AI command parsing.
+
+---
+
+### Phase 14: Tiny Local CLI Loop
+
+Phase 14 adds a simple local terminal play loop.
+
+The goal is to make the vertical slice playable without manually calling IEx functions. This should remain local, zero-budget, and small.
+
+#### CLI entry point
+
+* [ ] Decide the simplest CLI entry point.
+
+  * Example: custom Mix task `mix procession.play`
+* [ ] Add a Mix task for starting the playable demo.
+
+  * Example: `Mix.Tasks.Procession.Play`
+* [ ] Start or reuse a game session.
+* [ ] Create the deterministic starter world.
+* [ ] Create the player entity.
+* [ ] Print a short intro.
+* [ ] Accept typed commands from stdin.
+* [ ] Add tests for CLI setup where practical.
+* [ ] Keep command parsing delegated to `Procession.Command`.
+
+#### CLI command loop
+
+* [ ] Read player input line by line.
+* [ ] Send commands to the deterministic command parser.
+* [ ] Print command results in a readable format.
+* [ ] Support `help`.
+* [ ] Support `quit`.
+* [ ] Keep the loop local and synchronous.
+* [ ] Do not require Phoenix.
+* [ ] Do not require Ollama.
+* [ ] Do not require a database.
+
+#### Simple output formatting
+
+* [ ] Add basic display formatting for look results.
+* [ ] Add basic display formatting for memory/event results.
+* [ ] Add basic display formatting for travel results.
+* [ ] Add basic display formatting for errors.
+* [ ] Keep formatting separate from simulation logic.
+* [ ] Add tests for formatting helpers if they are separate modules.
+
+#### Safety and cleanup
+
+* [ ] Stop interval ticking when quitting if it was started.
+* [ ] Clean up session-owned entities on quit.
+* [ ] Handle invalid commands without crashing the loop.
+* [ ] Handle Ctrl+C as gracefully as practical.
+* [ ] Document cleanup behavior.
+
+#### Documentation
+
+* [ ] Add instructions for running the CLI prototype.
+
+  * Example: `mix procession.play`
+* [ ] Document supported commands.
+* [ ] Document that the CLI is a prototype.
+* [ ] Document that the simulation core remains Elixir/OTP-first.
+* [ ] Document that Phoenix LiveView is still deferred.
+
+#### Deferred from Phase 14
+
+* [ ] Defer Phoenix LiveView.
+* [ ] Defer save/load.
+* [ ] Defer multiple concurrent sessions in the CLI.
+* [ ] Defer rich UI.
+* [ ] Defer combat.
+* [ ] Defer quest tracking.
+* [ ] Defer AI command interpretation.
+
+---
+
 ## Phase Completion Criteria
 
 ### Phase 1 is complete when:
@@ -819,3 +1455,94 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Entity tick failures are isolated from the clock process.
 - [x] README documentation explains how to run manual and scheduled world ticks.
 - [x] Persistence, UI, and deeper simulation remain deferred.
+
+### Phase 8 is complete when:
+
+* [ ] A `Procession.GameSession` boundary exists.
+* [ ] A session can start a deterministic generated game.
+* [ ] A session tracks its owned active entity IDs.
+* [ ] Session summaries expose useful runtime state as plain data.
+* [ ] Session cleanup stops owned entities predictably.
+* [ ] Cleanup is safe to call more than once.
+* [ ] Existing `Procession.Game` and `Procession.WorldClock` APIs still work.
+* [ ] Tests prove session ownership, summary, game creation, and cleanup behavior.
+* [ ] README or USAGE documentation explains basic session usage.
+* [ ] Persistence, command parsing, scoped spawning, and UI remain deferred.
+
+### Phase 9 is complete when:
+
+* [ ] Gameplay actions can be performed through a session boundary.
+* [ ] Session-aware gameplay rejects entities not owned by the session.
+* [ ] Session-aware look, ask, talk, tick, and recent event APIs work.
+* [ ] Existing global gameplay APIs still work unless intentionally changed.
+* [ ] Session tick behavior delegates to existing world tick flow.
+* [ ] Session summaries include useful gameplay state.
+* [ ] Tests cover successful and failed session-aware gameplay actions.
+* [ ] Documentation includes a session-based IEx gameplay loop.
+* [ ] Command parsing, player entity, travel, persistence, and UI remain deferred.
+
+### Phase 10 is complete when:
+
+* [ ] The player is represented explicitly in session state.
+* [ ] The player has a stable ID, location, status, and basic entity state.
+* [ ] The session owns the player entity.
+* [ ] The player is cleaned up with the rest of the session.
+* [ ] The session can report the player's current location.
+* [ ] `look` can operate relative to the player's current location.
+* [ ] The session can list local entities at the player's location.
+* [ ] Tests cover player creation, player ownership, player location, and location-relative look.
+* [ ] Documentation explains player entity behavior and current limitations.
+* [ ] Inventory, quests, combat, and player persistence remain deferred.
+
+### Phase 11 is complete when:
+
+* [ ] A deterministic command boundary exists.
+* [ ] Text commands are parsed without AI.
+* [ ] Commands delegate to session-aware gameplay APIs.
+* [ ] Supported commands include look, look at, ask about, talk to, wait, and recent events.
+* [ ] Entity lookup works by ID and simple name matching within a session.
+* [ ] Unknown, malformed, and ambiguous commands return predictable errors.
+* [ ] Command results are returned as consistent plain data.
+* [ ] Tests cover supported commands and common failure cases.
+* [ ] Documentation includes a command-based IEx play loop.
+* [ ] Fuzzy parsing, AI command interpretation, CLI, and UI remain deferred.
+
+### Phase 12 is complete when:
+
+* [ ] Locations can define simple deterministic exits.
+* [ ] Exit destinations are validated against known locations.
+* [ ] The player can travel between reachable starter locations.
+* [ ] Travel updates the player's location.
+* [ ] Unreachable and unknown destinations return predictable errors.
+* [ ] Travel commands work through the command boundary.
+* [ ] `look` and local entity listing reflect the player's new location after travel.
+* [ ] Tests cover valid travel, invalid travel, and location context after movement.
+* [ ] Documentation explains basic travel and its limitations.
+* [ ] Pathfinding, travel time, region travel, and lazy spawning remain deferred.
+
+### Phase 13 is complete when:
+
+* [ ] A deterministic playable vertical slice can be started.
+* [ ] The vertical slice creates a session, generated starter world, and player entity.
+* [ ] The player can inspect the current location.
+* [ ] The player can inspect and interact with NPCs.
+* [ ] The player can ask NPCs about known topics.
+* [ ] The player can wait and observe world tick consequences.
+* [ ] The player can travel between starter locations.
+* [ ] A short multi-command play sequence works in tests.
+* [ ] Documentation includes a 5-minute IEx demo script.
+* [ ] CLI, Phoenix LiveView, persistence, inventory, quests, combat, and large-world expansion remain deferred.
+
+### Phase 14 is complete when:
+
+* [ ] A local CLI prototype can be started from the project.
+* [ ] The CLI starts a deterministic playable session.
+* [ ] The CLI accepts typed commands and delegates to the command boundary.
+* [ ] The CLI supports help and quit.
+* [ ] Command results are displayed in readable text.
+* [ ] Invalid commands do not crash the CLI loop.
+* [ ] Session-owned entities are cleaned up when quitting.
+* [ ] The CLI does not require Ollama, Phoenix, a database, or paid services.
+* [ ] Documentation explains how to run the CLI prototype and what commands are supported.
+* [ ] Save/load, Phoenix LiveView, combat, quests, inventory, and AI command interpretation remain deferred.
+
