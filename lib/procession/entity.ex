@@ -312,16 +312,18 @@ defmodule Procession.Entity do
 
   @impl true
   def handle_call(:tick, _from, state) do
-    actions =
+    {actions, updated_state} =
       state.metadata
       |> Map.get(:behaviors, [])
       |> Enum.filter(fn behavior ->
         Map.get(behavior, :trigger) == :world_tick
       end)
-      |> Enum.map(fn behavior ->
-        Procession.Behavior.execute(state, behavior)
+      |> Enum.reduce({[], state}, fn behavior, {actions, current_state} ->
+        {action_result, next_state} = Procession.Behavior.execute(current_state, behavior)
+
+        {[action_result | actions], next_state}
       end)
 
-    {:reply, {:ok, %{entity_id: state.id, actions: actions}}, state}
+    {:reply, {:ok, %{entity_id: updated_state.id, actions: Enum.reverse(actions)}}, updated_state}
   end
 end

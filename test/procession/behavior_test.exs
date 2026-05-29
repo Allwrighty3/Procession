@@ -29,6 +29,35 @@ defmodule Procession.BehaviorTest do
     assert Behavior.validate(behavior) == :ok
   end
 
+  test "validate accepts change_status behavior" do
+    behavior = %{
+      trigger: :world_tick,
+      action: :change_status,
+      status: :alert
+    }
+
+    assert Behavior.validate(behavior) == :ok
+  end
+
+  test "validate rejects change_status without status" do
+    behavior = %{
+      trigger: :world_tick,
+      action: :change_status
+    }
+
+    assert Behavior.validate(behavior) == {:error, {:missing_behavior_field, :status}}
+  end
+
+  test "validate rejects change_status with invalid status" do
+    behavior = %{
+      trigger: :world_tick,
+      action: :change_status,
+      status: "alert"
+    }
+
+    assert Behavior.validate(behavior) == {:error, {:invalid_behavior_field, :status}}
+  end
+
   test "validate rejects non-map behavior metadata" do
     assert Behavior.validate(nil) == {:error, :invalid_behavior}
     assert Behavior.validate(:not_a_behavior) == {:error, :invalid_behavior}
@@ -120,14 +149,15 @@ defmodule Procession.BehaviorTest do
       tags: [:mine]
     }
 
-    assert Procession.Behavior.execute(sender_state, behavior) == %{
-             status: :ok,
-             action: :send_message,
-             from: "npc_sender_behavior_test",
-             to: "npc_receiver_behavior_test",
-             type: :rumor,
-             content: "The mine road was watched."
-           }
+    assert Procession.Behavior.execute(sender_state, behavior) ==
+             {%{
+                status: :ok,
+                action: :send_message,
+                from: "npc_sender_behavior_test",
+                to: "npc_receiver_behavior_test",
+                type: :rumor,
+                content: "The mine road was watched."
+              }, sender_state}
 
     Process.sleep(10)
 
@@ -143,6 +173,28 @@ defmodule Procession.BehaviorTest do
     Procession.EntitySupervisor.stop_entity("npc_receiver_behavior_test")
   end
 
+  test "execute changes entity status" do
+    entity_state = %{
+      id: "npc_status_behavior_test",
+      status: :idle
+    }
+
+    behavior = %{
+      trigger: :world_tick,
+      action: :change_status,
+      status: :alert
+    }
+
+    assert Procession.Behavior.execute(entity_state, behavior) ==
+             {%{
+                status: :ok,
+                action: :change_status,
+                entity_id: "npc_status_behavior_test",
+                old_status: :idle,
+                new_status: :alert
+              }, %{entity_state | status: :alert}}
+  end
+
   test "execute returns validation errors for invalid behavior" do
     entity_state = %{id: "npc_sender_behavior_test"}
 
@@ -154,6 +206,11 @@ defmodule Procession.BehaviorTest do
     }
 
     assert Procession.Behavior.execute(entity_state, behavior) ==
-             {:error, {:unsupported_behavior_action, :not_an_action}}
+             {%{
+                status: :error,
+                action: :not_an_action,
+                from: "npc_sender_behavior_test",
+                reason: {:unsupported_behavior_action, :not_an_action}
+              }, entity_state}
   end
 end

@@ -939,6 +939,42 @@ defmodule Procession.EntityTest do
            end)
   end
 
+  test "tick performs change_status behavior from entity meta_data" do
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_npc("npc_status_tick_test", %{
+        name: "Status NPC",
+        status: :idle,
+        location: "loc_test",
+        metadata: %{
+          behaviors: [
+            %{
+              trigger: :world_tick,
+              action: :change_status,
+              status: :alert
+            }
+          ]
+        }
+      })
+
+    assert {:ok, result} = Procession.Entity.tick("npc_status_tick_test")
+
+    assert result.actions == [
+             %{
+               status: :ok,
+               action: :change_status,
+               entity_id: "npc_status_tick_test",
+               old_status: :idle,
+               new_status: :alert
+             }
+           ]
+
+    state = Procession.Entity.get_state("npc_status_tick_test")
+
+    assert state.status == :alert
+
+    Procession.EntitySupervisor.stop_entity("npc_status_tick_test")
+  end
+
   test "tick returns no actions for an entity without tick behaviors" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 

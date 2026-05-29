@@ -591,19 +591,19 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 
 #### Second safe behavior action
 
-- [ ] Add one additional deterministic behavior action.
+- [x] Add one additional deterministic behavior action.
   - Recommended first option: `:change_status`
-- [ ] Define the schema for `:change_status`.
+- [x] Define the schema for `:change_status`.
   - Example: `%{trigger: :world_tick, action: :change_status, status: :alert}`
-- [ ] Validate required fields for `:change_status`.
-- [ ] Execute `:change_status` without an entity GenServer calling itself.
-- [ ] Update entity state directly during the tick when appropriate.
-- [ ] Return a structured action summary for `:change_status`.
+- [x] Validate required fields for `:change_status`.
+- [x] Execute `:change_status` without an entity GenServer calling itself.
+- [x] Update entity state directly during the tick when appropriate.
+- [x] Return a structured action summary for `:change_status`.
   - Example: `%{status: :ok, action: :change_status, entity_id: ..., new_status: :alert}`
 - [ ] Add one deterministic fixture behavior using `:change_status`.
-- [ ] Add tests proving entity behavior can update entity state.
-- [ ] Add tests proving invalid status behavior is rejected predictably.
-- [ ] Keep this action deterministic and local.
+- [x] Add tests proving entity behavior can update entity state.
+- [x] Add tests proving invalid status behavior is rejected predictably.
+- [x] Keep this action deterministic and local.
 
 #### AI boundary preparation
 
