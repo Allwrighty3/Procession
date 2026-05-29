@@ -579,15 +579,15 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 #### Spawning generated worlds
 
-- [ ] Add a separate function for spawning a blueprint into live entity processes.
+- [x] Add a separate function for spawning a blueprint into live entity processes.
   - Example: `Procession.Generator.spawn_world(world_blueprint)`
-- [ ] Keep generation and spawning separate.
-- [ ] Start generated locations through `EntitySupervisor`.
-- [ ] Start generated NPCs through `EntitySupervisor`.
-- [ ] Start generated factions through `EntitySupervisor`.
+- [x] Keep generation and spawning separate.
+- [x] Start generated locations through `EntitySupervisor`.
+- [x] Start generated NPCs through `EntitySupervisor`.
+- [x] Start generated factions through `EntitySupervisor`.
 - [ ] Attach starter memories only after entities are created.
-- [ ] Return a summary of created entities.
-- [ ] Add tests proving entities are created from a blueprint.
+- [x] Return a summary of created entities.
+- [x] Add tests proving entities are created from a blueprint.
 
 #### Starter memories and relationships
 

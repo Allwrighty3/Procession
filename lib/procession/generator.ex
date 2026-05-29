@@ -130,6 +130,30 @@ defmodule Procession.Generator do
     {:error, :invalid_blueprint}
   end
 
+  @doc """
+  Spawns a validated world blueprint into live entity processes.
+
+  Generation and spawning stay separate: `generate_world/2` creates data,
+  while `spawn_world/1` starts processes from that data.
+  """
+  def spawn_world(blueprint) when is_map(blueprint) do
+    with :ok <- validate_blueprint(blueprint),
+         {:ok, location_ids} <- spawn_locations(blueprint.locations),
+         {:ok, npc_ids} <- spawn_npcs(blueprint.npcs),
+         {:ok, faction_ids} <- spawn_factions(blueprint.factions) do
+      {:ok,
+       %{
+         locations: location_ids,
+         npcs: npc_ids,
+         factions: faction_ids
+       }}
+    end
+  end
+
+  def spawn_world(_blueprint) do
+    {:error, :invalid_blueprint}
+  end
+
   defp require_top_level_fields(blueprint) do
     required_fields = [
       :name,
@@ -204,5 +228,44 @@ defmodule Procession.Generator do
       not Map.has_key?(memory, :type) or
       not Map.has_key?(memory, :content) or
       Map.get(memory, :content) in [nil, ""]
+  end
+
+  defp spawn_locations(locations) do
+    spawn_entities(locations, fn location ->
+      attrs =
+        location
+        |> Map.drop([:id])
+        |> Map.put(:metadata, %{description: Map.get(location, :description)})
+
+      Procession.EntitySupervisor.start_location(location.id, attrs)
+    end)
+  end
+
+  defp spawn_npcs(npcs) do
+    spawn_entities(npcs, fn npc ->
+      attrs = Map.drop(npc, [:id])
+
+      Procession.EntitySupervisor.start_npc(npc.id, attrs)
+    end)
+  end
+
+  defp spawn_factions(factions) do
+    spawn_entities(factions, fn faction ->
+      attrs =
+        faction
+        |> Map.drop([:id])
+        |> Map.put(:metadata, %{description: Map.get(faction, :description)})
+
+      Procession.EntitySupervisor.start_faction(faction.id, attrs)
+    end)
+  end
+
+  defp spawn_entities(entities, spawn_fun) do
+    Enum.reduce_while(entities, {:ok, []}, fn entity, {:ok, ids} ->
+      case spawn_fun.(entity) do
+        {:ok, _pid} -> {:cont, {:ok, ids ++ [entity.id]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 end

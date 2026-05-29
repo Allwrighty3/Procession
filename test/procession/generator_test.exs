@@ -59,7 +59,7 @@ defmodule Procession.GeneratorTest do
            end)
   end
 
-  test "generated relationships reference known enitty IDs" do
+  test "generated relationships reference known entity IDs" do
     assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
 
     entity_ids =
@@ -73,7 +73,7 @@ defmodule Procession.GeneratorTest do
            end)
   end
 
-  test "start memories reference known NPCs" do
+  test "starter memories reference known NPCs" do
     assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
 
     npc_ids = Enum.map(blueprint.npcs, & &1.id)
@@ -193,14 +193,14 @@ defmodule Procession.GeneratorTest do
              {:error, {:unknown_location, invalid_npc.id, "loc_nowhere"}}
   end
 
-  test "validate_blueprint rejects relationships with unown entities" do
+  test "validate_blueprint rejects relationships with unknown entities" do
     assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
 
     invalid_relationship = %{
       from: "npc_mira",
       to: "npc_fake",
       type: :knows,
-      descriptions: "This relationship points to a missing entity."
+      description: "This relationship points to a missing entity."
     }
 
     invalid_blueprint = %{
@@ -212,7 +212,7 @@ defmodule Procession.GeneratorTest do
              {:error, {:unknown_relationship_entity, invalid_relationship}}
   end
 
-  test "validate_blueprint rejects invali starter memories" do
+  test "validate_blueprint rejects invalid starter memories" do
     assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
 
     invalid_memory = %{
@@ -230,5 +230,27 @@ defmodule Procession.GeneratorTest do
 
     assert Procession.Generator.validate_blueprint(invalid_blueprint) ==
              {:error, {:invalid_starter_memory, invalid_memory}}
+  end
+
+  test "spawn_world creates live entity processes from a blueprint" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert {:ok, summary} = Procession.Generator.spawn_world(blueprint)
+
+    assert summary.locations == ["loc_crossroads", "loc_briar_village", "loc_silent_mine"]
+    assert summary.npcs == ["npc_mira", "npc_tobin", "npc_elin"]
+    assert summary.factions == ["faction_roadwardens"]
+
+    assert Procession.EntitySupervisor.exists?("loc_crossroads")
+    assert Procession.EntitySupervisor.exists?("npc_mira")
+    assert Procession.EntitySupervisor.exists?("faction_roadwardens")
+  end
+
+  test "spawn_world rejects invalid blueprints before spawning entities" do
+    assert Procession.Generator.spawn_world(%{}) == {:error, {:missing_field, :name}}
+  end
+
+  test "spawn_world rejects non-map blueprints" do
+    assert Procession.Generator.spawn_world(nil) == {:error, :invalid_blueprint}
   end
 end
