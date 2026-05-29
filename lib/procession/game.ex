@@ -101,6 +101,45 @@ defmodule Procession.Game do
   end
 
   @doc """
+  Advances the world by one deterministic playerless tick.
+
+  The first tick is intentionally tiny: one scripted NPC-to-NPC interaction using
+  the existing entity messaging system. This proves the world can change without
+  direct player action, without introducing timers, schedulers, or autonomous
+  simulation processes yet.
+  """
+
+  def tick_world do
+    event = %{
+      from: "npc_tobin",
+      to: "npc_mira",
+      type: :rumor,
+      content: "Tobin quietly warned Mira that the mine road was watched.",
+      importance: 2,
+      tags: [:mine, :road, :tobin],
+      metadata: %{source: :world_tick}
+    }
+
+    case Entity.send_to(event.from, event.to, event) do
+      :ok ->
+        {:ok,
+         %{
+           events: [
+             %{
+               from: event.from,
+               to: event.to,
+               type: event.type,
+               content: event.content
+             }
+           ]
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Performs a tiny deterministic player action.
 
   The first supported action is `:look`, which delegates to `look/1`.

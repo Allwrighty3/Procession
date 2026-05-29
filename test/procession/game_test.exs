@@ -319,4 +319,43 @@ defmodule Procession.GameTest do
              adapter: Procession.AI.FakeAdapter
            ) == {:error, :invalid_message}
   end
+
+  test "tick_world returns a summary of playerless world events" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, summary} = Procession.Game.tick_world()
+
+    assert summary == %{
+             events: [
+               %{
+                 from: "npc_tobin",
+                 to: "npc_mira",
+                 type: :rumor,
+                 content: "Tobin quietly warned Mira that the mine road was watched."
+               }
+             ]
+           }
+  end
+
+  test "tick_world changes the world without direct player action" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, []} = Procession.Game.ask_about("npc_mira", "watched")
+
+    assert {:ok, _summary} = Procession.Game.tick_world()
+
+    Process.sleep(10)
+
+    assert {:ok, memories} = Procession.Game.ask_about("npc_mira", "watched")
+
+    assert Enum.any?(memories, fn memory ->
+             memory.content == "Tobin quietly warned Mira that the mine road was watched." and
+               memory.type == :rumor and
+               memory.from == "npc_tobin"
+           end)
+  end
+
+  test "tick_world returns a predictable error when required NPCs do not exist" do
+    assert Procession.Game.tick_world() == {:error, :entity_not_found}
+  end
 end
