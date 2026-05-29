@@ -565,13 +565,13 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 - [x] Validate NPC behavior metadata during blueprint validation.
 - [x] Keep behavior validation inside generator validation small and explicit.
 - [x] Ensure invalid generated behavior metadata prevents unsafe world spawning.
-- [ ] Preserve valid behavior metadata when spawning generated NPCs.
+- [x] Preserve valid behavior metadata when spawning generated NPCs.
 - [ ] Keep deterministic generator output using one or two sample behaviors only.
 - [ ] Do not require every generated NPC to have behavior metadata.
 - [x] Add tests proving blueprints with valid behavior metadata pass validation.
 - [x] Add tests proving blueprints with invalid behavior metadata fail validation.
 - [x] Add tests proving NPCs without behaviors still spawn normally.
-- [ ] Add tests proving behavior metadata survives spawning into live entity state.
+- [x] Add tests proving behavior metadata survives spawning into live entity state.
 
 #### Behavior execution
 

@@ -322,6 +322,30 @@ defmodule Procession.GeneratorTest do
     end)
   end
 
+  test "spawn_world preserves NPC behavior metadata" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    assert {:ok, summary} = Generator.spawn_world(blueprint)
+
+    tobin = Procession.Entity.get_state("npc_tobin")
+
+    assert tobin.metadata.behaviors == [
+             %{
+               trigger: :world_tick,
+               action: :send_message,
+               to: "npc_mira",
+               type: :rumor,
+               content: "Tobin quietly warned Mira that the mine road was watched.",
+               importance: 2,
+               tags: [:mine, :road, :tobin]
+             }
+           ]
+
+    Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
+      Procession.EntitySupervisor.stop_entity(id)
+    end)
+  end
+
   test "spawn_world rejects invalid blueprints before spawning entities" do
     assert Procession.Generator.spawn_world(%{}) == {:error, {:missing_field, :name}}
   end
@@ -414,25 +438,6 @@ defmodule Procession.GeneratorTest do
                type: :rumor,
                importance: 2,
                content: "Tobin quietly warned Mira that the mine road was watched.",
-               tags: [:mine, :road, :tobin]
-             }
-           ]
-  end
-
-  test "spawn_world preserves NPC behavior metadata" do
-    assert {:ok, blueprint} = Generator.generate_world("anything")
-    assert {:ok, _summary} = Generator.spawn_world(blueprint)
-
-    state = Procession.Entity.get_state("npc_tobin")
-
-    assert state.metadata.behaviors == [
-             %{
-               trigger: :world_tick,
-               action: :send_message,
-               to: "npc_mira",
-               type: :rumor,
-               content: "Tobin quietly warned Mira that the mine road was watched.",
-               importance: 2,
                tags: [:mine, :road, :tobin]
              }
            ]
