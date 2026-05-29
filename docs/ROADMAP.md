@@ -684,7 +684,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Include successful entity actions.
 - [x] Include failed entity actions.
 - [x] Include clock tick count.
-- [ ] Include timestamp or monotonic tick number only if useful.
+- [x] Include monotonic clock tick number.
 - [x] Keep recent summaries inspectable from IEx.
 - [x] Avoid persistence in Phase 7.
 - [x] Avoid database/storage decisions in Phase 7.
@@ -809,13 +809,13 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 ### Phase 7 is complete when:
 
-- [ ] A world clock boundary exists.
-- [ ] Manual ticking still works without the clock.
-- [ ] A supervised clock can coordinate world ticks.
-- [ ] The clock can be started and stopped predictably.
-- [ ] Scheduled ticks use the existing `Game.tick_world/0` / `Entity.tick/1` flow.
-- [ ] Tick summaries are inspectable.
-- [ ] Clock tests are deterministic and do not require Ollama.
-- [ ] Entity tick failures are isolated from the clock process.
-- [ ] README documentation explains how to run manual and scheduled world ticks.
-- [ ] Persistence, UI, and deeper simulation remain deferred.
+- [x] A world clock boundary exists.
+- [x] Manual ticking still works without the clock.
+- [x] A supervised clock can coordinate world ticks.
+- [x] The clock can be started and stopped predictably.
+- [x] Scheduled ticks use the existing `Game.tick_world/0` / `Entity.tick/1` flow.
+- [x] Tick summaries are inspectable.
+- [x] Clock tests are deterministic and do not require Ollama.
+- [x] Entity tick failures are isolated from the clock process.
+- [x] README documentation explains how to run manual and scheduled world ticks.
+- [x] Persistence, UI, and deeper simulation remain deferred.

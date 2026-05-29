@@ -11,8 +11,8 @@ Procession has completed Phases 1–5 and is moving into Phase 6: Entity Autonom
 - [x] Phase 3: Local AI Integration with Ollama
 - [x] Phase 4: Procedural Game Generator
 - [x] Phase 5: Gameplay Systems & Polish
-- [ ] Phase 6: Entity Autonomy & Behavior Schema
-- [ ] Phase 7: World Simulation Clock & Scheduling
+- [x] Phase 6: Entity Autonomy & Behavior Schema
+- [x] Phase 7: World Simulation Clock & Scheduling
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion criteria.
 
@@ -20,7 +20,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
 - `lib/procession.ex` - Top-level Procession module.
-- `lib/procession/application.ex` - OTP application supervision tree; starts the registry and dynamic entity supervisor.
+- `lib/procession/application.ex` - OTP application supervision tree; starts the registry, dynamic entity supervisor, and supervised world clock.
 
 ### Core entity system
 
@@ -49,13 +49,15 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 ### Gameplay systems
 
 - `lib/procession/game.ex` - Public gameplay boundary for deterministic game setup, player-facing inspection, player actions, dialogue requests, memory queries, recent autonomous event inspection, and manual world ticks.
+- `lib/procession/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
 - `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
+- `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
 - Future gameplay modules may be split out only when the public `Procession.Game` boundary becomes too large.
 
 ### Documentation
 
 - `docs/ROADMAP.md` - Detailed phase roadmap, task checklists, and phase completion criteria.
-- `docs/USAGE.md` - Copy-pasteable IEx examples for entities, memory, AI, generation, gameplay APIs, and manual world ticking.
+- `docs/USAGE.md` - Copy-pasteable IEx examples for entities, memory, AI, generation, gameplay APIs, manual world ticking, and optional interval ticking.
 - `docs/ARCHITECTURE.md` - Core architecture principles, OTP ownership, AI validation boundaries, behavior metadata rules, and specialized subsystem guidance.
 - `docs/WORLD_GENERATION.md` - Long-term cascading world generation vision, blueprint hierarchy, lazy expansion, and selective spawning strategy.
 
@@ -71,11 +73,15 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `test/procession/generator_test.exs` - Procedural generator, blueprint validation, spawning, starter memory, relationship metadata, generated behavior metadata, and optional AI-generation boundary tests.
 - `test/procession/generator/prompt_test.exs` - Generator prompt construction tests.
 - `test/procession/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue, memory queries, recent event inspection, and entity-driven world tick tests.
+- `test/procession/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
 
 ### Development direction
 
-- Phase 6 work should focus on `Procession.Behavior` or a similar behavior-schema boundary.
+### Development direction
+
 - Keep generated behavior metadata as data, not executable code.
 - Treat AI-generated behavior metadata as untrusted until it is validated.
-- Keep autonomous behavior owned by entities; `Procession.Game` should coordinate, not decide story logic.
-- Build and test function-based APIs before adding command parsing, Phoenix LiveView, persistence, combat, inventory, quests, or scheduled simulation.
+- Keep autonomous behavior owned by entities; `Procession.Game` and `Procession.WorldClock` should coordinate, not decide story logic.
+- Keep interval ticking optional and disabled by default.
+- Preserve the separation between generated blueprint data and live OTP processes.
+- Build and test function-based APIs before adding command parsing, Phoenix LiveView, persistence, combat, inventory, quests, or deeper simulation systems.

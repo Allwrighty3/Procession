@@ -625,7 +625,7 @@ Manual ticks and clock ticks are different entry points into the same world tick
 * `Procession.Game.tick_world/0` directly coordinates one manual world tick.
 * `Procession.WorldClock.tick(clock)` asks a clock process to coordinate one world tick and remember the result.
 * Neither API starts an automatic background loop.
-* Scheduled ticking is intentionally not enabled yet.
+* Scheduled interval ticking is optional and disabled by default.
 
 Clean up generated entities when experimenting in IEx:
 
