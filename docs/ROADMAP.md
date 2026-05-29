@@ -660,7 +660,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Name/register the clock only if needed.
 - [x] Keep failure behavior simple and idiomatic OTP.
 - [x] Add tests for supervised clock startup.
-- [ ] Add tests for predictable restart behavior if supervision is added.
+- [x] Add tests for predictable restart behavior if supervision is added.
 - [x] Avoid adding a full game-session process in Phase 7 unless clearly needed.
 
 #### Optional interval ticking

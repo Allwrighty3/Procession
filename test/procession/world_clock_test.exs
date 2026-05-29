@@ -132,6 +132,29 @@ defmodule Procession.WorldClockTest do
     assert is_integer(Procession.WorldClock.tick_count())
   end
 
+  test "supervised clock restarts with fresh state if it crashes" do
+    original_pid = Process.whereis(Procession.WorldClock)
+    assert is_pid(original_pid)
+
+    Process.exit(original_pid, :kill)
+
+    restarted_pid =
+      Enum.find_value(1..20, fn _attempt ->
+        Process.sleep(10)
+
+        case Process.whereis(Procession.WorldClock) do
+          pid when is_pid(pid) and pid != original_pid -> pid
+          _ -> nil
+        end
+      end)
+
+    assert is_pid(restarted_pid)
+    assert Process.alive?(restarted_pid)
+
+    assert Procession.WorldClock.tick_count() == 0
+    assert Procession.WorldClock.last_tick() == nil
+  end
+
   test "default clock API uses the supervised clock" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 
