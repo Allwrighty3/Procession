@@ -529,36 +529,36 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 
 #### Behavior schema foundation
 
-- [ ] Add a dedicated behavior module.
+- [x] Add a dedicated behavior module.
   - Example: `Procession.Behavior`
-- [ ] Define the supported behavior data shape.
+- [x] Define the supported behavior data shape.
   - Example: `%{trigger: :world_tick, action: :send_message, ...}`
-- [ ] Keep behavior schemas as plain maps for now.
-- [ ] Avoid macros, DSLs, or custom structs until the schema settles.
+- [x] Keep behavior schemas as plain maps for now.
+- [x] Avoid macros, DSLs, or custom structs until the schema settles.
 - [ ] Document that behavior metadata is generated data, not executable code.
 - [ ] Keep behavior schema logic independent from specific NPC names.
 - [ ] Keep deterministic behavior fixtures available for stable tests.
 
 #### Behavior validation
 
-- [ ] Add validation for behavior metadata.
+- [x] Add validation for behavior metadata.
   - Example: `Procession.Behavior.validate/1`
-- [ ] Validate that every behavior has a supported `:trigger`.
-- [ ] Validate that every behavior has a supported `:action`.
-- [ ] Validate required fields for `:send_message`.
+- [x] Validate that every behavior has a supported `:trigger`.
+- [x] Validate that every behavior has a supported `:action`.
+- [x] Validate required fields for `:send_message`.
   - Example: `:to`, `:content`
 - [ ] Validate required fields for future behavior actions.
-- [ ] Reject malformed behavior metadata predictably.
+- [x] Reject malformed behavior metadata predictably.
   - Example: `{:error, {:invalid_behavior, behavior}}`
-- [ ] Reject unsupported behavior actions predictably.
+- [x] Reject unsupported behavior actions predictably.
   - Example: `{:error, {:unsupported_behavior_action, action}}`
-- [ ] Reject unsupported behavior triggers predictably.
+- [x] Reject unsupported behavior triggers predictably.
   - Example: `{:error, {:unsupported_behavior_trigger, trigger}}`
-- [ ] Ensure validation never executes behavior.
-- [ ] Add tests for valid behavior metadata.
-- [ ] Add tests for missing required behavior fields.
-- [ ] Add tests for unsupported behavior actions.
-- [ ] Add tests for unsupported behavior triggers.
+- [x] Ensure validation never executes behavior.
+- [x] Add tests for valid behavior metadata.
+- [x] Add tests for missing required behavior fields.
+- [x] Add tests for unsupported behavior actions.
+- [x] Add tests for unsupported behavior triggers.
 
 #### Blueprint integration
 
