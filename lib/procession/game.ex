@@ -53,7 +53,7 @@ defmodule Procession.Game do
     end
   end
 
-  def ask_about(_enitity_id, _topic) do
+  def ask_about(_entity_id, _topic) do
     {:error, :invalid_topic}
   end
 
@@ -88,13 +88,26 @@ defmodule Procession.Game do
   The first supported action is `:look`, which delegates to `look/1`.
   """
   def perform(:look, opts) when is_list(opts) do
-    case Keyword.fetch(opts, :entity_id) do
-      {:ok, entity_id} -> look(entity_id)
-      :error -> {:error, :missing_target}
+    with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target) do
+      look(entity_id)
+    end
+  end
+
+  def perform(:ask_about, opts) when is_list(opts) do
+    with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target),
+         {:ok, topic} <- fetch_required_opt(opts, :topic, :missing_topic) do
+      ask_about(entity_id, topic)
     end
   end
 
   def perform(_action, _opts) do
     {:error, :invalid_action}
+  end
+
+  defp fetch_required_opt(opts, key, error_reason) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, error_reason}
+    end
   end
 end
