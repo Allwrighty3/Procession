@@ -248,6 +248,95 @@ If Ollama is not running, the adapter should return an error tuple instead of cr
 
 This keeps local AI calls request-based and explicit. Entities should not directly depend on Ollama yet.
 
+## Procedural World Generation
+
+Phase 4 adds a small procedural generator that creates a world blueprint before spawning live entity processes.
+
+The first generator path is deterministic and does not require Ollama.
+
+```elixir
+{:ok, blueprint} =
+  Procession.Generator.generate_world("a frontier village near a haunted mine")
+```
+
+The generated blueprint is plain data:
+
+```elixir
+blueprint.name
+# "Echoes of the Old Road"
+
+length(blueprint.locations)
+# 3
+
+length(blueprint.npcs)
+# 3
+
+length(blueprint.factions)
+# 1
+```
+
+Blueprints can be validated before they are spawned:
+
+```elixir
+Procession.Generator.validate_blueprint(blueprint)
+# :ok
+```
+
+Spawning is a separate step. This keeps generation separate from live OTP processes:
+
+```elixir
+{:ok, summary} = Procession.Generator.spawn_world(blueprint)
+```
+
+The summary shows what was created:
+
+```elixir
+summary
+# %{
+#   locations: ["loc_crossroads", "loc_briar_village", "loc_silent_mine"],
+#   npcs: ["npc_mira", "npc_tobin", "npc_elin"],
+#   factions: ["faction_roadwardens"],
+#   relationships: 2,
+#   starter_memories: 2
+# }
+```
+
+Generated entities use the normal registry and supervisor:
+
+```elixir
+Procession.EntitySupervisor.exists?("npc_mira")
+# true
+```
+
+Starter memories are attached through the existing entity message/memory behavior:
+
+```elixir
+Procession.Entity.recall_all("npc_mira")
+```
+
+Generated relationships are stored in entity metadata first:
+
+```elixir
+mira = Procession.Entity.get_state("npc_mira")
+
+mira.metadata.relationships
+# [
+#   %{
+#     to: "npc_tobin",
+#     type: :distrusts,
+#     description: "Mira thinks Tobin knows more about the mine than he admits."
+#   }
+# ]
+```
+
+Clean up generated entities when experimenting in IEx:
+
+```elixir
+Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
+  Procession.EntitySupervisor.stop_entity(id)
+end)
+```
+
 ## Repository Map
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
