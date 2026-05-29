@@ -358,4 +358,26 @@ defmodule Procession.GameTest do
   test "tick_world returns a predictable error when required NPCs do not exist" do
     assert Procession.Game.tick_world() == {:error, :entity_not_found}
   end
+
+  test "recent_events returns world tick memories for an entity" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, []} = Procession.Game.recent_events("npc_mira")
+
+    assert {:ok, _summary} = Procession.Game.tick_world()
+
+    Process.sleep(10)
+
+    assert {:ok, events} = Procession.Game.recent_events("npc_mira")
+
+    assert Enum.any?(events, fn event ->
+             event.content == "Tobin quietly warned Mira that the mine road was watched." and
+               event.type == :rumor and
+               event.from == "npc_tobin"
+           end)
+  end
+
+  test "recent_events returns a predictable error for a missing entity" do
+    assert Procession.Game.recent_events("npc_missing") == {:error, :entity_not_found}
+  end
 end

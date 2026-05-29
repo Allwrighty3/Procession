@@ -1034,6 +1034,8 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 - [x] Keep the first version manually triggered from IEx.
 - [x] Defer timers, schedulers, background loops, and complex NPC goals.
 - [x] Add tests proving the world can change without direct player action.
+- [x] Add a helper for inspecting recent playerless events.
+  - Example: `Procession.Game.recent_events(entity_id)`
 
 #### Future refinements
 

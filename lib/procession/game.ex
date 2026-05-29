@@ -140,6 +140,24 @@ defmodule Procession.Game do
   end
 
   @doc """
+  Returns recent world activity memories for an entity.
+
+  This is a small inspection helper for seeing what happened to an entity during
+  playerless world ticks.
+  """
+  def recent_events(entity_id) do
+    if EntitySupervisor.exists?(entity_id) do
+      events =
+        entity_id
+        |> Entity.recall_by_metadata(:source, :world_tick)
+
+      {:ok, events}
+    else
+      {:error, :entity_not_found}
+    end
+  end
+
+  @doc """
   Performs a tiny deterministic player action.
 
   The first supported action is `:look`, which delegates to `look/1`.
