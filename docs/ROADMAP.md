@@ -789,8 +789,13 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] The first tiny gameplay loop is runnable from IEx.
 - [x] README documentation explains the first playable loop.
 - [x] Tests cover the core gameplay boundary and first player actions.
+- [x] A manually triggered world tick can coordinate entity-owned behavior.
+- [x] At least one entity can act from generated behavior metadata.
+- [x] Playerless entity actions can create memories through normal message delivery.
+- [x] Tests prove the first entity-driven autonomous behavior loop.
+- [x] Deeper autonomy, behavior validation, movement, scheduling, persistence, and UI are deferred to later phases.
 
-#### Phase 6 is complete when:
+### Phase 6 is complete when:
 
 - [ ] Behavior metadata has a documented schema.
 - [ ] Generated behavior metadata is validated before unsafe use.
@@ -802,7 +807,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [ ] README documentation explains the behavior schema and its limits.
 - [ ] AI-generated behavior remains treated as untrusted data.
 
-#### Phase 7 is complete when:
+### Phase 7 is complete when:
 
 - [ ] A world clock boundary exists.
 - [ ] Manual ticking still works without the clock.

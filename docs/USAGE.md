@@ -344,6 +344,8 @@ Phase 5 adds a small player-facing gameplay boundary through `Procession.Game`.
 
 The goal is to keep gameplay actions as plain, testable function calls before adding command parsing, Phoenix LiveView, persistence, combat, inventory, or quest systems.
 
+Phase 5 also proves the first manually triggered, entity-driven autonomous behavior loop. The world can change without direct player action, but the behavior still belongs to entities through their own state and metadata.
+
 Start the app in IEx:
 
 ```bash
@@ -379,7 +381,7 @@ Inspect a live entity directly:
 Procession.Game.look("npc_mira")
 ```
 
-Or inspect through the tiny action API:
+Or inspect through the action API:
 
 ```elixir
 Procession.Game.perform(:look, entity_id: "npc_mira")
@@ -433,6 +435,28 @@ Enum.map(memories, & &1.content)
 # ["Tobin was seen near the Silent Mine after sundown."]
 ```
 
+Talk to an NPC through the gameplay boundary:
+
+```elixir
+Procession.Game.talk_to(
+  "npc_mira",
+  "What do you know about Tobin?",
+  adapter: Procession.AI.FakeAdapter
+)
+```
+
+Or talk through the action API:
+
+```elixir
+Procession.Game.perform(:talk_to,
+  entity_id: "npc_mira",
+  message: "What do you know about Tobin?",
+  adapter: Procession.AI.FakeAdapter
+)
+```
+
+Using the fake adapter keeps this deterministic for tests and local examples.
+
 Missing or invalid gameplay targets return predictable errors:
 
 ```elixir
@@ -445,11 +469,14 @@ Procession.Game.perform(:look, [])
 Procession.Game.perform(:ask_about, entity_id: "npc_mira")
 # {:error, :missing_topic}
 
+Procession.Game.perform(:talk_to, entity_id: "npc_mira")
+# {:error, :missing_message}
+
 Procession.Game.perform(:dance, entity_id: "npc_mira")
 # {:error, :invalid_action}
 ```
 
-The current Phase 5 loop is deterministic and does not require Ollama:
+The current Phase 5 gameplay loop is deterministic and does not require Ollama:
 
 ```elixir
 {:ok, game} =
@@ -461,7 +488,60 @@ Procession.Game.perform(:ask_about,
   entity_id: "npc_mira",
   topic: "Tobin"
 )
+
+Procession.Game.perform(:talk_to,
+  entity_id: "npc_mira",
+  message: "What do you know about Tobin?",
+  adapter: Procession.AI.FakeAdapter
+)
 ```
+
+### Manual entity-driven world tick
+
+Phase 5 also proves the first playerless entity-driven behavior loop.
+
+`Procession.Game.tick_world/0` does not own story logic. It coordinates a tick by asking live entities to act from their own state and metadata.
+
+Before the tick, Mira has no recent autonomous world events:
+
+```elixir
+Procession.Game.recent_events("npc_mira")
+# {:ok, []}
+```
+
+Manually tick the world:
+
+```elixir
+Procession.Game.tick_world()
+```
+
+The tick summary is plain data:
+
+```elixir
+{:ok,
+ %{
+   entities_ticked: 7,
+   actions: [
+     %{
+       status: :ok,
+       action: :send_message,
+       from: "npc_tobin",
+       to: "npc_mira",
+       type: :rumor,
+       content: "Tobin quietly warned Mira that the mine road was watched."
+     }
+   ]
+ }}
+```
+
+After the tick, Mira has a memory created by Tobin’s entity-owned behavior:
+
+```elixir
+Procession.Game.recent_events("npc_mira")
+# {:ok, [%Procession.Memory.Entry{...}]}
+```
+
+The deterministic starter world uses Tobin as a concrete fixture, but the runtime behavior is generic: entities act from `metadata.behaviors`, not from hardcoded game-level scripts.
 
 Clean up generated entities when experimenting in IEx:
 
@@ -471,4 +551,4 @@ Enum.each(game.locations ++ game.npcs ++ game.factions, fn id ->
 end)
 ```
 
-AI is not used for this first gameplay loop. Optional local AI remains available through the existing AI and entity response APIs, but gameplay inspection and memory queries are deterministic for now.
+AI is not required for the deterministic gameplay loop or manual world tick. Optional local AI remains available through the existing AI and entity response APIs, but gameplay inspection, memory queries, and the first entity-driven behavior loop are deterministic for now.
