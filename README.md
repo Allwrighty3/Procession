@@ -21,21 +21,21 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
 - `lib/procession.ex` - Top-level Procession module.
 - `lib/procession/application.ex` - OTP application supervision tree; starts the registry, dynamic entity supervisor, and supervised world clock.
+- `lib/procession/id.ex` - Shared string ID generation helpers for entities, memory entries, and generated runtime objects.
 
 ### Core entity system
 
-- `lib/procession/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, AI response integration, memory integration, and entity-driven tick behavior.
-- `lib/procession/entity_supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types.
-- `lib/procession/id.ex` - Shared string ID generation helpers for entities and memory entries.
+- `lib/procession/entity/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, AI response integration, memory integration, and entity-driven tick behavior.
+- `lib/procession/entity/supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types.
 
 ### Memory system
 
-- `lib/procession/memory.ex` - Hierarchical memory creation, promotion, flattening, search, and filtering helpers.
+- `lib/procession/memory/memory.ex` - Hierarchical memory creation, promotion, flattening, search, and filtering helpers.
 - `lib/procession/memory/entry.ex` - Structured memory entry definition used by the memory system.
 
 ### Local AI boundary
 
-- `lib/procession/ai.ex` - Public AI boundary for local text generation requests.
+- `lib/procession/ai/ai.ex` - Public AI boundary for local text generation requests.
 - `lib/procession/ai/fake_adapter.ex` - Deterministic fake AI adapter used for tests and local development.
 - `lib/procession/ai/ollama.ex` - Minimal Ollama adapter for optional local model calls.
 - `lib/procession/ai/prompt.ex` - Prompt-building helpers for entity/NPC responses and generator requests.
@@ -43,13 +43,14 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 ### Procedural generation
 
-- `lib/procession/generator.ex` - Public generator boundary for deterministic world generation, blueprint validation, spawning generated worlds, relationship metadata attachment, starter memory attachment, generated behavior metadata, and optional AI-assisted generation text.
+- `lib/procession/generator/generator.ex` - Public generator boundary for deterministic world generation, blueprint validation, spawning generated worlds, relationship metadata attachment, starter memory attachment, generated behavior metadata, and optional AI-assisted generation text.
 - `lib/procession/generator/prompt.ex` - Prompt-building helper for optional AI-assisted world blueprint generation.
 
-### Gameplay systems
+### Gameplay and simulation
 
-- `lib/procession/game.ex` - Public gameplay boundary for deterministic game setup, player-facing inspection, player actions, dialogue requests, memory queries, recent autonomous event inspection, and manual world ticks.
-- `lib/procession/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
+- `lib/procession/gameplay/game.ex` - Public gameplay boundary for deterministic game setup, player-facing inspection, player actions, dialogue requests, memory queries, recent autonomous event inspection, and manual world ticks.
+- `lib/procession/gameplay/behavior.ex` - Safe behavior schema validation and execution for generated entity behavior metadata.
+- `lib/procession/gameplay/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
 - `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
 - `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
 - Future gameplay modules may be split out only when the public `Procession.Game` boundary becomes too large.
@@ -63,17 +64,19 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 ### Tests
 
-- `test/procession/entity_test.exs` - Entity lifecycle, messaging, supervision, state update, recall, memory integration, entity AI integration, and entity-driven tick behavior tests.
-- `test/procession/entity_supervisor_test.exs` - Entity supervisor behavior tests, if split out from entity tests later.
+- `test/procession/entity/entity_test.exs` - Entity lifecycle, messaging, supervision, state update, recall, memory integration, entity AI integration, and entity-driven tick behavior tests.
+- `test/procession/entity/supervisor_test.exs` - Entity supervisor behavior tests.
 - `test/procession/id_test.exs` - ID generation tests.
-- `test/procession/memory_test.exs` - Direct memory behavior, promotion, search, metadata, and entry struct tests.
-- `test/procession/ai_test.exs` - Public AI boundary tests.
+- `test/procession/memory/memory_test.exs` - Direct memory behavior, promotion, search, metadata, and entry struct tests.
+- `test/procession/ai/ai_test.exs` - Public AI boundary tests.
 - `test/procession/ai/prompt_test.exs` - Entity/NPC prompt construction tests.
 - `test/procession/ai/memory_context_test.exs` - AI memory context selection tests.
-- `test/procession/generator_test.exs` - Procedural generator, blueprint validation, spawning, starter memory, relationship metadata, generated behavior metadata, and optional AI-generation boundary tests.
+- `test/procession/ai/ollama_test.exs` - Ollama adapter tests that do not require Ollama to be running.
+- `test/procession/generator/generator_test.exs` - Procedural generator, blueprint validation, spawning, starter memory, relationship metadata, generated behavior metadata, and optional AI-generation boundary tests.
 - `test/procession/generator/prompt_test.exs` - Generator prompt construction tests.
-- `test/procession/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue, memory queries, recent event inspection, and entity-driven world tick tests.
-- `test/procession/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
+- `test/procession/gameplay/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue, memory queries, recent event inspection, and entity-driven world tick tests.
+- `test/procession/gameplay/behavior_test.exs` - Behavior schema validation and execution tests.
+- `test/procession/gameplay/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
 
 ### Development direction
 
