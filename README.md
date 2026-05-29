@@ -515,37 +515,37 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 #### Generator boundary
 
-- [ ] Add a small `Procession.Generator` module as the public boundary for world generation.
-- [ ] Define a simple request function.
+- [x] Add a small `Procession.Generator` module as the public boundary for world generation.
+- [x] Define a simple request function.
   - Example: `Procession.Generator.generate_world(prompt, opts \\ [])`
-- [ ] Standardize return values.
+- [x] Standardize return values.
   - Example: `{:ok, world_blueprint}` or `{:error, reason}`
-- [ ] Keep generator logic separate from entity processes.
-- [ ] Do not start GenServer entities directly from the first generator function.
-- [ ] Add tests for the public generator API using deterministic input.
+- [x] Keep generator logic separate from entity processes.
+- [x] Do not start GenServer entities directly from the first generator function.
+- [x] Add tests for the public generator API using deterministic input.
 
 #### World blueprint structure
 
-- [ ] Define a simple world blueprint map before introducing complex structs.
-- [ ] Include a world name or title.
-- [ ] Include a short world description.
-- [ ] Include a small list of generated locations.
-- [ ] Include a small list of generated NPCs.
-- [ ] Include a small list of generated factions.
-- [ ] Include relationship links between generated entities.
-- [ ] Include starter memories or rumors for selected NPCs.
-- [ ] Add tests for expected blueprint shape.
+- [x] Define a simple world blueprint map before introducing complex structs.
+- [x] Include a world name or title.
+- [x] Include a short world description.
+- [x] Include a small list of generated locations.
+- [x] Include a small list of generated NPCs.
+- [x] Include a small list of generated factions.
+- [x] Include relationship links between generated entities.
+- [x] Include starter memories or rumors for selected NPCs.
+- [x] Add tests for expected blueprint shape.
 
 #### Deterministic starter generator
 
-- [ ] Add a deterministic generator that does not require Ollama.
-- [ ] Use this deterministic generator for tests.
-- [ ] Generate a tiny default world from a prompt.
+- [x] Add a deterministic generator that does not require Ollama.
+- [x] Use this deterministic generator for tests.
+- [x] Generate a tiny default world from a prompt.
   - Example: 3 locations, 3 NPCs, 1 faction.
-- [ ] Use string IDs compatible with the existing ID conventions.
+- [x] Use string IDs compatible with the existing ID conventions.
   - Example: `loc_`, `npc_`, `faction_`.
-- [ ] Avoid random behavior in tests unless seeded.
-- [ ] Add tests proving generation is repeatable.
+- [x] Avoid random behavior in tests unless seeded.
+- [x] Add tests proving generation is repeatable.
 
 #### AI-assisted generation preparation
 
