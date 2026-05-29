@@ -507,6 +507,122 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 
 ---
 
+### Phase 4: Procedural Game Generator
+
+Phase 4 should add a small procedural world generator that can create a playable starting world from a text prompt. The generator should use the existing entity system, memory system, and local AI boundary without turning world generation into a giant unmanaged blob.
+
+The first goal is not to generate a massive world. The first goal is to generate a small, structured world with a few locations, NPCs, factions, relationships, and starter memories.
+
+#### Generator boundary
+
+- [ ] Add a small `Procession.Generator` module as the public boundary for world generation.
+- [ ] Define a simple request function.
+  - Example: `Procession.Generator.generate_world(prompt, opts \\ [])`
+- [ ] Standardize return values.
+  - Example: `{:ok, world_blueprint}` or `{:error, reason}`
+- [ ] Keep generator logic separate from entity processes.
+- [ ] Do not start GenServer entities directly from the first generator function.
+- [ ] Add tests for the public generator API using deterministic input.
+
+#### World blueprint structure
+
+- [ ] Define a simple world blueprint map before introducing complex structs.
+- [ ] Include a world name or title.
+- [ ] Include a short world description.
+- [ ] Include a small list of generated locations.
+- [ ] Include a small list of generated NPCs.
+- [ ] Include a small list of generated factions.
+- [ ] Include relationship links between generated entities.
+- [ ] Include starter memories or rumors for selected NPCs.
+- [ ] Add tests for expected blueprint shape.
+
+#### Deterministic starter generator
+
+- [ ] Add a deterministic generator that does not require Ollama.
+- [ ] Use this deterministic generator for tests.
+- [ ] Generate a tiny default world from a prompt.
+  - Example: 3 locations, 3 NPCs, 1 faction.
+- [ ] Use string IDs compatible with the existing ID conventions.
+  - Example: `loc_`, `npc_`, `faction_`.
+- [ ] Avoid random behavior in tests unless seeded.
+- [ ] Add tests proving generation is repeatable.
+
+#### AI-assisted generation preparation
+
+- [ ] Add a generator prompt helper.
+- [ ] Keep generator prompts plain strings at first.
+- [ ] Include clear output expectations in the prompt.
+- [ ] Ask the AI for small structured output only.
+- [ ] Do not rely on AI-generated output until deterministic generation works.
+- [ ] Add tests for prompt construction without calling Ollama.
+
+#### Ollama-assisted generation
+
+- [ ] Add an optional AI generation path using `Procession.AI.generate/2`.
+- [ ] Use the existing AI adapter boundary instead of calling Ollama directly.
+- [ ] Keep the first AI-assisted result small.
+- [ ] Handle invalid or incomplete AI output predictably.
+- [ ] Return errors instead of crashing on malformed AI responses.
+- [ ] Add tests that do not require Ollama to be installed or running.
+- [ ] Add optional/manual IEx instructions for testing AI-assisted generation locally.
+
+#### Blueprint validation
+
+- [ ] Add simple validation for generated blueprints.
+- [ ] Validate required top-level fields.
+  - Example: `:name`, `:description`, `:locations`, `:npcs`, `:factions`.
+- [ ] Validate that entity IDs are present and unique.
+- [ ] Validate that NPC locations refer to known locations.
+- [ ] Validate that relationships refer to known entity IDs.
+- [ ] Validate starter memories have content and type.
+- [ ] Add tests for valid and invalid blueprints.
+
+#### Spawning generated worlds
+
+- [ ] Add a separate function for spawning a blueprint into live entity processes.
+  - Example: `Procession.Generator.spawn_world(world_blueprint)`
+- [ ] Keep generation and spawning separate.
+- [ ] Start generated locations through `EntitySupervisor`.
+- [ ] Start generated NPCs through `EntitySupervisor`.
+- [ ] Start generated factions through `EntitySupervisor`.
+- [ ] Attach starter memories only after entities are created.
+- [ ] Return a summary of created entities.
+- [ ] Add tests proving entities are created from a blueprint.
+
+#### Starter memories and relationships
+
+- [ ] Decide how generated memories should be attached to NPCs.
+- [ ] Use existing entity message/memory behavior where possible.
+- [ ] Add starter rumors, observations, or faction opinions as memories.
+- [ ] Represent relationships in metadata first.
+- [ ] Defer a full relationship system unless needed.
+- [ ] Add tests proving generated NPCs receive starter memories.
+
+#### Developer ergonomics
+
+- [ ] Add README examples for deterministic world generation.
+- [ ] Add README examples for spawning a generated world.
+- [ ] Add README examples for AI-assisted generation if available.
+- [ ] Keep examples small enough to run in IEx.
+- [ ] Document that generation returns a blueprint before spawning entities.
+- [ ] Document that generated worlds are local and zero-budget.
+
+#### Future refinements
+
+- [ ] Add configurable world sizes.
+- [ ] Add seeded random generation.
+- [ ] Add biome, culture, conflict, and economy options.
+- [ ] Add structured JSON parsing for AI-generated blueprints.
+- [ ] Add richer faction goals and relationships.
+- [ ] Add generated quests.
+- [ ] Add generated location descriptions.
+- [ ] Add generated NPC personality traits.
+- [ ] Add generated long-term memories.
+- [ ] Add persistence for generated worlds.
+- [ ] Add Phoenix LiveView controls for generating and inspecting worlds.
+
+---
+
 ## Phase Completion Criteria
 
 ### Phase 1 is complete when:
@@ -541,3 +657,16 @@ Phase 3 should add a small, local AI boundary before any entity directly depends
 - [x] Entity AI requests use structured state and selected memories.
 - [x] Tests do not require Ollama to be installed or running.
 - [x] README documentation explains local setup and basic usage.
+
+### Phase 4 is complete when:
+
+- [ ] A public generator boundary exists outside the entity and AI modules.
+- [ ] A deterministic generator can create a small world blueprint from a prompt.
+- [ ] Generated blueprints include locations, NPCs, factions, relationships, and starter memories.
+- [ ] Blueprint validation catches missing fields, duplicate IDs, and broken references.
+- [ ] A generated blueprint can be spawned into live entity processes.
+- [ ] Generated entities use the existing supervisor and registry.
+- [ ] Starter memories can be attached to generated NPCs.
+- [ ] AI-assisted generation is optional and uses the existing AI boundary.
+- [ ] Tests do not require Ollama to be installed or running.
+- [ ] README documentation explains deterministic generation, spawning, and optional local AI generation.
