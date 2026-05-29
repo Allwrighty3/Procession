@@ -337,6 +337,42 @@ Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
 end)
 ```
 
+### Optional AI-assisted world generation
+
+Procession can also ask the existing local AI boundary to generate world blueprint text.
+
+This path is optional. It does not parse AI output, validate the result as a blueprint, or spawn live entities yet.
+
+```elixir
+{:ok, result} =
+  Procession.Generator.generate_world_ai(
+    "a frontier village near a haunted mine",
+    adapter: Procession.AI.FakeAdapter
+  )
+```
+
+The result contains the prompt sent to the AI boundary and the generated text response:
+
+```elixir
+result.prompt
+# "...small world blueprint..."
+
+result.response
+# "AI response to: ..."
+```
+
+To test against local Ollama manually, make sure Ollama is running, then pass the Ollama adapter:
+
+```elixir
+Procession.Generator.generate_world_ai(
+  "a frontier village near a haunted mine",
+  adapter: Procession.AI.Ollama,
+  model: "llama3.2:1b"
+)
+```
+
+AI-assisted output is treated as untrusted text for now. The deterministic generator remains the safe path for creating and spawning playable worlds.
+
 ## Repository Map
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
@@ -653,7 +689,7 @@ The first goal is not to generate a massive world. The first goal is to generate
 - [ ] Handle invalid or incomplete AI output predictably.
 - [ ] Return errors instead of crashing on malformed AI responses.
 - [x] Add tests that do not require Ollama to be installed or running.
-- [ ] Add optional/manual IEx instructions for testing AI-assisted generation locally.
+- [x] Add optional/manual IEx instructions for testing AI-assisted generation locally.
 
 #### Blueprint validation
 
@@ -691,7 +727,7 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 - [x] Add README examples for deterministic world generation.
 - [x] Add README examples for spawning a generated world.
-- [ ] Add README examples for AI-assisted generation if available.
+- [x] Add README examples for AI-assisted generation if available.
 - [x] Keep examples small enough to run in IEx.
 - [x] Document that generation returns a blueprint before spawning entities.
 - [x] Document that generated worlds are local and zero-budget.
