@@ -310,4 +310,22 @@ defmodule Procession.GeneratorTest do
       Procession.EntitySupervisor.stop_entity(id)
     end)
   end
+
+  test "generate_world_ai returns generated text through the AI boundary" do
+    assert {:ok, result} =
+             Procession.Generator.generate_world_ai(
+               "a frontier village near a haunted mine",
+               adapter: Procession.AI.FakeAdapter
+             )
+
+    assert result.prompt =~ "small world blueprint"
+    assert result.prompt =~ "a frontier village near a haunted mine"
+    assert result.response =~ "AI response to:"
+  end
+
+  test "generate_world_ai rejects invalid prompts" do
+    assert Procession.Generator.generate_world_ai(nil) == {:error, :invalid_prompt}
+    assert Procession.Generator.generate_world_ai(:not_a_prompt) == {:error, :invalid_prompt}
+    assert Procession.Generator.generate_world_ai(123) == {:error, :invalid_prompt}
+  end
 end

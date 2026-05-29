@@ -647,12 +647,12 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 #### Ollama-assisted generation
 
-- [ ] Add an optional AI generation path using `Procession.AI.generate/2`.
-- [ ] Use the existing AI adapter boundary instead of calling Ollama directly.
-- [ ] Keep the first AI-assisted result small.
+- [x] Add an optional AI generation path using `Procession.AI.generate/2`.
+- [x] Use the existing AI adapter boundary instead of calling Ollama directly.
+- [x] Keep the first AI-assisted result small.
 - [ ] Handle invalid or incomplete AI output predictably.
 - [ ] Return errors instead of crashing on malformed AI responses.
-- [ ] Add tests that do not require Ollama to be installed or running.
+- [x] Add tests that do not require Ollama to be installed or running.
 - [ ] Add optional/manual IEx instructions for testing AI-assisted generation locally.
 
 #### Blueprint validation

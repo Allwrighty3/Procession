@@ -110,6 +110,32 @@ defmodule Procession.Generator do
   end
 
   @doc """
+  Generates AI-assisted world blueprint text.
+
+  This function uses the existing AI boundary and returns generated text only.
+  It does not parse AI output, validate it as a blueprint, or spawn entities.
+  """
+  def generate_world_ai(prompt, opts \\ []) when is_binary(prompt) do
+    ai_prompt = Procession.Generator.Prompt.world_blueprint(prompt)
+
+    case Procession.AI.generate(ai_prompt, opts) do
+      {:ok, response_text} ->
+        {:ok,
+         %{
+           prompt: ai_prompt,
+           response: response_text
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def generate_world_ai(_prompt, _opts) do
+    {:error, :invalid_prompt}
+  end
+
+  @doc """
   Validates a generated world blueprint.
 
   This is intentionally small and map-based for now. It checks only the minimum
