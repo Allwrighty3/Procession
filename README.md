@@ -594,7 +594,7 @@ The first goal is not to generate a massive world. The first goal is to generate
 - [x] Decide how generated memories should be attached to NPCs.
 - [x] Use existing entity message/memory behavior where possible.
 - [x] Add starter rumors, observations, or faction opinions as memories.
-- [ ] Represent relationships in metadata first.
+- [x] Represent relationships in metadata first.
 - [ ] Defer a full relationship system unless needed.
 - [x] Add tests proving generated NPCs receive starter memories.
 

@@ -285,4 +285,29 @@ defmodule Procession.GeneratorTest do
       Procession.EntitySupervisor.stop_entity(id)
     end)
   end
+
+  test "spawn_world attaches relationships to generated entity metadata" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert {:ok, summary} = Procession.Generator.spawn_world(blueprint)
+
+    assert summary.relationships == 2
+
+    mira = Procession.Entity.get_state("npc_mira")
+    elin = Procession.Entity.get_state("npc_elin")
+
+    assert Enum.any?(mira.metadata.relationships, fn relationship ->
+             relationship.to == "npc_tobin" and
+               relationship.type == :distrusts
+           end)
+
+    assert Enum.any?(elin.metadata.relationships, fn relationship ->
+             relationship.to == "faction_roadwardens" and
+               relationship.type == :member_of
+           end)
+
+    Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
+      Procession.EntitySupervisor.stop_entity(id)
+    end)
+  end
 end

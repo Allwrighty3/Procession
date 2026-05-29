@@ -141,12 +141,14 @@ defmodule Procession.Generator do
          {:ok, location_ids} <- spawn_locations(blueprint.locations),
          {:ok, npc_ids} <- spawn_npcs(blueprint.npcs),
          {:ok, faction_ids} <- spawn_factions(blueprint.factions),
+         :ok <- attach_relationships(blueprint.relationships),
          :ok <- attach_starter_memories(blueprint.starter_memories) do
       {:ok,
        %{
          locations: location_ids,
          npcs: npc_ids,
          factions: faction_ids,
+         relationships: length(blueprint.relationships),
          starter_memories: length(blueprint.starter_memories)
        }}
     end
@@ -286,6 +288,33 @@ defmodule Procession.Generator do
       case Procession.Entity.send_to("system_generator", memory.entity_id, message) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp attach_relationships(relationships) do
+    Enum.reduce_while(relationships, :ok, fn relationship, :ok ->
+      case Procession.Entity.get_state(relationship.from) do
+        state ->
+          existing_relationships = Map.get(state.metadata, :relationships, [])
+
+          updated_relationships = [
+            %{
+              to: relationship.to,
+              type: relationship.type,
+              description: Map.get(relationship, :description)
+            }
+            | existing_relationships
+          ]
+
+          case Procession.Entity.set_metadata(
+                 relationship.from,
+                 :relationships,
+                 updated_relationships
+               ) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
       end
     end)
   end
