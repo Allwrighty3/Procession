@@ -3,7 +3,7 @@ defmodule Procession.WorldClock do
 
   @moduledoc """
 
-  "Manually controlled world simulation clock.
+  Manually controlled world simulation clock.
 
   The clock coordinates world ticks by delegating to `Procession.Game.tick_world/0`.
   It does not own entity behavior, execute behavior metadata directly, or replace

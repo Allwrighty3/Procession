@@ -628,29 +628,29 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Clock boundary
 
-- [ ] Add a dedicated world clock module.
+- [x] Add a dedicated world clock module.
   - Example: `Procession.WorldClock`
-- [ ] Keep the clock separate from `Procession.Game`.
-- [ ] Keep `Procession.Game.tick_world/0` usable as a direct manual tick.
-- [ ] Make the clock call the existing gameplay/world tick boundary.
-- [ ] Do not duplicate entity tick logic inside the clock.
-- [ ] Do not move behavior execution into the clock.
+- [x] Keep the clock separate from `Procession.Game`.
+- [x] Keep `Procession.Game.tick_world/0` usable as a direct manual tick.
+- [x] Make the clock call the existing gameplay/world tick boundary.
+- [x] Do not duplicate entity tick logic inside the clock.
+- [x] Do not move behavior execution into the clock.
 - [ ] Document the difference between manual ticks and scheduled ticks.
 
 #### Manual clock process
 
-- [ ] Start with a manually controlled GenServer.
+- [x] Start with a manually controlled GenServer.
   - Example: `Procession.WorldClock.start_link/1`
-- [ ] Add a public API for triggering one tick through the clock.
+- [x] Add a public API for triggering one tick through the clock.
   - Example: `Procession.WorldClock.tick(clock_pid)`
-- [ ] Store the latest tick summary in clock state.
-- [ ] Expose the latest tick summary.
+- [x] Store the latest tick summary in clock state.
+- [x] Expose the latest tick summary.
   - Example: `Procession.WorldClock.last_tick(clock_pid)`
-- [ ] Track the total number of ticks coordinated by the clock.
-- [ ] Add tests for starting the clock.
-- [ ] Add tests for manually triggering a clock tick.
-- [ ] Add tests proving the clock delegates to `Game.tick_world/0`.
-- [ ] Add tests proving tick summaries are stored and inspectable.
+- [x] Track the total number of ticks coordinated by the clock.
+- [x] Add tests for starting the clock.
+- [x] Add tests for manually triggering a clock tick.
+- [x] Add tests proving the clock delegates to `Game.tick_world/0`.
+- [x] Add tests proving tick summaries are stored and inspectable.
 
 #### Supervision
 
