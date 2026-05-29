@@ -665,17 +665,17 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Optional interval ticking
 
-- [ ] Add optional interval-based ticking.
+- [x] Add optional interval-based ticking.
   - Example: `interval_ms: 1_000`
-- [ ] Keep interval ticking disabled by default.
-- [ ] Add a way to start interval ticking.
-- [ ] Add a way to stop interval ticking.
-- [ ] Ensure scheduled ticks do not overlap.
-- [ ] Ensure interval ticking can be tested deterministically.
-- [ ] Keep intervals configurable.
-- [ ] Add tests proving scheduled ticks occur when enabled.
-- [ ] Add tests proving scheduled ticks stop when disabled.
-- [ ] Add tests proving scheduled ticks do not require Ollama.
+- [x] Keep interval ticking disabled by default.
+- [x] Add a way to start interval ticking.
+- [x] Add a way to stop interval ticking.
+- [x] Ensure scheduled ticks do not overlap.
+- [x] Ensure interval ticking can be tested deterministically.
+- [x] Keep intervals configurable.
+- [x] Add tests proving scheduled ticks occur when enabled.
+- [x] Add tests proving scheduled ticks stop when disabled.
+- [x] Add tests proving scheduled ticks do not require Ollama.
 
 #### Tick result handling
 

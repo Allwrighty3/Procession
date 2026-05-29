@@ -166,4 +166,53 @@ defmodule Procession.WorldClockTest do
     assert Procession.WorldClock.tick_count() == initial_count + 1
     assert Procession.WorldClock.last_tick() == summary
   end
+
+  test "interval ticking is disabled by default" do
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
+
+    refute Procession.WorldClock.interval_running?(clock)
+    assert Procession.WorldClock.tick_count(clock) == 0
+
+    Process.sleep(30)
+
+    assert Procession.WorldClock.tick_count(clock) == 0
+  end
+
+  test "can start and stop interval ticking" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
+
+    assert :ok = Procession.WorldClock.start_interval(clock, 10)
+    assert Procession.WorldClock.interval_running?(clock)
+
+    Process.sleep(35)
+
+    assert Procession.WorldClock.tick_count(clock) >= 1
+
+    assert :ok = Procession.WorldClock.stop_interval(clock)
+    refute Procession.WorldClock.interval_running?(clock)
+
+    tick_count_after_stop = Procession.WorldClock.tick_count(clock)
+
+    Process.sleep(30)
+
+    assert Procession.WorldClock.tick_count(clock) == tick_count_after_stop
+  end
+
+  test "starting interval ticking replaces the previous interval" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+    assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
+
+    assert :ok = Procession.WorldClock.start_interval(clock, 50)
+    assert Procession.WorldClock.interval_running?(clock)
+
+    assert :ok = Procession.WorldClock.start_interval(clock, 10)
+    assert Procession.WorldClock.interval_running?(clock)
+
+    Process.sleep(35)
+
+    assert Procession.WorldClock.tick_count(clock) >= 1
+
+    assert :ok = Procession.WorldClock.stop_interval(clock)
+  end
 end
