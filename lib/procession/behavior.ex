@@ -19,6 +19,46 @@ defmodule Procession.Behavior do
 
   def validate(_behavior), do: {:error, :invalid_behavior}
 
+  def execute(entity_state, behavior) do
+    with :ok <- validate(behavior) do
+      do_execute(entity_state, behavior)
+    end
+  end
+
+  defp do_execute(entity_state, %{action: :send_message} = behavior) do
+    message = %{
+      type: Map.get(behavior, :type, :message),
+      content: behavior.content,
+      importance: Map.get(behavior, :importance, 1),
+      tags: Map.get(behavior, :tags, []),
+      metadata:
+        Map.merge(Map.get(behavior, :metadata, %{}), %{
+          source: :entity_tick
+        })
+    }
+
+    case Procession.Entity.send_to(entity_state.id, behavior.to, message) do
+      :ok ->
+        %{
+          status: :ok,
+          action: :send_message,
+          from: entity_state.id,
+          to: behavior.to,
+          type: message.type,
+          content: message.content
+        }
+
+      {:error, reason} ->
+        %{
+          status: :error,
+          action: :send_message,
+          from: entity_state.id,
+          to: behavior.to,
+          reason: reason
+        }
+    end
+  end
+
   defp validate_trigger(behavior) do
     trigger = Map.get(behavior, :trigger)
 

@@ -120,51 +120,6 @@ defmodule Procession.Entity do
     {:via, Registry, {Procession.EntityRegistry, id}}
   end
 
-  defp perform_behavior(state, %{action: :send_message} = behavior) do
-    to = Map.get(behavior, :to)
-
-    message = %{
-      type: Map.get(behavior, :type, :message),
-      content: Map.get(behavior, :content),
-      importance: Map.get(behavior, :importance, 1),
-      tags: Map.get(behavior, :tags, []),
-      metadata:
-        behavior
-        |> Map.get(:metadata, %{})
-        |> Map.put(:source, :entity_tick)
-    }
-
-    case send_to(state.id, to, message) do
-      :ok ->
-        %{
-          status: :ok,
-          action: :send_message,
-          from: state.id,
-          to: to,
-          type: message.type,
-          content: message.content
-        }
-
-      {:error, reason} ->
-        %{
-          status: :error,
-          action: :send_message,
-          from: state.id,
-          to: to,
-          reason: reason
-        }
-    end
-  end
-
-  defp perform_behavior(state, behavior) do
-    %{
-      status: :error,
-      action: Map.get(behavior, :action),
-      from: state.id,
-      reason: :unsupported_behavior
-    }
-  end
-
   @impl true
   def init(state) do
     {:ok, struct(__MODULE__, state)}
@@ -364,7 +319,7 @@ defmodule Procession.Entity do
         Map.get(behavior, :trigger) == :world_tick
       end)
       |> Enum.map(fn behavior ->
-        perform_behavior(state, behavior)
+        Procession.Behavior.execute(state, behavior)
       end)
 
     {:reply, {:ok, %{entity_id: state.id, actions: actions}}, state}

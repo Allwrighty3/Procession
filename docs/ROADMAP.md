@@ -575,19 +575,19 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 
 #### Behavior execution
 
-- [ ] Route entity tick behavior execution through the behavior module.
+- [x] Route entity tick behavior execution through the behavior module.
   - Example: `Procession.Behavior.execute(entity_state, behavior)`
-- [ ] Keep `Procession.Entity.tick/1` as the entity-level tick API.
-- [ ] Keep `Entity.tick/1` responsible for reading behavior metadata from entity state.
-- [ ] Keep behavior execution generic across entity IDs.
-- [ ] Continue supporting the existing `:send_message` action.
-- [ ] Ensure `:send_message` uses `Entity.send_to/3`.
-- [ ] Ensure messages created by behavior execution become memories normally.
-- [ ] Return structured action results from behavior execution.
+- [x] Keep `Procession.Entity.tick/1` as the entity-level tick API.
+- [x] Keep `Entity.tick/1` responsible for reading behavior metadata from entity state.
+- [x] Keep behavior execution generic across entity IDs.
+- [x] Continue supporting the existing `:send_message` action.
+- [x] Ensure `:send_message` uses `Entity.send_to/3`.
+- [x] Ensure messages created by behavior execution become memories normally.
+- [x] Return structured action results from behavior execution.
   - Example: `%{status: :ok, action: :send_message, from: ..., to: ...}`
-- [ ] Return structured errors for failed behavior execution.
-- [ ] Add tests proving `:send_message` behavior still works after routing through the behavior module.
-- [ ] Add tests proving behavior execution does not depend on fixture NPC names.
+- [x] Return structured errors for failed behavior execution.
+- [x] Add tests proving `:send_message` behavior still works after routing through the behavior module.
+- [x] Add tests proving behavior execution does not depend on fixture NPC names.
 
 #### Second safe behavior action
 

@@ -94,4 +94,66 @@ defmodule Procession.BehaviorTest do
              content: ""
            }) == {:error, {:invalid_behavior_field, :content}}
   end
+
+  test "execute performs send_message behavior" do
+    {:ok, _sender} =
+      Procession.EntitySupervisor.start_npc("npc_sender_behavior_test", %{
+        name: "Sender",
+        location: "loc_test"
+      })
+
+    {:ok, _receiver} =
+      Procession.EntitySupervisor.start_npc("npc_receiver_behavior_test", %{
+        name: "Receiver",
+        location: "loc_test"
+      })
+
+    sender_state = Procession.Entity.get_state("npc_sender_behavior_test")
+
+    behavior = %{
+      trigger: :world_tick,
+      action: :send_message,
+      to: "npc_receiver_behavior_test",
+      type: :rumor,
+      content: "The mine road was watched.",
+      importance: 2,
+      tags: [:mine]
+    }
+
+    assert Procession.Behavior.execute(sender_state, behavior) == %{
+             status: :ok,
+             action: :send_message,
+             from: "npc_sender_behavior_test",
+             to: "npc_receiver_behavior_test",
+             type: :rumor,
+             content: "The mine road was watched."
+           }
+
+    Process.sleep(10)
+
+    memories = Procession.Entity.recall_all("npc_receiver_behavior_test")
+
+    assert Enum.any?(memories, fn memory ->
+             memory.from == "npc_sender_behavior_test" and
+               memory.content == "The mine road was watched." and
+               memory.metadata.source == :entity_tick
+           end)
+
+    Procession.EntitySupervisor.stop_entity("npc_sender_behavior_test")
+    Procession.EntitySupervisor.stop_entity("npc_receiver_behavior_test")
+  end
+
+  test "execute returns validation errors for invalid behavior" do
+    entity_state = %{id: "npc_sender_behavior_test"}
+
+    behavior = %{
+      trigger: :world_tick,
+      action: :not_an_action,
+      to: "npc_receiver_behavior_test",
+      content: "Nope."
+    }
+
+    assert Procession.Behavior.execute(entity_state, behavior) ==
+             {:error, {:unsupported_behavior_action, :not_an_action}}
+  end
 end
