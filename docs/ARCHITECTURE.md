@@ -77,6 +77,24 @@ Avoid executable behavior scripts or arbitrary function calls.
 
 Behavior validation should ensure that generated metadata uses only supported triggers, supported actions, valid required fields, and safe references. Validation must never execute behavior.
 
+### AI-generated behavior metadata
+
+AI-generated behavior metadata is untrusted input.
+
+Generated behavior data must be validated before it is spawned into live entities or executed during a tick. AI output may suggest behavior metadata, but it must not be treated as executable code or trusted simulation logic.
+
+Behavior execution must remain limited to the safe action vocabulary defined by `Procession.Behavior`. Unsupported triggers, unsupported actions, missing required fields, malformed values, and unsafe references should be rejected predictably.
+
+AI-generated behavior metadata must not:
+
+* Call arbitrary Elixir functions
+* Create atoms dynamically
+* Bypass `Procession.Behavior.validate/1`
+* Execute before blueprint validation
+* Expand the behavior action vocabulary at runtime
+
+Phase 6 intentionally keeps AI-generated behavior parsing out of scope until the deterministic schema, validation rules, and execution behavior are stable.
+
 ### Game orchestration and story logic are separate
 
 `Procession.Game` should be the player-facing gameplay boundary. It may coordinate actions, world setup, dialogue, inspection, and ticking, but it should not become the owner of all story logic.

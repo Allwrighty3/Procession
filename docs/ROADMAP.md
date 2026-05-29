@@ -600,21 +600,21 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 - [x] Update entity state directly during the tick when appropriate.
 - [x] Return a structured action summary for `:change_status`.
   - Example: `%{status: :ok, action: :change_status, entity_id: ..., new_status: :alert}`
-- [ ] Add one deterministic fixture behavior using `:change_status`.
+- [x] Add one deterministic fixture behavior using `:change_status`.
 - [x] Add tests proving entity behavior can update entity state.
 - [x] Add tests proving invalid status behavior is rejected predictably.
 - [x] Keep this action deterministic and local.
 
 #### AI boundary preparation
 
-- [ ] Document that AI-generated behavior metadata is untrusted.
-- [ ] Document that AI output must be validated before spawning or execution.
-- [ ] Keep behavior execution limited to a safe action vocabulary.
-- [ ] Do not allow AI-generated behavior to call arbitrary functions.
-- [ ] Do not allow AI-generated behavior to create atoms dynamically.
-- [ ] Keep AI-generated behavior parsing out of Phase 6 unless the schema is stable.
-- [ ] Defer AI-driven behavior selection until deterministic schema validation is solid.
-- [ ] Defer goals, planning, utility scoring, and personality-driven autonomy.
+- [x] Document that AI-generated behavior metadata is untrusted.
+- [x] Document that AI output must be validated before spawning or execution.
+- [x] Keep behavior execution limited to a safe action vocabulary.
+- [x] Do not allow AI-generated behavior to call arbitrary functions.
+- [x] Do not allow AI-generated behavior to create atoms dynamically.
+- [x] Keep AI-generated behavior parsing out of Phase 6 unless the schema is stable.
+- [x] Defer AI-driven behavior selection until deterministic schema validation is solid.
+- [x] Defer goals, planning, utility scoring, and personality-driven autonomy.
 
 ---
 
