@@ -637,3 +637,74 @@ end)
 
 AI is not required for manual world ticking or manual clock ticking. Both paths are deterministic and local.
 
+### Optional interval ticking
+
+The world clock can optionally tick on an interval.
+
+Interval ticking is disabled by default. Starting the app does not automatically start background simulation.
+
+Start a deterministic playable world:
+
+```elixir
+{:ok, game} =
+  Procession.Game.new_game("a frontier village near a haunted mine")
+```
+
+Start an anonymous manual clock for experimentation:
+
+```elixir
+{:ok, clock} = Procession.WorldClock.start_link(name: nil)
+```
+
+Start interval ticking every second:
+
+```elixir
+Procession.WorldClock.start_interval(clock, 1_000)
+# :ok
+```
+
+Check whether interval ticking is running:
+
+```elixir
+Procession.WorldClock.interval_running?(clock)
+# true
+```
+
+Inspect the current tick count:
+
+```elixir
+Procession.WorldClock.tick_count(clock)
+```
+
+Inspect the latest interval-coordinated tick:
+
+```elixir
+Procession.WorldClock.last_tick(clock)
+```
+
+Stop interval ticking:
+
+```elixir
+Procession.WorldClock.stop_interval(clock)
+# :ok
+```
+
+Confirm interval ticking has stopped:
+
+```elixir
+Procession.WorldClock.interval_running?(clock)
+# false
+```
+
+Interval ticks still call the same world tick behavior as manual ticks. The clock coordinates ticks; entities still own behavior execution through their own state and metadata.
+
+Clean up generated entities when experimenting in IEx:
+
+```elixir
+Enum.each(game.locations ++ game.npcs ++ game.factions, fn id ->
+  Procession.EntitySupervisor.stop_entity(id)
+end)
+```
+
+AI is not required for interval ticking. Interval ticking is deterministic and local unless entity behavior itself is later expanded to call AI through a validated boundary.
+

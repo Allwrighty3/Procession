@@ -709,8 +709,8 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Add README examples for starting a clock.
 - [x] Add README examples for triggering a tick through the clock.
 - [x] Add README examples for inspecting the last tick summary.
-- [ ] Add README examples for optional interval ticking if implemented.
-- [ ] Document how to stop scheduled ticking.
+- [x] Add README examples for optional interval ticking if implemented.
+- [x] Document how to stop scheduled ticking.
 - [x] Document that scheduled ticking still uses entity-owned behavior.
 - [x] Document that the clock does not own story logic.
 
