@@ -39,6 +39,25 @@ defmodule Procession.Game do
   end
 
   @doc """
+  Returns matching memories for an entity and topic.
+
+  This is deterministic and returns memory entries as data. It does not summarize,
+  call AI, or mutate entity state.
+  """
+
+  def ask_about(entity_id, topic) when is_binary(topic) do
+    if EntitySupervisor.exists?(entity_id) do
+      {:ok, Entity.recall(entity_id, topic)}
+    else
+      {:error, :entity_not_found}
+    end
+  end
+
+  def ask_about(_enitity_id, _topic) do
+    {:error, :invalid_topic}
+  end
+
+  @doc """
   Creates a deterministic playable world from a prompt.
 
   This uses the deterministic generator path, validates the generated blueprint,

@@ -194,4 +194,35 @@ defmodule Procession.GameTest do
     assert Procession.Game.perform(:not_a_valid_action, entity_id: "npc_mira") ==
              {:error, :invalid_action}
   end
+
+  test "ask_about returns matching memories for a known topic" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    Process.sleep(10)
+
+    assert {:ok, memories} = Procession.Game.ask_about("npc_mira", "Tobin")
+
+    assert Enum.any?(memories, fn memory ->
+             memory.content == "Tobin was seen near the Silent Mine after sundown." and
+               memory.type == :rumor
+           end)
+  end
+
+  test "ask_about returns an empty list for an unknown topic" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    Process.sleep(10)
+
+    assert Procession.Game.ask_about("npc_mira", "dragon") == {:ok, []}
+  end
+
+  test "ask_about returns a predictable error for a missing entity" do
+    assert Procession.Game.ask_about("npc_missing", "mine") == {:error, :entity_not_found}
+  end
+
+  test "ask_about rejects invalid topics" do
+    assert Procession.Game.ask_about("npc_mira", nil) == {:error, :invalid_topic}
+    assert Procession.Game.ask_about("npc_mira", :mine) == {:error, :invalid_topic}
+    assert Procession.Game.ask_about("npc_mira", 123) == {:error, :invalid_topic}
+  end
 end

@@ -863,12 +863,12 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Memory-driven interaction
 
-- [ ] Add a simple helper for recalling what an NPC knows.
+- [x] Add a simple helper for recalling what an NPC knows.
   - Example: `Procession.Game.ask_about(npc_id, topic)`
-- [ ] Use existing entity recall helpers.
-- [ ] Keep recall deterministic before adding AI summarization.
-- [ ] Return matching memories as data.
-- [ ] Add tests for asking about known and unknown topics.
+- [x] Use existing entity recall helpers.
+- [x] Keep recall deterministic before adding AI summarization.
+- [x] Return matching memories as data.
+- [x] Add tests for asking about known and unknown topics.
 
 #### Gameplay loop preparation
 
