@@ -11,7 +11,9 @@ defmodule Procession.Generator do
 
   This first version is intentionally deterministic and does not call AI.
   """
-  def generate_world(prompt, _opts \\ []) when is_binary(prompt) do
+  def generate_world(prompt, opts \\ [])
+
+  def generate_world(prompt, _opts) when is_binary(prompt) do
     {:ok,
      %{
        name: "Echoes of the Old Road",
@@ -128,7 +130,9 @@ defmodule Procession.Generator do
   This function uses the existing AI boundary and returns generated text only.
   It does not parse AI output, validate it as a blueprint, or spawn entities.
   """
-  def generate_world_ai(prompt, opts \\ []) when is_binary(prompt) do
+  def generate_world_ai(prompt, opts \\ [])
+
+  def generate_world_ai(prompt, opts) when is_binary(prompt) do
     ai_prompt = Procession.Generator.Prompt.world_blueprint(prompt)
 
     case Procession.AI.generate(ai_prompt, opts) do
@@ -160,7 +164,8 @@ defmodule Procession.Generator do
          :ok <- require_unique_entity_ids(blueprint),
          :ok <- require_known_npc_locations(blueprint),
          :ok <- require_known_relationship_entities(blueprint),
-         :ok <- require_valid_starter_memories(blueprint) do
+         :ok <- require_valid_starter_memories(blueprint),
+         :ok <- require_valid_npc_behaviors(blueprint) do
       :ok
     end
   end
@@ -356,5 +361,32 @@ defmodule Procession.Generator do
           end
       end
     end)
+  end
+
+  defp require_valid_npc_behaviors(blueprint) do
+    case Enum.find_value(blueprint.npcs, &invalid_npc_behavior/1) do
+      nil -> :ok
+      {npc, behavior, reason} -> {:error, {:invalid_behavior, npc.id, behavior, reason}}
+    end
+  end
+
+  defp invalid_npc_behavior(npc) do
+    behaviors =
+      npc
+      |> Map.get(:metadata, %{})
+      |> Map.get(:behaviors, [])
+
+    cond do
+      not is_list(behaviors) ->
+        {npc, behaviors, :behaviors_must_be_list}
+
+      true ->
+        Enum.find_value(behaviors, fn behavior ->
+          case Procession.Behavior.validate(behavior) do
+            :ok -> nil
+            {:error, reason} -> {npc, behavior, reason}
+          end
+        end)
+    end
   end
 end

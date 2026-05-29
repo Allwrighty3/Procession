@@ -160,6 +160,66 @@ defmodule Procession.GeneratorTest do
     assert Procession.Generator.validate_blueprint(blueprint) == :ok
   end
 
+  test "validate_blueprint accepts valid NPC behavior metadata" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    assert Generator.validate_blueprint(blueprint) == :ok
+  end
+
+  test "validate_blueprint allows NPCs without behavior metadata" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    npcs_without_behaviors =
+      Enum.map(blueprint.npcs, fn npc ->
+        Map.delete(npc, :metadata)
+      end)
+
+    blueprint = %{blueprint | npcs: npcs_without_behaviors}
+
+    assert Generator.validate_blueprint(blueprint) == :ok
+  end
+
+  test "validate_blueprint rejects non-list NPC behaviors" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    [first_npc | rest_npcs] = blueprint.npcs
+
+    invalid_npc =
+      Map.put(first_npc, :metadata, %{
+        behaviors: :not_a_list
+      })
+
+    invalid_blueprint = %{blueprint | npcs: [invalid_npc | rest_npcs]}
+
+    assert Generator.validate_blueprint(invalid_blueprint) ==
+             {:error, {:invalid_behavior, invalid_npc.id, :not_a_list, :behaviors_must_be_list}}
+  end
+
+  test "validate_blueprint rejects invalid NPC behavior metadata" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    [first_npc | rest_npcs] = blueprint.npcs
+
+    invalid_behavior = %{
+      trigger: :world_tick,
+      action: :not_an_action,
+      to: "npc_mira",
+      content: "Hello."
+    }
+
+    invalid_npc =
+      Map.put(first_npc, :metadata, %{
+        behaviors: [invalid_behavior]
+      })
+
+    invalid_blueprint = %{blueprint | npcs: [invalid_npc | rest_npcs]}
+
+    assert Generator.validate_blueprint(invalid_blueprint) ==
+             {:error,
+              {:invalid_behavior, invalid_npc.id, invalid_behavior,
+               {:unsupported_behavior_action, :not_an_action}}}
+  end
+
   test "validate_blueprint rejects non-map blueprints" do
     assert Procession.Generator.validate_blueprint(nil) == {:error, :invalid_blueprint}
     assert Procession.Generator.validate_blueprint("nope") == {:error, :invalid_blueprint}
