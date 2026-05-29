@@ -244,6 +244,10 @@ defmodule Procession.GeneratorTest do
     assert Procession.EntitySupervisor.exists?("loc_crossroads")
     assert Procession.EntitySupervisor.exists?("npc_mira")
     assert Procession.EntitySupervisor.exists?("faction_roadwardens")
+
+    Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
+      Procession.EntitySupervisor.stop_entity(id)
+    end)
   end
 
   test "spawn_world rejects invalid blueprints before spawning entities" do
@@ -252,5 +256,33 @@ defmodule Procession.GeneratorTest do
 
   test "spawn_world rejects non-map blueprints" do
     assert Procession.Generator.spawn_world(nil) == {:error, :invalid_blueprint}
+  end
+
+  test "spawn_world attaches starter memories to generated NPCs" do
+    assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
+
+    assert {:ok, summary} = Procession.Generator.spawn_world(blueprint)
+
+    assert summary.starter_memories == 2
+
+    Process.sleep(10)
+
+    mira_memories = Procession.Entity.recall_all("npc_mira")
+    tobin_memories = Procession.Entity.recall_all("npc_tobin")
+
+    assert Enum.any?(mira_memories, fn memory ->
+             memory.content == "Tobin was seen near the Silent Mine after sundown." and
+               memory.type == :rumor
+           end)
+
+    assert Enum.any?(tobin_memories, fn memory ->
+             memory.content ==
+               "The old road has been quieter since the mine started echoing again." and
+               memory.type == :observation
+           end)
+
+    Enum.each(summary.locations ++ summary.npcs ++ summary.factions, fn id ->
+      Procession.EntitySupervisor.stop_entity(id)
+    end)
   end
 end

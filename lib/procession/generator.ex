@@ -140,12 +140,14 @@ defmodule Procession.Generator do
     with :ok <- validate_blueprint(blueprint),
          {:ok, location_ids} <- spawn_locations(blueprint.locations),
          {:ok, npc_ids} <- spawn_npcs(blueprint.npcs),
-         {:ok, faction_ids} <- spawn_factions(blueprint.factions) do
+         {:ok, faction_ids} <- spawn_factions(blueprint.factions),
+         :ok <- attach_starter_memories(blueprint.starter_memories) do
       {:ok,
        %{
          locations: location_ids,
          npcs: npc_ids,
-         factions: faction_ids
+         factions: faction_ids,
+         starter_memories: length(blueprint.starter_memories)
        }}
     end
   end
@@ -265,6 +267,25 @@ defmodule Procession.Generator do
       case spawn_fun.(entity) do
         {:ok, _pid} -> {:cont, {:ok, ids ++ [entity.id]}}
         {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp attach_starter_memories(starter_memories) do
+    Enum.reduce_while(starter_memories, :ok, fn memory, :ok ->
+      message = %{
+        type: Map.get(memory, :type, :memory),
+        content: Map.get(memory, :content),
+        importance: Map.get(memory, :importance, 1),
+        tags: Map.get(memory, :tags, []),
+        metadata: %{
+          source: :generator
+        }
+      }
+
+      case Procession.Entity.send_to("system_generator", memory.entity_id, message) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt.{:error, reason}}
       end
     end)
   end

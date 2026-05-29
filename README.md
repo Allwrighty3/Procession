@@ -585,18 +585,18 @@ The first goal is not to generate a massive world. The first goal is to generate
 - [x] Start generated locations through `EntitySupervisor`.
 - [x] Start generated NPCs through `EntitySupervisor`.
 - [x] Start generated factions through `EntitySupervisor`.
-- [ ] Attach starter memories only after entities are created.
+- [x] Attach starter memories only after entities are created.
 - [x] Return a summary of created entities.
 - [x] Add tests proving entities are created from a blueprint.
 
 #### Starter memories and relationships
 
-- [ ] Decide how generated memories should be attached to NPCs.
-- [ ] Use existing entity message/memory behavior where possible.
-- [ ] Add starter rumors, observations, or faction opinions as memories.
+- [x] Decide how generated memories should be attached to NPCs.
+- [x] Use existing entity message/memory behavior where possible.
+- [x] Add starter rumors, observations, or faction opinions as memories.
 - [ ] Represent relationships in metadata first.
 - [ ] Defer a full relationship system unless needed.
-- [ ] Add tests proving generated NPCs receive starter memories.
+- [x] Add tests proving generated NPCs receive starter memories.
 
 #### Developer ergonomics
 
