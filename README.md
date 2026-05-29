@@ -373,6 +373,141 @@ Procession.Generator.generate_world_ai(
 
 AI-assisted output is treated as untrusted text for now. The deterministic generator remains the safe path for creating and spawning playable worlds.
 
+## Gameplay / Phase 5 Usage
+
+Phase 5 adds a small player-facing gameplay boundary through `Procession.Game`.
+
+The goal is to keep gameplay actions as plain, testable function calls before adding command parsing, Phoenix LiveView, persistence, combat, inventory, or quest systems.
+
+Start the app in IEx:
+
+```bash
+iex -S mix
+```
+
+Create a deterministic playable world:
+
+```elixir
+{:ok, game} =
+  Procession.Game.new_game("a frontier village near a haunted mine")
+```
+
+The result includes the generated world name and live entity IDs:
+
+```elixir
+game.name
+# "Echoes of the Old Road"
+
+game.locations
+# ["loc_crossroads", "loc_briar_village", "loc_silent_mine"]
+
+game.npcs
+# ["npc_mira", "npc_tobin", "npc_elin"]
+
+game.factions
+# ["faction_roadwardens"]
+```
+
+Inspect a live entity directly:
+
+```elixir
+Procession.Game.look("npc_mira")
+```
+
+Or inspect through the tiny action API:
+
+```elixir
+Procession.Game.perform(:look, entity_id: "npc_mira")
+```
+
+The result is plain data:
+
+```elixir
+{:ok,
+ %{
+   id: "npc_mira",
+   name: "Mira",
+   type: :npc,
+   location: "loc_briar_village",
+   status: :idle,
+   traits: %{role: "innkeeper", temperament: "watchful"},
+   relationships: [
+     %{
+       to: "npc_tobin",
+       type: :distrusts,
+       description: "Mira thinks Tobin knows more about the mine than he admits."
+     }
+   ],
+   description: nil,
+   memory_summary: %{short: 1, medium: 0, long: 0}
+ }}
+```
+
+Ask what an NPC knows about a topic:
+
+```elixir
+Procession.Game.ask_about("npc_mira", "Tobin")
+```
+
+Or ask through the action API:
+
+```elixir
+Procession.Game.perform(:ask_about,
+  entity_id: "npc_mira",
+  topic: "Tobin"
+)
+```
+
+This returns matching memory entries as data:
+
+```elixir
+{:ok, memories} =
+  Procession.Game.ask_about("npc_mira", "Tobin")
+
+Enum.map(memories, & &1.content)
+# ["Tobin was seen near the Silent Mine after sundown."]
+```
+
+Missing or invalid gameplay targets return predictable errors:
+
+```elixir
+Procession.Game.look("npc_missing")
+# {:error, :entity_not_found}
+
+Procession.Game.perform(:look, [])
+# {:error, :missing_target}
+
+Procession.Game.perform(:ask_about, entity_id: "npc_mira")
+# {:error, :missing_topic}
+
+Procession.Game.perform(:dance, entity_id: "npc_mira")
+# {:error, :invalid_action}
+```
+
+The current Phase 5 loop is deterministic and does not require Ollama:
+
+```elixir
+{:ok, game} =
+  Procession.Game.new_game("a frontier village near a haunted mine")
+
+Procession.Game.perform(:look, entity_id: "npc_mira")
+
+Procession.Game.perform(:ask_about,
+  entity_id: "npc_mira",
+  topic: "Tobin"
+)
+```
+
+Clean up generated entities when experimenting in IEx:
+
+```elixir
+Enum.each(game.locations ++ game.npcs ++ game.factions, fn id ->
+  Procession.EntitySupervisor.stop_entity(id)
+end)
+```
+
+AI is not used for this first gameplay loop. Optional local AI remains available through the existing AI and entity response APIs, but gameplay inspection and memory queries are deterministic for now.
+
 ## Repository Map
 
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
@@ -872,21 +1007,21 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Gameplay loop preparation
 
-- [ ] Define the first tiny gameplay loop.
+- [x] Define the first tiny gameplay loop.
   - Example: create world, inspect NPC, talk to NPC, inspect memory.
-- [ ] Keep the loop runnable from IEx.
-- [ ] Add README examples for the first playable loop.
-- [ ] Avoid building command parsing until the function-based loop works.
-- [ ] Avoid building Phoenix LiveView until core gameplay APIs feel stable.
+- [x] Keep the loop runnable from IEx.
+- [x] Add README examples for the first playable loop.
+- [x] Avoid building command parsing until the function-based loop works.
+- [x] Avoid building Phoenix LiveView until core gameplay APIs feel stable.
 
 #### Developer ergonomics
 
-- [ ] Add README examples for `Procession.Game.look/1`.
-- [ ] Add README examples for creating a playable deterministic world.
-- [ ] Add README examples for the first player action.
-- [ ] Keep all examples copy-pasteable in IEx.
-- [ ] Document which Phase 5 features are deterministic and which optionally use AI.
-- [ ] Document cleanup steps for generated test worlds.
+- [x] Add README examples for `Procession.Game.look/1`.
+- [x] Add README examples for creating a playable deterministic world.
+- [x] Add README examples for the first player action.
+- [x] Keep all examples copy-pasteable in IEx.
+- [x] Document which Phase 5 features are deterministic and which optionally use AI.
+- [x] Document cleanup steps for generated test worlds.
 
 #### Future refinements
 
