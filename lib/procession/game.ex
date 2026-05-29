@@ -9,6 +9,7 @@ defmodule Procession.Game do
 
   alias Procession.Entity
   alias Procession.EntitySupervisor
+  alias Procession.Generator
 
   @doc """
   Inspects a live entity and returns a player-facing summary as plain data.
@@ -34,6 +35,31 @@ defmodule Procession.Game do
        }}
     else
       {:error, :entity_not_found}
+    end
+  end
+
+  @doc """
+  Creates a deterministic playable world from a prompt.
+
+  This uses the deterministic generator path, validates the generated blueprint,
+  spawns live entity processes and returns a player-facing setup summary.
+  """
+
+  def new_game(prompt) do
+    with {:ok, blueprint} <- Generator.generate_world(prompt),
+         :ok <- Generator.validate_blueprint(blueprint),
+         {:ok, spawn_summary} <- Generator.spawn_world(blueprint) do
+      {:ok,
+       %{
+         name: blueprint.name,
+         description: blueprint.description,
+         prompt: blueprint.prompt,
+         locations: spawn_summary.locations,
+         npcs: spawn_summary.npcs,
+         factions: spawn_summary.factions,
+         relationships: spawn_summary.relationships,
+         starter_memories: spawn_summary.starter_memories
+       }}
     end
   end
 end

@@ -105,4 +105,69 @@ defmodule Procession.GameTest do
   test "look returns a predictable error for a missing entity" do
     assert Procession.Game.look("npc_missing") == {:error, :entity_not_found}
   end
+
+  test "new_game creates a deterministic playable world" do
+    assert {:ok, game} = Procession.Game.new_game("a frontier village near a haunted mine")
+
+    assert game.name == "Echoes of the Old Road"
+    assert game.description =~ "frontier region"
+    assert game.prompt == "a frontier village near a haunted mine"
+
+    assert game.locations == ["loc_crossroads", "loc_briar_village", "loc_silent_mine"]
+    assert game.npcs == ["npc_mira", "npc_tobin", "npc_elin"]
+    assert game.factions == ["faction_roadwardens"]
+
+    assert game.relationships == 2
+    assert game.starter_memories == 2
+  end
+
+  test "new_game starts generated entities as live processes" do
+    assert {:ok, game} = Procession.Game.new_game("anything")
+
+    assert Enum.all?(game.locations, fn id ->
+             Procession.EntitySupervisor.exists?(id)
+           end)
+
+    assert Enum.all?(game.npcs, fn id ->
+             Procession.EntitySupervisor.exists?(id)
+           end)
+
+    assert Enum.all?(game.factions, fn id ->
+             Procession.EntitySupervisor.exists?(id)
+           end)
+  end
+
+  test "new_game creates entities that can be inspected through look" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, summary} = Procession.Game.look("npc_mira")
+
+    assert summary.id == "npc_mira"
+    assert summary.name == "Mira"
+    assert summary.type == :npc
+    assert summary.location == "loc_briar_village"
+    assert summary.traits == %{role: "innkeeper", temperament: "watchful"}
+  end
+
+  test "new_game attaches generated starter memories" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    Process.sleep(10)
+
+    assert {:ok, summary} = Procession.Game.look("npc_mira")
+    assert summary.memory_summary.short == 1
+
+    memories = Procession.Entity.recall_all("npc_mira")
+
+    assert Enum.any?(memories, fn memory ->
+             memory.content == "Tobin was seen near the Silent Mine after sundown." and
+               memory.type == :rumor
+           end)
+  end
+
+  test "new_game rejects invalid prompts" do
+    assert Procession.Game.new_game(nil) == {:error, :invalid_prompt}
+    assert Procession.Game.new_game(:not_a_prompt) == {:error, :invalid_prompt}
+    assert Procession.Game.new_game(123) == {:error, :invalid_prompt}
+  end
 end

@@ -818,14 +818,14 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Generated world gameplay setup
 
-- [ ] Add a helper for creating a playable test world.
+- [x] Add a helper for creating a playable test world.
   - Example: `Procession.Game.new_game(prompt)`
-- [ ] Use the deterministic generator first.
-- [ ] Validate the generated blueprint before spawning.
-- [ ] Spawn the generated world through `Procession.Generator.spawn_world/1`.
-- [ ] Return a summary that includes the world name and created entity IDs.
-- [ ] Do not use AI generation for the first playable setup path.
-- [ ] Add tests proving a new playable world can be created from a prompt.
+- [x] Use the deterministic generator first.
+- [x] Validate the generated blueprint before spawning.
+- [x] Spawn the generated world through `Procession.Generator.spawn_world/1`.
+- [x] Return a summary that includes the world name and created entity IDs.
+- [x] Do not use AI generation for the first playable setup path.
+- [x] Add tests proving a new playable world can be created from a prompt.
 
 #### Player actions
 
