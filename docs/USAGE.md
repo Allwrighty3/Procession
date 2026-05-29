@@ -552,3 +552,88 @@ end)
 ```
 
 AI is not required for the deterministic gameplay loop or manual world tick. Optional local AI remains available through the existing AI and entity response APIs, but gameplay inspection, memory queries, and the first entity-driven behavior loop are deterministic for now.
+
+### Manual world clock
+
+Phase 7 adds a manually controlled world clock process.
+
+The clock does not replace `Procession.Game.tick_world/0`. Manual ticking through `Procession.Game.tick_world/0` remains available. The clock simply provides a small GenServer boundary that can coordinate ticks, remember the latest tick summary, and track how many ticks it has coordinated.
+
+Start a deterministic playable world:
+
+```elixir
+{:ok, game} =
+  Procession.Game.new_game("a frontier village near a haunted mine")
+```
+
+Start a manually controlled clock:
+
+```elixir
+{:ok, clock} = Procession.WorldClock.start_link([])
+```
+
+Trigger one tick through the clock:
+
+```elixir
+Procession.WorldClock.tick(clock)
+```
+
+The result includes the normal world tick summary plus the clock tick number:
+
+```elixir
+{:ok,
+ %{
+   clock_tick: 1,
+   entities_ticked: 7,
+   actions: [
+     %{
+       status: :ok,
+       action: :send_message,
+       from: "npc_tobin",
+       to: "npc_mira",
+       type: :rumor,
+       content: "Tobin quietly warned Mira that the mine road was watched."
+     },
+     %{
+       status: :ok,
+       action: :change_status,
+       entity_id: "npc_elin",
+       old_status: :idle,
+       new_status: :alert
+     }
+   ]
+ }}
+```
+
+Inspect the latest clock-coordinated tick:
+
+```elixir
+Procession.WorldClock.last_tick(clock)
+```
+
+Inspect how many ticks the clock has coordinated:
+
+```elixir
+Procession.WorldClock.tick_count(clock)
+# 1
+```
+
+Manual clock ticks still use entity-owned behavior metadata. The clock does not own story logic, execute behavior directly, or create autonomous background simulation.
+
+Manual ticks and clock ticks are different entry points into the same world tick behavior:
+
+* `Procession.Game.tick_world/0` directly coordinates one manual world tick.
+* `Procession.WorldClock.tick(clock)` asks a clock process to coordinate one world tick and remember the result.
+* Neither API starts an automatic background loop.
+* Scheduled ticking is intentionally not enabled yet.
+
+Clean up generated entities when experimenting in IEx:
+
+```elixir
+Enum.each(game.locations ++ game.npcs ++ game.factions, fn id ->
+  Procession.EntitySupervisor.stop_entity(id)
+end)
+```
+
+AI is not required for manual world ticking or manual clock ticking. Both paths are deterministic and local.
+

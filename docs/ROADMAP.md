@@ -635,7 +635,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Make the clock call the existing gameplay/world tick boundary.
 - [x] Do not duplicate entity tick logic inside the clock.
 - [x] Do not move behavior execution into the clock.
-- [ ] Document the difference between manual ticks and scheduled ticks.
+- [x] Document the difference between manual ticks and scheduled ticks.
 
 #### Manual clock process
 
@@ -705,14 +705,14 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Documentation and IEx demos
 
-- [ ] Add README examples for manual world ticking.
-- [ ] Add README examples for starting a clock.
-- [ ] Add README examples for triggering a tick through the clock.
-- [ ] Add README examples for inspecting the last tick summary.
+- [x] Add README examples for manual world ticking.
+- [x] Add README examples for starting a clock.
+- [x] Add README examples for triggering a tick through the clock.
+- [x] Add README examples for inspecting the last tick summary.
 - [ ] Add README examples for optional interval ticking if implemented.
 - [ ] Document how to stop scheduled ticking.
-- [ ] Document that scheduled ticking still uses entity-owned behavior.
-- [ ] Document that the clock does not own story logic.
+- [x] Document that scheduled ticking still uses entity-owned behavior.
+- [x] Document that the clock does not own story logic.
 
 #### Deferred from Phase 7
 
