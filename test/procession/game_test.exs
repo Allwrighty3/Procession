@@ -377,8 +377,41 @@ defmodule Procession.GameTest do
              end)
   end
 
+  test "tick_world collects failed behavior actions as data" do
+    assert {:ok, _pid} =
+             Procession.EntitySupervisor.start_npc("npc_faulty", %{
+               name: "Faulty",
+               location: "loc_nowhere",
+               metadata: %{
+                 behaviors: [
+                   %{
+                     trigger: :world_tick,
+                     action: :send_message,
+                     to: "npc_missing",
+                     content: "This message has nowhere to go."
+                   }
+                 ]
+               }
+             })
+
+    assert {:ok, summary} = Procession.Game.tick_world()
+
+    assert summary.entities_ticked == 1
+
+    assert Enum.any?(summary.failed_actions, fn action ->
+             action.status == :error and
+               action.action == :send_message and
+               action.from == "npc_faulty" and
+               action.to == "npc_missing" and
+               action.reason == :entity_not_found
+           end)
+
+    assert summary.successful_actions == []
+  end
+
   test "tick_world returns no actions when no live entities have tick behavior" do
-    assert Procession.Game.tick_world() == {:ok, %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}
+    assert Procession.Game.tick_world() ==
+             {:ok, %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}
   end
 
   test "recent_events returns entity tick memories for an entity" do

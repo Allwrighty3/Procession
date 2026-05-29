@@ -690,18 +690,18 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Avoid database/storage decisions in Phase 7.
 - [x] Add tests for successful tick summaries.
 - [x] Add tests for failed entity action summaries.
-- [ ] Add tests proving one failed entity action does not crash the whole clock.
+- [x] Add tests proving one failed entity action does not crash the whole clock.
 
 #### Failure isolation
 
-- [ ] Make sure one entity tick failure does not crash the full world tick.
-- [ ] Collect failed tick results as data.
-- [ ] Keep failures visible in the tick summary.
-- [ ] Avoid swallowing errors silently.
-- [ ] Add tests for missing target entities during scheduled ticks.
+- [x] Make sure one entity tick failure does not crash the full world tick.
+- [x] Collect failed tick results as data.
+- [x] Keep failures visible in the tick summary.
+- [x] Avoid swallowing errors silently.
+- [x] Add tests for missing target entities during scheduled ticks.
 - [ ] Add tests for unsupported behavior during scheduled ticks.
-- [ ] Add tests proving the clock remains alive after a failed entity action.
-- [ ] Keep clock behavior boring and reliable. Boring is allowed here. Heroics are how schedulers become gremlins.
+- [x] Add tests proving the clock remains alive after a failed entity action.
+- [x] Keep clock behavior boring and reliable. Boring is allowed here. Heroics are how schedulers become gremlins.
 
 #### Documentation and IEx demos
 
