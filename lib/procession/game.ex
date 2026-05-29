@@ -121,10 +121,22 @@ defmodule Procession.Game do
         _ -> []
       end)
 
+    successful_actions =
+      Enum.filter(actions, fn action ->
+        Map.get(action, :status) == :ok
+      end)
+
+    failed_actions =
+      Enum.filter(actions, fn action ->
+        Map.get(action, :status) == :error
+      end)
+
     {:ok,
      %{
        entities_ticked: length(results),
-       actions: actions
+       actions: actions,
+       successful_actions: successful_actions,
+       failed_actions: failed_actions
      }}
   end
 

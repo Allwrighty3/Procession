@@ -357,8 +357,28 @@ defmodule Procession.GameTest do
            end)
   end
 
+  test "tick_world separates successful and failed actions" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, summary} = Procession.Game.tick_world()
+
+    assert is_list(summary.actions)
+    assert is_list(summary.successful_actions)
+    assert is_list(summary.failed_actions)
+
+    assert summary.successful_actions ==
+             Enum.filter(summary.actions, fn action ->
+               Map.get(action, :status) == :ok
+             end)
+
+    assert summary.failed_actions ==
+             Enum.filter(summary.actions, fn action ->
+               Map.get(action, :status) == :error
+             end)
+  end
+
   test "tick_world returns no actions when no live entities have tick behavior" do
-    assert Procession.Game.tick_world() == {:ok, %{entities_ticked: 0, actions: []}}
+    assert Procession.Game.tick_world() == {:ok, %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}
   end
 
   test "recent_events returns entity tick memories for an entity" do

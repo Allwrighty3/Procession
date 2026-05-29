@@ -679,17 +679,17 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Tick result handling
 
-- [ ] Keep tick summaries as plain data.
-- [ ] Include total entities ticked.
-- [ ] Include successful entity actions.
-- [ ] Include failed entity actions.
-- [ ] Include clock tick count.
+- [x] Keep tick summaries as plain data.
+- [x] Include total entities ticked.
+- [x] Include successful entity actions.
+- [x] Include failed entity actions.
+- [x] Include clock tick count.
 - [ ] Include timestamp or monotonic tick number only if useful.
-- [ ] Keep recent summaries inspectable from IEx.
-- [ ] Avoid persistence in Phase 7.
-- [ ] Avoid database/storage decisions in Phase 7.
-- [ ] Add tests for successful tick summaries.
-- [ ] Add tests for failed entity action summaries.
+- [x] Keep recent summaries inspectable from IEx.
+- [x] Avoid persistence in Phase 7.
+- [x] Avoid database/storage decisions in Phase 7.
+- [x] Add tests for successful tick summaries.
+- [x] Add tests for failed entity action summaries.
 - [ ] Add tests proving one failed entity action does not crash the whole clock.
 
 #### Failure isolation
