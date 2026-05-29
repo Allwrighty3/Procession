@@ -1023,6 +1023,18 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 - [x] Document which Phase 5 features are deterministic and which optionally use AI.
 - [x] Document cleanup steps for generated test worlds.
 
+#### Autonomous world activity
+
+- [ ] Add a tiny deterministic world tick helper.
+  - Example: `Procession.Game.tick_world()`
+- [ ] Start with one scripted NPC-to-NPC interaction.
+- [ ] Use existing entity messaging instead of creating a new simulation engine.
+- [ ] Make playerless actions create memories through normal message delivery.
+- [ ] Return a summary of what happened during the tick.
+- [ ] Keep the first version manually triggered from IEx.
+- [ ] Defer timers, schedulers, background loops, and complex NPC goals.
+- [ ] Add tests proving the world can change without direct player action.
+
 #### Future refinements
 
 - [ ] Add a command parser for text commands.
