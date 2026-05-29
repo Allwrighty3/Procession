@@ -638,12 +638,12 @@ The first goal is not to generate a massive world. The first goal is to generate
 
 #### AI-assisted generation preparation
 
-- [ ] Add a generator prompt helper.
-- [ ] Keep generator prompts plain strings at first.
-- [ ] Include clear output expectations in the prompt.
-- [ ] Ask the AI for small structured output only.
-- [ ] Do not rely on AI-generated output until deterministic generation works.
-- [ ] Add tests for prompt construction without calling Ollama.
+- [x] Add a generator prompt helper.
+- [x] Keep generator prompts plain strings at first.
+- [x] Include clear output expectations in the prompt.
+- [x] Ask the AI for small structured output only.
+- [x] Do not rely on AI-generated output until deterministic generation works.
+- [x] Add tests for prompt construction without calling Ollama.
 
 #### Ollama-assisted generation
 
@@ -684,17 +684,17 @@ The first goal is not to generate a massive world. The first goal is to generate
 - [x] Use existing entity message/memory behavior where possible.
 - [x] Add starter rumors, observations, or faction opinions as memories.
 - [x] Represent relationships in metadata first.
-- [ ] Defer a full relationship system unless needed.
+- [x] Defer a full relationship system unless needed.
 - [x] Add tests proving generated NPCs receive starter memories.
 
 #### Developer ergonomics
 
-- [ ] Add README examples for deterministic world generation.
-- [ ] Add README examples for spawning a generated world.
+- [x] Add README examples for deterministic world generation.
+- [x] Add README examples for spawning a generated world.
 - [ ] Add README examples for AI-assisted generation if available.
-- [ ] Keep examples small enough to run in IEx.
-- [ ] Document that generation returns a blueprint before spawning entities.
-- [ ] Document that generated worlds are local and zero-budget.
+- [x] Keep examples small enough to run in IEx.
+- [x] Document that generation returns a blueprint before spawning entities.
+- [x] Document that generated worlds are local and zero-budget.
 
 #### Future refinements
 
