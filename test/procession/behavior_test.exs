@@ -36,7 +36,7 @@ defmodule Procession.BehaviorTest do
   end
 
   test "validate rejects unsupported trigger" do
-    behavior =%{
+    behavior = %{
       trigger: :not_a_trigger,
       action: :send_message,
       to: "npc_mira",
@@ -44,7 +44,7 @@ defmodule Procession.BehaviorTest do
     }
 
     assert Behavior.validate(behavior) ==
-      {:error, {:unsupported_behavior_trigger}}
+             {:error, {:unsupported_behavior_trigger, :not_a_trigger}}
   end
 
   test "validate rejects unsupporte action" do
@@ -56,7 +56,7 @@ defmodule Procession.BehaviorTest do
     }
 
     assert Behavior.validate(behavior) ==
-      {:error, {:unsupported_behavior_action, :not_an_action}}
+             {:error, {:unsupported_behavior_action, :not_an_action}}
   end
 
   test "validate rejects send_message without target" do
@@ -80,18 +80,18 @@ defmodule Procession.BehaviorTest do
   end
 
   test "validate rejects send_message with empty target or content" do
-    assert Behavior.valiate(%{
-      trigger: :world_tick,
-      action: :send_message,
-      to: "",
-      content: "Hello."
-    }) == {:error, {:invalid_behavior_field, :to}}
+    assert Behavior.validate(%{
+             trigger: :world_tick,
+             action: :send_message,
+             to: "",
+             content: "Hello."
+           }) == {:error, {:invalid_behavior_field, :to}}
 
-    assert Behavior. validate(%{
-      trigger: :world_tick,
-      action: :send_message,
-      to: "npc_mira",
-      content: ""
-    }) == {:error, {:invalid_behavior_field, :content}}
+    assert Behavior.validate(%{
+             trigger: :world_tick,
+             action: :send_message,
+             to: "npc_mira",
+             content: ""
+           }) == {:error, {:invalid_behavior_field, :content}}
   end
 end

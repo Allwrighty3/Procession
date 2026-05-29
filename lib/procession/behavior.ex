@@ -63,7 +63,7 @@ defmodule Procession.Behavior do
       :error ->
         {:error, {:missing_behavior_field, field}}
 
-      {:ok, value} when is_behavior(value) and value ~= "" ->
+      {:ok, value} when is_binary(value) and value != "" ->
         :ok
 
       {:ok, _value} ->
