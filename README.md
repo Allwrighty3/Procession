@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–5 and is moving into Phase 6: Entity Autonomy & Behavior Schema.
+Procession has completed Phases 1–7 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
@@ -74,8 +74,6 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `test/procession/generator/prompt_test.exs` - Generator prompt construction tests.
 - `test/procession/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue, memory queries, recent event inspection, and entity-driven world tick tests.
 - `test/procession/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
-
-### Development direction
 
 ### Development direction
 
