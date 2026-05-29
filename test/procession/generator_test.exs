@@ -1,6 +1,8 @@
 defmodule Procession.GeneratorTest do
   use ExUnit.Case
 
+  alias Procession.Generator
+
   test "generate_world returns a world blueprint" do
     assert {:ok, blueprint} =
              Procession.Generator.generate_world("a frontier village near a haunted mine")
@@ -327,5 +329,42 @@ defmodule Procession.GeneratorTest do
     assert Procession.Generator.generate_world_ai(nil) == {:error, :invalid_prompt}
     assert Procession.Generator.generate_world_ai(:not_a_prompt) == {:error, :invalid_prompt}
     assert Procession.Generator.generate_world_ai(123) == {:error, :invalid_prompt}
+  end
+
+  test "deterministic world includes generic behavior metadata for an NPC" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+
+    tobin = Enum.find(blueprint.npcs, fn npc -> npc.id == "npc_tobin" end)
+
+    assert tobin.metadata.behaviors == [
+             %{
+               trigger: :world_tick,
+               action: :send_message,
+               to: "npc_mira",
+               type: :rumor,
+               importance: 2,
+               content: "Tobin quietly warned Mira that the mine road was watched.",
+               tags: [:mine, :road, :tobin]
+             }
+           ]
+  end
+
+  test "spawn_world preserves NPC behavior metadata" do
+    assert {:ok, blueprint} = Generator.generate_world("anything")
+    assert {:ok, _summary} = Generator.spawn_world(blueprint)
+
+    state = Procession.Entity.get_state("npc_tobin")
+
+    assert state.metadata.behaviors == [
+             %{
+               trigger: :world_tick,
+               action: :send_message,
+               to: "npc_mira",
+               type: :rumor,
+               content: "Tobin quietly warned Mira that the mine road was watched.",
+               importance: 2,
+               tags: [:mine, :road, :tobin]
+             }
+           ]
   end
 end

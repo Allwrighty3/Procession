@@ -53,7 +53,20 @@ defmodule Procession.Generator do
            name: "Tobin",
            type: :npc,
            location: "loc_crossroads",
-           traits: %{role: "merchant", temperament: "nervous"}
+           traits: %{role: "merchant", temperament: "nervous"},
+           metadata: %{
+             behaviors: [
+               %{
+                 trigger: :world_tick,
+                 action: :send_message,
+                 to: "npc_mira",
+                 type: :rumor,
+                 content: "Tobin quietly warned Mira that the mine road was watched.",
+                 importance: 2,
+                 tags: [:mine, :road, :tobin]
+               }
+             ]
+           }
          },
          %{
            id: "npc_elin",

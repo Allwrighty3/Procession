@@ -1044,9 +1044,9 @@ The intended model is:
 The current scripted tick implementation is treated as a spike/proof-of-concept. It proved that playerless world activity can create memories, but it should not grow into a global event engine.
 
 - [ ] Move autonomous behavior out of hardcoded game-level event scripts.
-- [ ] Add generic behavior metadata support for generated entities.
+- [x] Add generic behavior metadata support for generated entities.
   - Example: `metadata.behaviors`
-- [ ] Allow deterministic generator output to include one sample behavior for testing.
+- [x] Allow deterministic generator output to include one sample behavior for testing.
 - [ ] Keep behavior execution generic and independent of specific NPC names.
 - [ ] Add an entity-level tick API.
   - Example: `Procession.Entity.tick(entity_id)`
