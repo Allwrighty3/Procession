@@ -1,6 +1,14 @@
 defmodule Procession.EntityTest do
   use ExUnit.Case
 
+  setup do
+    on_exit(fn ->
+      Enum.each(Procession.EntitySupervisor.list_entities(), fn {id, _pid} ->
+        Procession.EntitySupervisor.stop_entity(id)
+      end)
+    end)
+  end
+
   test "entity stores received messages in short memory" do
     id = :test_npc
 
@@ -899,5 +907,42 @@ defmodule Procession.EntityTest do
     after_summary = Procession.Entity.memory_summary(id)
 
     assert after_summary == before_summary
+  end
+
+  test "tick performs send_message behavior from entity metadata" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, result} = Procession.Entity.tick("npc_tobin")
+
+    assert result == %{
+             entity_id: "npc_tobin",
+             actions: [
+               %{
+                 status: :ok,
+                 action: :send_message,
+                 from: "npc_tobin",
+                 to: "npc_mira",
+                 type: :rumor,
+                 content: "Tobin quietly warned Mira that the mine road was watched."
+               }
+             ]
+           }
+
+    Process.sleep(10)
+
+    assert {:ok, events} = Procession.Game.recent_events("npc_mira")
+
+    assert Enum.any?(events, fn event ->
+             event.content == "Tobin quietly warned Mira that the mine road was watched." and
+               event.from == "npc_tobin" and
+               event.metadata.source == :entity_tick
+           end)
+  end
+
+  test "tick returns no actions for an entity without tick behaviors" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert Procession.Entity.tick("npc_mira") ==
+             {:ok, %{entity_id: "npc_mira", actions: []}}
   end
 end

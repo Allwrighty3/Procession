@@ -3,6 +3,16 @@ defmodule Procession.GeneratorTest do
 
   alias Procession.Generator
 
+  setup do
+    on_exit(fn ->
+      Enum.each(Procession.EntitySupervisor.list_entities(), fn {id, _pid} ->
+        Procession.EntitySupervisor.stop_entity(id)
+      end)
+    end)
+
+    :ok
+  end
+
   test "generate_world returns a world blueprint" do
     assert {:ok, blueprint} =
              Procession.Generator.generate_world("a frontier village near a haunted mine")

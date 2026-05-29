@@ -141,8 +141,8 @@ defmodule Procession.Game do
   def recent_events(entity_id) do
     if EntitySupervisor.exists?(entity_id) do
       events =
-        entity_id
-        |> Entity.recall_by_metadata(:source, :world_tick)
+        Entity.recall_by_metadata(entity_id, :source, :world_tick) ++
+          Entity.recall_by_metadata(entity_id, :source, :entity_tick)
 
       {:ok, events}
     else

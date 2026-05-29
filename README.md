@@ -1043,24 +1043,26 @@ The intended model is:
 
 The current scripted tick implementation is treated as a spike/proof-of-concept. It proved that playerless world activity can create memories, but it should not grow into a global event engine.
 
+Long-term, behavior metadata should be generated as part of the world blueprint. Deterministic behavior examples exist only as test fixtures. The engine should validate and execute a small safe behavior schema rather than hardcoding story-specific actions.
+
 - [ ] Move autonomous behavior out of hardcoded game-level event scripts.
 - [x] Add generic behavior metadata support for generated entities.
   - Example: `metadata.behaviors`
 - [x] Allow deterministic generator output to include one sample behavior for testing.
-- [ ] Keep behavior execution generic and independent of specific NPC names.
-- [ ] Add an entity-level tick API.
+- [x] Keep behavior execution generic and independent of specific NPC names.
+- [x] Add an entity-level tick API.
   - Example: `Procession.Entity.tick(entity_id)`
-- [ ] Let ticked entities inspect their own metadata before acting.
-- [ ] Support one deterministic behavior action first.
+- [x] Let ticked entities inspect their own metadata before acting.
+- [x] Support one deterministic behavior action first.
   - Example: `:send_message`
-- [ ] Use existing `Entity.send_to/3` for NPC-to-NPC actions.
-- [ ] Make playerless actions create memories through normal message delivery.
+- [x] Use existing `Entity.send_to/3` for NPC-to-NPC actions.
+- [x] Make playerless actions create memories through normal message delivery.
 - [ ] Keep `Procession.Game.tick_world/0` as a coordinator, not the source of behavior.
 - [ ] Make `Game.tick_world/0` discover live entities instead of assuming specific IDs.
 - [ ] Return a summary of entity-driven actions from each tick.
 - [ ] Keep the first version manually triggered from IEx.
 - [ ] Defer timers, schedulers, background loops, complex NPC goals, and AI-driven autonomy.
-- [ ] Add tests proving an entity can act from behavior metadata without direct player action.
+- [x] Add tests proving an entity can act from behavior metadata without direct player action.
 - [ ] Add tests proving `Game.tick_world/0` coordinates entity ticks rather than selecting hardcoded events.
 
 #### Future refinements
