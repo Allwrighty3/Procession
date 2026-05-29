@@ -202,6 +202,34 @@ defmodule Procession.GameTest do
     assert Procession.Game.ask_about("npc_mira", 123) == {:error, :invalid_topic}
   end
 
+  test "talk_to requests diablogue through the entity AI boundary" do
+    assert {:ok, _game} = Procession.Game.new_game("anything")
+
+    assert {:ok, response} =
+             Procession.Game.talk_to(
+               "npc_mira",
+               "What do you know about Tobin?",
+               adapter: Procession.AI.FakeAdapter
+             )
+
+    assert response =~ "AI response to:"
+    assert response =~ "What do you know about Tobin"
+  end
+
+  test "talk_to returns a predictable error for a missing NPC" do
+    assert Procession.Game.talk_to(
+             "npc_missing",
+             "Hello?",
+             adapter: Procession.AI.FakeAdapter
+           ) == {:error, :entity_not_found}
+  end
+
+  test "talk_to rejects invalid player messages" do
+    assert Procession.Game.talk_to("npc_mira", nil) == {:error, :invalid_message}
+    assert Procession.Game.talk_to("npc_mira", :hello) == {:error, :invalid_message}
+    assert Procession.Game.talk_to("npc_mira", 123) == {:error, :invalid_message}
+  end
+
   test "perform supports the look action" do
     assert {:ok, _pid} =
              Procession.EntitySupervisor.start_npc("npc_mira", %{

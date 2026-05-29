@@ -58,6 +58,24 @@ defmodule Procession.Game do
   end
 
   @doc """
+  Requests dialogue from an NPC.
+
+  This delegates to the existing entity AI response boundary and returns generated
+  dialogue as data. It does not mutate NPC state from the generated response.
+  """
+  def talk_to(npc_id, player_message, opts \\ []) when is_binary(player_message) do
+    if EntitySupervisor.exists?(npc_id) do
+      Entity.generate_response(npc_id, player_message, opts)
+    else
+      {:error, :entity_not_found}
+    end
+  end
+
+  def talk_to(_npc_id, _player_message, _opts) do
+    {:error, :invalid_message}
+  end
+
+  @doc """
   Creates a deterministic playable world from a prompt.
 
   This uses the deterministic generator path, validates the generated blueprint,

@@ -988,13 +988,13 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 #### Dialogue
 
-- [ ] Add a simple player-to-NPC dialogue helper.
+- [x] Add a simple player-to-NPC dialogue helper.
   - Example: `Procession.Game.talk_to(npc_id, player_message, opts \\ [])`
-- [ ] Use `Entity.generate_response/3` for optional AI-backed dialogue.
-- [ ] Support deterministic fake-adapter dialogue in tests.
-- [ ] Keep generated dialogue as returned data first.
-- [ ] Do not automatically mutate NPC state from AI dialogue yet.
-- [ ] Add tests proving dialogue can be requested safely.
+- [x] Use `Entity.generate_response/3` for optional AI-backed dialogue.
+- [x] Support deterministic fake-adapter dialogue in tests.
+- [x] Keep generated dialogue as returned data first.
+- [x] Do not automatically mutate NPC state from AI dialogue yet.
+- [x] Add tests proving dialogue can be requested safely.
 
 #### Memory-driven interaction
 
