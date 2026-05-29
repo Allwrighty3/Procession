@@ -798,11 +798,11 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
 
 - [x] Add a small `Procession.Game` module as the public boundary for player-facing gameplay.
 - [x] Keep gameplay orchestration separate from `Entity`, `Memory`, `Generator`, and `AI`.
-- [ ] Start with plain function calls before adding LiveView or UI behavior.
-- [ ] Standardize return values.
+- [x] Start with plain function calls before adding LiveView or UI behavior.
+- [x] Standardize return values.
   - Example: `{:ok, result}` or `{:error, reason}`
-- [ ] Add tests for the public gameplay API.
-- [ ] Avoid creating a supervised gameplay process unless stateful orchestration is clearly needed.
+- [x] Add tests for the public gameplay API.
+- [x] Avoid creating a supervised gameplay process unless stateful orchestration is clearly needed.
 
 #### World inspection
 
@@ -812,7 +812,7 @@ Phase 5 should stay small, local, testable, and OTP-friendly. Build public gamep
   - Example fields: `:id`, `:name`, `:type`, `:location`, `:status`, `:traits`, `:relationships`, `:memory_summary`.
 - [x] Handle missing entities predictably.
   - Example: `{:error, :entity_not_found}`
-- [ ] Add tests for inspecting NPCs, locations, and factions.
+- [x] Add tests for inspecting NPCs, locations, and factions.
 - [x] Add tests for missing entity lookup.
 - [x] Keep the first inspection result as plain data, not formatted prose.
 
