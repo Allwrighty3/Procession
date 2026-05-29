@@ -285,7 +285,7 @@ defmodule Procession.Generator do
 
       case Procession.Entity.send_to("system_generator", memory.entity_id, message) do
         :ok -> {:cont, :ok}
-        {:error, reason} -> {:halt.{:error, reason}}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end
