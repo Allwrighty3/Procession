@@ -93,4 +93,37 @@ defmodule Procession.WorldClockTest do
 
     assert Procession.WorldClock.last_tick(clock) == summary
   end
+
+  test "clock remains alive after unsupported behavior metadata" do
+    assert {:ok, _pid} =
+             Procession.EntitySupervisor.start_npc("npc_confused", %{
+               name: "Confused",
+               location: "loc_nowhere",
+               metadata: %{
+                 behaviors: [
+                   %{
+                     trigger: :world_tick,
+                     action: :teleport_to_moon
+                   }
+                 ]
+               }
+             })
+
+    assert {:ok, clock} = Procession.WorldClock.start_link([])
+
+    assert {:ok, summary} = Procession.WorldClock.tick(clock)
+
+    assert summary.clock_tick == 1
+    assert Process.alive?(clock)
+    assert Procession.WorldClock.tick_count(clock) == 1
+
+    assert Enum.any?(summary.failed_actions, fn action ->
+             action.status == :error and
+               action.action == :teleport_to_moon and
+               action.from == "npc_confused" and
+               action.reason == {:unsupported_behavior_action, :teleport_to_moon}
+           end)
+
+    assert Procession.WorldClock.last_tick(clock) == summary
+  end
 end

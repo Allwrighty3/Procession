@@ -409,6 +409,34 @@ defmodule Procession.GameTest do
     assert summary.successful_actions == []
   end
 
+  test "tick_world collects unsupported behavior actions as failed actions" do
+    assert {:ok, _pid} =
+             Procession.EntitySupervisor.start_npc("npc_confused", %{
+               name: "Confused",
+               location: "loc_nowhere",
+               metadata: %{
+                 behaviors: [
+                   %{
+                     trigger: :world_tick,
+                     action: :teleport_to_moon
+                   }
+                 ]
+               }
+             })
+
+    assert {:ok, summary} = Procession.Game.tick_world()
+
+    assert summary.entities_ticked == 1
+    assert summary.successful_actions == []
+
+    assert Enum.any?(summary.failed_actions, fn action ->
+             action.status == :error and
+               action.action == :teleport_to_moon and
+               action.from == "npc_confused" and
+               action.reason == {:unsupported_behavior_action, :teleport_to_moon}
+           end)
+  end
+
   test "tick_world returns no actions when no live entities have tick behavior" do
     assert Procession.Game.tick_world() ==
              {:ok, %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}

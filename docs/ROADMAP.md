@@ -699,7 +699,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Keep failures visible in the tick summary.
 - [x] Avoid swallowing errors silently.
 - [x] Add tests for missing target entities during scheduled ticks.
-- [ ] Add tests for unsupported behavior during scheduled ticks.
+- [x] Add tests for unsupported behavior during scheduled ticks.
 - [x] Add tests proving the clock remains alive after a failed entity action.
 - [x] Keep clock behavior boring and reliable. Boring is allowed here. Heroics are how schedulers become gremlins.
 
