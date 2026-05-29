@@ -361,7 +361,7 @@ defmodule Procession.GameTest do
     assert Procession.Game.tick_world() == {:ok, %{entities_ticked: 0, actions: []}}
   end
 
-  test "recent_events returns world tick memories for an entity" do
+  test "recent_events returns entity tick memories for an entity" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 
     assert {:ok, []} = Procession.Game.recent_events("npc_mira")
