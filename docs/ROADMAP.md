@@ -737,35 +737,34 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Session boundary
 
-* [ ] Add a dedicated game session module.
-
+* [x] Add a dedicated game session module.
   * Example: `Procession.GameSession`
-* [ ] Implement the session as a GenServer.
-* [ ] Keep `Procession.GameSession` separate from `Procession.Game`.
-* [ ] Keep `Procession.Game` as the gameplay API boundary for now.
-* [ ] Keep `Procession.WorldClock` as the clock/scheduling boundary.
-* [ ] Do not move entity behavior execution into the session.
-* [ ] Do not move generation logic into the session.
-* [ ] Add tests for starting a session process.
+* [x] Implement the session as a GenServer.
+* [x] Keep `Procession.GameSession` separate from `Procession.Game`.
+* [x] Keep `Procession.Game` as the gameplay API boundary for now.
+* [x] Keep `Procession.WorldClock` as the clock/scheduling boundary.
+* [x] Do not move entity behavior execution into the session.
+* [x] Do not move generation logic into the session.
+* [x] Add tests for starting a session process.
 
 #### Session state
 
-* [ ] Define simple session state.
+* [x] Define simple session state.
 
   * Example fields: `:session_id`, `:world`, `:active_entities`, `:active_scope`, `:status`.
-* [ ] Generate stable string session IDs.
+* [x] Generate stable string session IDs.
 
   * Example: `session_...`
 * [ ] Store the current generated game summary in session state.
 * [ ] Store active entity IDs owned by the session.
-* [ ] Track session status.
+* [x] Track session status.
 
   * Example: `:new`, `:active`, `:cleaned_up`.
-* [ ] Expose a public session summary API.
+* [x] Expose a public session summary API.
 
   * Example: `Procession.GameSession.summary(session)`
-* [ ] Add tests for initial session state.
-* [ ] Add tests for session summary output.
+* [x] Add tests for initial session state.
+* [x] Add tests for session summary output.
 
 #### Starting a generated game in a session
 
