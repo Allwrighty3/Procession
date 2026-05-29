@@ -320,90 +320,31 @@ defmodule Procession.GameTest do
            ) == {:error, :invalid_message}
   end
 
-  test "tick_world returns a summary of playerless world events" do
+  test "tick_world coordinates entity ticks and returns entity-driven actions" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 
     assert {:ok, summary} = Procession.Game.tick_world()
 
-    assert summary == %{
-             events: [
-               %{
-                 from: "npc_tobin",
-                 to: "npc_mira",
-                 type: :rumor,
-                 content: "Tobin quietly warned Mira that the mine road was watched."
-               }
-             ],
-             tick: 1
-           }
-  end
+    assert summary.entities_ticked >= 1
 
-  test "tick_world changes the world without direct player action" do
-    assert {:ok, _game} = Procession.Game.new_game("anything")
-
-    assert {:ok, []} = Procession.Game.ask_about("npc_mira", "watched")
-
-    assert {:ok, _summary} = Procession.Game.tick_world()
-
-    Process.sleep(10)
-
-    assert {:ok, memories} = Procession.Game.ask_about("npc_mira", "watched")
-
-    assert Enum.any?(memories, fn memory ->
-             memory.content == "Tobin quietly warned Mira that the mine road was watched." and
-               memory.type == :rumor and
-               memory.from == "npc_tobin"
-           end)
-  end
-
-  test "tick_world returns a predictable error when required NPCs do not exist" do
-    assert Procession.Game.tick_world() == {:error, :entity_not_found}
-  end
-
-  test "tick_world advances through multiple deterministic world events" do
-    assert {:ok, _game} = Procession.Game.new_game("anything")
-
-    assert {:ok, first_tick} = Procession.Game.tick_world()
-    assert first_tick.tick == 1
-
-    assert first_tick.events == [
-             %{
+    assert Enum.any?(summary.actions, fn action ->
+             action == %{
+               status: :ok,
+               action: :send_message,
                from: "npc_tobin",
                to: "npc_mira",
                type: :rumor,
                content: "Tobin quietly warned Mira that the mine road was watched."
              }
-           ]
-
-    assert {:ok, second_tick} = Procession.Game.tick_world()
-    assert second_tick.tick == 2
-
-    assert second_tick.events == [
-             %{
-               from: "npc_elin",
-               to: "npc_tobin",
-               type: :observation,
-               content: "Elin reported fresh tracks near the Silent Mine."
-             }
-           ]
-
-    assert {:ok, third_tick} = Procession.Game.tick_world()
-    assert third_tick.tick == 3
-
-    assert third_tick.events == [
-             %{
-               from: "npc_mira",
-               to: "npc_elin",
-               type: :rumor,
-               content: "Mira warned Elin that Tobin may be hiding something."
-             }
-           ]
+           end)
   end
 
-  test "tick_world stores tick metadata on generated memories" do
+  test "tick_world changes the world through entity-owned behavior" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 
-    assert {:ok, _first_tick} = Procession.Game.tick_world()
+    assert {:ok, []} = Procession.Game.recent_events("npc_mira")
+
+    assert {:ok, _summary} = Procession.Game.tick_world()
 
     Process.sleep(10)
 
@@ -411,8 +352,13 @@ defmodule Procession.GameTest do
 
     assert Enum.any?(events, fn event ->
              event.content == "Tobin quietly warned Mira that the mine road was watched." and
-               event.metadata.tick == 1
+               event.from == "npc_tobin" and
+               event.metadata.source == :entity_tick
            end)
+  end
+
+  test "tick_world returns no actions when no live entities have tick behavior" do
+    assert Procession.Game.tick_world() == {:ok, %{entities_ticked: 0, actions: []}}
   end
 
   test "recent_events returns world tick memories for an entity" do

@@ -101,35 +101,31 @@ defmodule Procession.Game do
   end
 
   @doc """
-  Advances the world by one deterministic playerless tick.
+  Coordinates one deterministic playerless world tick.
 
-  The first tick is intentionally tiny: one scripted NPC-to-NPC interaction using
-  the existing entity messaging system. This proves the world can change without
-  direct player action, without introducing timers, schedulers, or autonomous
-  simulation processes yet.
+  The game layer does not own autonomous behavior. It asks live entities to tick,
+  and each entity decides what to do from its own state and metadata.
   """
 
   def tick_world do
-    event = next_world_event()
+    results =
+      EntitySupervisor.list_entities()
+      |> Enum.map(fn {id, _pid} ->
+        Entity.tick(id)
+      end)
 
-    case Entity.send_to(event.from, event.to, event) do
-      :ok ->
-        {:ok,
-         %{
-           tick: event.metadata.tick,
-           events: [
-             %{
-               from: event.from,
-               to: event.to,
-               type: event.type,
-               content: event.content
-             }
-           ]
-         }}
+    actions =
+      results
+      |> Enum.flat_map(fn
+        {:ok, %{actions: actions}} -> actions
+        _ -> []
+      end)
 
-      {:error, reason} ->
-        {:error, reason}
-    end
+    {:ok,
+     %{
+       entities_ticked: length(results),
+       actions: actions
+     }}
   end
 
   @doc """
@@ -185,59 +181,5 @@ defmodule Procession.Game do
       {:ok, value} -> {:ok, value}
       :error -> {:error, error_reason}
     end
-  end
-
-  defp next_world_event do
-    script = world_event_script()
-    tick = world_tick_count() + 1
-    index = rem(tick - 1, length(script))
-
-    event = Enum.at(script, index)
-
-    put_in(event.metadata.tick, tick)
-  end
-
-  defp world_tick_count do
-    EntitySupervisor.list_entities()
-    |> Enum.flat_map(fn {id, _pid} ->
-      Entity.recall_by_metadata(id, :source, :world_tick)
-    end)
-    |> length()
-  end
-
-  defp world_event_script do
-    [
-      %{
-        from: "npc_tobin",
-        to: "npc_mira",
-        type: :rumor,
-        content: "Tobin quietly warned Mira that the mine road was watched.",
-        importance: 2,
-        tags: [:mine, :road, :tobin],
-        metadata: %{source: :world_tick, tick: nil}
-      },
-      %{
-        from: "npc_elin",
-        to: "npc_tobin",
-        type: :observation,
-        content: "Elin reported fresh tracks near the Silent Mine.",
-        importance: 2,
-        tags: [:mine, :elin, :tracks],
-        metadata: %{source: :world_tick, tick: nil}
-      },
-      %{
-        from: "npc_mira",
-        to: "npc_elin",
-        type: :rumor,
-        content: "Mira warned Elin that Tobin may be hiding something.",
-        importance: 2,
-        tags: [:mira, :tobin, :warning],
-        metadata: %{source: :world_tick, tick: nil}
-      }
-    ]
-  end
-
-  defp scripted_world_event(index) do
-    Enum.at(world_event_script(), index)
   end
 end
