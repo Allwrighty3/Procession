@@ -3,6 +3,14 @@ defmodule Procession.GameSessionTest do
 
   alias Procession.GameSession
 
+  setup do
+    on_exit(fn ->
+      Enum.each(Procession.EntitySupervisor.list_entities(), fn {id, _pid} ->
+        Procession.EntitySupervisor.stop_entity(id)
+      end)
+    end)
+  end
+
   describe "start_link/1" do
     test "starts a game session process" do
       assert {:ok, session} = GameSession.start_link()
@@ -38,6 +46,50 @@ defmodule Procession.GameSessionTest do
                active_scope: nil,
                status: :new
              } = GameSession.summary(session)
+    end
+  end
+
+  describe "new_game/2" do
+    test "creates a deterministic game through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert summary.session_id == "session_test"
+      assert summary.status == :active
+      assert is_map(summary.world)
+      assert is_list(summary.active_entities)
+      assert length(summary.active_entities) > 0
+    end
+
+    test "stores the generated game summary in session state" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, new_game_summary} = GameSession.new_game(session, "a quiet frontier town")
+      session_summary = GameSession.summary(session)
+
+      assert session_summary.world == new_game_summary.world
+      assert session_summary.status == :active
+    end
+
+    test "tracks generated entity ids as active session entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert Enum.any?(summary.active_entities, &String.starts_with?(&1, "loc_"))
+      assert Enum.any?(summary.active_entities, &String.starts_with?(&1, "npc_"))
+      assert Enum.any?(summary.active_entities, &String.starts_with?(&1, "faction_"))
+    end
+
+    test "generated entities are live after session game creation" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert Enum.all?(summary.active_entities, fn entity_id ->
+               Procession.EntitySupervisor.exists?(entity_id)
+             end)
     end
   end
 end

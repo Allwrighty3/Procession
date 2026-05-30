@@ -755,8 +755,8 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 * [x] Generate stable string session IDs.
 
   * Example: `session_...`
-* [ ] Store the current generated game summary in session state.
-* [ ] Store active entity IDs owned by the session.
+* [x] Store the current generated game summary in session state.
+* [x] Store active entity IDs owned by the session.
 * [x] Track session status.
 
   * Example: `:new`, `:active`, `:cleaned_up`.
@@ -768,20 +768,20 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Starting a generated game in a session
 
-* [ ] Add a session API for creating a new game.
+* [x] Add a session API for creating a new game.
 
   * Example: `Procession.GameSession.new_game(session, prompt)`
-* [ ] Delegate deterministic game creation to `Procession.Game.new_game/1`.
-* [ ] Store the returned game summary in session state.
-* [ ] Store all generated entity IDs as session-owned active entities.
+* [x] Delegate deterministic game creation to `Procession.Game.new_game/1`.
+* [x] Store the returned game summary in session state.
+* [x] Store all generated entity IDs as session-owned active entities.
 
   * Example: locations + NPCs + factions.
-* [ ] Return a player-facing session/game summary.
-* [ ] Keep generated world spawning behavior unchanged.
-* [ ] Do not introduce scoped spawning yet.
-* [ ] Add tests proving a session can create a deterministic game.
-* [ ] Add tests proving generated entities are live after session game creation.
-* [ ] Add tests proving the session tracks all generated entity IDs.
+* [x] Return a player-facing session/game summary.
+* [x] Keep generated world spawning behavior unchanged.
+* [x] Do not introduce scoped spawning yet.
+* [x] Add tests proving a session can create a deterministic game.
+* [x] Add tests proving generated entities are live after session game creation.
+* [x] Add tests proving the session tracks all generated entity IDs.
 
 #### Active entity ownership
 

@@ -1,5 +1,5 @@
 defmodule Procession.GameSession do
-  @module """
+  @moduledoc """
   Runtime session boundary for tracking active game state and session-owned entities.
 
   A game session owns the live entity IDs associated with one active play session.
@@ -9,6 +9,7 @@ defmodule Procession.GameSession do
   use GenServer
 
   alias Procession.Id
+  alias Procession.Game
 
   defstruct [
     :session_id,
@@ -42,6 +43,21 @@ defmodule Procession.GameSession do
     GenServer.call(session, :summary)
   end
 
+  @doc """
+  Creates a deterministic game through the session and tracks the generated entities.
+  """
+  def new_game(session, prompt) do
+    GenServer.call(session, {:new_game, prompt})
+  end
+
+  defp extract_entity_ids(game_summary) do
+    game_summary
+    |> Map.take([:locations, :npcs, :factions])
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.uniq()
+  end
+
   @impl true
   def init(opts) do
     session_id = Keyword.get_lazy(opts, :session_id, fn -> Id.generate("session") end)
@@ -56,5 +72,25 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call(:summary, _from, state) do
     {:reply, Map.from_struct(state), state}
+  end
+
+  @impl true
+  def handle_call({:new_game, prompt}, _from, state) do
+    case Game.new_game(prompt) do
+      {:ok, game_summary} ->
+        active_entities = extract_entity_ids(game_summary)
+
+        new_state = %{
+          state
+          | world: game_summary,
+            active_entities: active_entities,
+            status: :active
+        }
+
+        {:reply, {:ok, Map.from_struct(new_state)}, new_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 end
