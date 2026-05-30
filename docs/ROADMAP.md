@@ -1363,31 +1363,31 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 #### Safety and cleanup
 
-* [ ] Stop interval ticking when quitting if it was started.
+* [x] Stop interval ticking when quitting if it was started.
 * [x] Clean up session-owned entities on quit.
 * [x] Handle invalid commands without crashing the loop.
 * [ ] Handle Ctrl+C as gracefully as practical.
-* [ ] Document cleanup behavior.
+* [x] Document cleanup behavior.
 
 #### Documentation
 
-* [ ] Add instructions for running the CLI prototype.
+* [x] Add instructions for running the CLI prototype.
 
   * Example: `mix procession.play`
-* [ ] Document supported commands.
-* [ ] Document that the CLI is a prototype.
-* [ ] Document that the simulation core remains Elixir/OTP-first.
-* [ ] Document that Phoenix LiveView is still deferred.
+* [x] Document supported commands.
+* [x] Document that the CLI is a prototype.
+* [x] Document that the simulation core remains Elixir/OTP-first.
+* [x] Document that Phoenix LiveView is still deferred.
 
 #### Deferred from Phase 14
 
-* [ ] Defer Phoenix LiveView.
-* [ ] Defer save/load.
-* [ ] Defer multiple concurrent sessions in the CLI.
-* [ ] Defer rich UI.
-* [ ] Defer combat.
-* [ ] Defer quest tracking.
-* [ ] Defer AI command interpretation.
+* [x] Defer Phoenix LiveView.
+* [x] Defer save/load.
+* [x] Defer multiple concurrent sessions in the CLI.
+* [x] Defer rich UI.
+* [x] Defer combat.
+* [x] Defer quest tracking.
+* [x] Defer AI command interpretation.
 
 ---
 
@@ -1563,14 +1563,14 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 14 is complete when:
 
-* [ ] A local CLI prototype can be started from the project.
-* [ ] The CLI starts a deterministic playable session.
-* [ ] The CLI accepts typed commands and delegates to the command boundary.
-* [ ] The CLI supports help and quit.
-* [ ] Command results are displayed in readable text.
-* [ ] Invalid commands do not crash the CLI loop.
-* [ ] Session-owned entities are cleaned up when quitting.
-* [ ] The CLI does not require Ollama, Phoenix, a database, or paid services.
-* [ ] Documentation explains how to run the CLI prototype and what commands are supported.
-* [ ] Save/load, Phoenix LiveView, combat, quests, inventory, and AI command interpretation remain deferred.
+* [x] A local CLI prototype can be started from the project.
+* [x] The CLI starts a deterministic playable session.
+* [x] The CLI accepts typed commands and delegates to the command boundary.
+* [x] The CLI supports help and quit.
+* [x] Command results are displayed in readable text.
+* [x] Invalid commands do not crash the CLI loop.
+* [x] Session-owned entities are cleaned up when quitting.
+* [x] The CLI does not require Ollama, Phoenix, a database, or paid services.
+* [x] Documentation explains how to run the CLI prototype and what commands are supported.
+* [x] Save/load, Phoenix LiveView, combat, quests, inventory, and AI command interpretation remain deferred.
 
