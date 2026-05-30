@@ -605,6 +605,23 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "player/1" do
+    test "returns nil before a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert GameSession.player(session) == nil
+    end
+
+    test "returns the player id after a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert GameSession.player(session) == summary.player_id
+      assert GameSession.player(session) == "player_main"
+    end
+  end
+
   defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
 
   defp eventually_all_entities_stopped?(_entity_ids, 0), do: false

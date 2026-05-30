@@ -176,6 +176,13 @@ defmodule Procession.GameSession do
 
   def perform(_session, _action, _opts), do: {:error, :invalid_action}
 
+  @doc """
+  Returns the current player entity ID for this session.
+  """
+  def player(session) do
+    GenServer.call(session, :player)
+  end
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -348,5 +355,10 @@ defmodule Procession.GameSession do
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
+  end
+
+  @impl true
+  def handle_call(:player, _from, state) do
+    {:reply, state.player_id, state}
   end
 end
