@@ -198,6 +198,13 @@ defmodule Procession.GameSession do
     GenServer.call(session, :player_location)
   end
 
+  @doc """
+  Returns session-owned entities at the player's current location.
+  """
+  def local_entities(session) do
+    GenServer.call(session, :local_entities)
+  end
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -252,6 +259,34 @@ defmodule Procession.GameSession do
       end
     else
       {:error, :entity_not_found}
+    end
+  end
+
+  defp local_entities_from_state(state) do
+    with {:ok, location_id} <- player_location_from_state(state) do
+      local_entities =
+        state.active_entities
+        |> Enum.reject(&(&1 == state.player_id))
+        |> Enum.flat_map(fn entity_id ->
+          if EntitySupervisor.exists?(entity_id) do
+            try do
+              entity_state = Entity.get_state(entity_id)
+
+              if entity_state.location == location_id do
+                [entity_id]
+              else
+                []
+              end
+            catch
+              :exit, _reason ->
+                []
+            end
+          else
+            []
+          end
+        end)
+
+      {:ok, local_entities}
     end
   end
 
@@ -419,5 +454,10 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call(:player_location, _from, state) do
     {:reply, player_location_from_state(state), state}
+  end
+
+  @impl true
+  def handle_call(:local_entities, _from, state) do
+    {:reply, local_entities_from_state(state), state}
   end
 end

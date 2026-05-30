@@ -677,6 +677,70 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "local_entities/1" do
+    test "returns player_not_found before a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :player_not_found} = GameSession.local_entities(session)
+    end
+
+    test "returns session-owned entities at the player's current location" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, location_id} = GameSession.player_location(session)
+
+      assert {:ok, local_entities} = GameSession.local_entities(session)
+
+      assert is_list(local_entities)
+      refute summary.player_id in local_entities
+
+      assert Enum.all?(local_entities, fn entity_id ->
+               {:ok, entity_summary} = GameSession.look(session, entity_id)
+               entity_summary.location == location_id
+             end)
+    end
+
+    test "does not include entities from other locations" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, player_location} = GameSession.player_location(session)
+      other_location = Enum.find(summary.world.locations, &(&1 != player_location))
+
+      npc_id =
+        Enum.find(summary.world.npcs, fn entity_id ->
+          {:ok, entity_summary} = GameSession.look(session, entity_id)
+          entity_summary.location != player_location
+        end)
+
+      assert other_location != nil
+      assert npc_id != nil
+
+      assert {:ok, local_entities} = GameSession.local_entities(session)
+
+      refute npc_id in local_entities
+    end
+
+    test "does not include unknown global entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, location_id} = GameSession.player_location(session)
+
+      {:ok, _pid} =
+        Procession.EntitySupervisor.start_npc("npc_global_intruder", %{
+          name: "Global Intruder",
+          location: location_id,
+          status: :idle
+        })
+
+      assert {:ok, local_entities} = GameSession.local_entities(session)
+
+      refute "npc_global_intruder" in local_entities
+    end
+  end
+
   defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
 
   defp eventually_all_entities_stopped?(_entity_ids, 0), do: false
