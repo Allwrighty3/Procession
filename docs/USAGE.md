@@ -708,3 +708,249 @@ end)
 
 AI is not required for interval ticking. Interval ticking is deterministic and local unless entity behavior itself is later expanded to call AI through a validated boundary.
 
+## Game Sessions
+
+Game sessions track which live entities belong to one active play session.
+
+A session does not generate world content directly, execute entity behavior, or own the world clock. It delegates game creation to `Procession.Game`, tracks active entity IDs, and can clean up those live entities when the session is finished.
+
+Sessions are the first step toward larger worlds where broad blueprint data can exist without every generated entity being spawned as a live OTP process.
+
+### Start a session
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+
+Procession.GameSession.summary(session)
+```
+
+Expected shape:
+
+```elixir
+%{
+  session_id: "session_...",
+  world: nil,
+  active_entities: [],
+  active_scope: nil,
+  status: :new
+}
+```
+
+### Create a generated game through a session
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+
+{:ok, summary} =
+  Procession.GameSession.new_game(session, "a quiet frontier town")
+
+summary.status
+summary.world.name
+summary.active_entities
+```
+
+Expected values:
+
+```elixir
+:active
+"Echoes of the Old Road"
+[
+  "loc_crossroads",
+  "loc_briar_village",
+  "loc_silent_mine",
+  "npc_mira",
+  "npc_tobin",
+  "npc_elin",
+  "faction_roadwardens"
+]
+```
+
+The session delegates deterministic game creation to `Procession.Game.new_game/1`, then records the generated locations, NPCs, and factions as session-owned active entities.
+
+### Inspect a session summary
+
+```elixir
+Procession.GameSession.summary(session)
+```
+
+Expected shape after creating a game:
+
+```elixir
+%{
+  session_id: "session_...",
+  world: %{
+    name: "Echoes of the Old Road",
+    description: "...",
+    prompt: "a quiet frontier town",
+    locations: ["loc_crossroads", "loc_briar_village", "loc_silent_mine"],
+    npcs: ["npc_mira", "npc_tobin", "npc_elin"],
+    factions: ["faction_roadwardens"],
+    relationships: 2,
+    starter_memories: 2
+  },
+  active_entities: [
+    "loc_crossroads",
+    "loc_briar_village",
+    "loc_silent_mine",
+    "npc_mira",
+    "npc_tobin",
+    "npc_elin",
+    "faction_roadwardens"
+  ],
+  active_scope: nil,
+  status: :active
+}
+```
+
+### List active session entities
+
+```elixir
+Procession.GameSession.active_entities(session)
+```
+
+Expected result:
+
+```elixir
+[
+  "loc_crossroads",
+  "loc_briar_village",
+  "loc_silent_mine",
+  "npc_mira",
+  "npc_tobin",
+  "npc_elin",
+  "faction_roadwardens"
+]
+```
+
+Session ownership is tracked with plain string IDs. Generated IDs are not converted into atoms.
+
+### Check whether a session owns an entity
+
+```elixir
+Procession.GameSession.owns_entity?(session, "npc_mira")
+Procession.GameSession.owns_entity?(session, "npc_not_real")
+Procession.GameSession.owns_entity?(session, :npc_mira)
+```
+
+Expected result:
+
+```elixir
+true
+false
+false
+```
+
+### Tick the world after session game creation
+
+```elixir
+{:ok, tick_summary} = Procession.WorldClock.tick()
+
+tick_summary.entities_ticked
+tick_summary.successful_actions
+tick_summary.failed_actions
+```
+
+Expected shape:
+
+```elixir
+%{
+  clock_tick: 1,
+  entities_ticked: 7,
+  actions: [...],
+  successful_actions: [...],
+  failed_actions: [...]
+}
+```
+
+For now, `Procession.WorldClock` still ticks all live entities. Sessions do not own private clocks yet, and session-scoped ticking is intentionally deferred until ownership and cleanup are stable.
+
+### Clean up a session
+
+```elixir
+cleanup_summary = Procession.GameSession.cleanup(session)
+
+cleanup_summary
+```
+
+Expected cleanup shape:
+
+```elixir
+%{
+  stopped: [
+    "loc_crossroads",
+    "loc_briar_village",
+    "loc_silent_mine",
+    "npc_mira",
+    "npc_tobin",
+    "npc_elin",
+    "faction_roadwardens"
+  ],
+  missing: [],
+  status: :cleaned_up
+}
+```
+
+The session keeps its owned entity IDs for inspection after cleanup, but the live entity processes are stopped.
+
+```elixir
+Procession.GameSession.summary(session).status
+Procession.GameSession.active_entities(session)
+Procession.EntitySupervisor.exists?("npc_mira")
+```
+
+Expected result after cleanup:
+
+```elixir
+:cleaned_up
+
+[
+  "loc_crossroads",
+  "loc_briar_village",
+  "loc_silent_mine",
+  "npc_mira",
+  "npc_tobin",
+  "npc_elin",
+  "faction_roadwardens"
+]
+
+false
+```
+
+### Cleanup is safe to call more than once
+
+```elixir
+Procession.GameSession.cleanup(session)
+```
+
+Expected shape on a later cleanup call:
+
+```elixir
+%{
+  stopped: [],
+  missing: [
+    "loc_crossroads",
+    "loc_briar_village",
+    "loc_silent_mine",
+    "npc_mira",
+    "npc_tobin",
+    "npc_elin",
+    "faction_roadwardens"
+  ],
+  status: :cleaned_up
+}
+```
+
+### Current limitations
+
+Game sessions currently own live entity IDs only. They do not yet provide:
+
+- persistence or save/load behavior
+- player entity creation
+- command parsing
+- private per-session clocks
+- session-scoped ticking
+- scoped travel
+- lazy world expansion
+- inactive blueprint hydration
+
+Inactive blueprint scopes and selective spawning are still future work.

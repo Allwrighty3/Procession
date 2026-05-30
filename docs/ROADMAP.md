@@ -830,13 +830,13 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Documentation and IEx demos
 
-* [ ] Add README or USAGE examples for starting a game session.
-* [ ] Add examples for creating a generated game through a session.
-* [ ] Add examples for inspecting a session summary.
-* [ ] Add examples for listing active session entities.
-* [ ] Add examples for cleaning up a session.
-* [ ] Document that sessions own live entity IDs but do not yet implement persistence.
-* [ ] Document that inactive blueprint scopes are still future work.
+* [x] Add README or USAGE examples for starting a game session.
+* [x] Add examples for creating a generated game through a session.
+* [x] Add examples for inspecting a session summary.
+* [x] Add examples for listing active session entities.
+* [x] Add examples for cleaning up a session.
+* [x] Document that sessions own live entity IDs but do not yet implement persistence.
+* [x] Document that inactive blueprint scopes are still future work.
 
 #### Deferred from Phase 8
 
