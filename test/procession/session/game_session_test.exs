@@ -402,4 +402,45 @@ defmodule Procession.GameSessionTest do
                GameSession.talk_to(session, npc_id, "Hello?", adapter: Procession.AI.FakeAdapter)
     end
   end
+
+  describe "recent_events/2" do
+    test "returns recent events for a session-owned live entity" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      assert {:ok, events} = GameSession.recent_events(session, entity_id)
+      assert is_list(events)
+    end
+
+    test "rejects event inspection for an entity id not owned by the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.recent_events(session, "npc_not_owned")
+    end
+
+    test "rejects invalid entity ids before inspecting events" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :entity_not_in_session} = GameSession.recent_events(session, nil)
+
+      assert {:error, :entity_not_in_session} = GameSession.recent_events(session, :npc_mira)
+
+      assert {:error, :entity_not_in_session} = GameSession.recent_events(session, 123)
+    end
+
+    test "returns entity_not_found for a session-owned entity that is no longer live" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      :ok = Procession.EntitySupervisor.stop_entity(entity_id)
+
+      assert {:error, :entity_not_found} = GameSession.recent_events(session, entity_id)
+    end
+  end
 end

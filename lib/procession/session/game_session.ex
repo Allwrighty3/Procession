@@ -110,6 +110,18 @@ defmodule Procession.GameSession do
 
   def talk_to(_session, _entity_id, _message, _opts), do: {:error, :entity_not_in_session}
 
+  @doc """
+  Returns recent events for a session-owned entity.
+
+  Returns `{:error, :entity_not_in_session}` when the entity does not belong
+  to this session.
+  """
+  def recent_events(session, entity_id) when is_binary(entity_id) do
+    GenServer.call(session, {:recent_events, entity_id})
+  end
+
+  def recent_events(_session, _entity_id), do: {:error, :entity_not_in_session}
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -210,6 +222,15 @@ defmodule Procession.GameSession do
   def handle_call({:talk_to, entity_id, message, opts}, _from, state) do
     if entity_id in state.active_entities do
       {:reply, Game.talk_to(entity_id, message, opts), state}
+    else
+      {:reply, {:error, :entity_not_in_session}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:recent_events, entity_id}, _from, state) do
+    if entity_id in state.active_entities do
+      {:reply, Game.recent_events(entity_id), state}
     else
       {:reply, {:error, :entity_not_in_session}, state}
     end
