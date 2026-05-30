@@ -487,6 +487,40 @@ defmodule Procession.GameSessionTest do
 
       assert session_summary.last_tick_summary == tick_summary
     end
+
+    test "tick only ticks session-owned entities" do
+      assert {:ok, session} = GameSession.start_link(session_id: "session_test")
+      assert {:ok, _summary} = GameSession.new_game(session, "anything")
+
+      assert {:ok, _outside_pid} =
+               Procession.EntitySupervisor.start_npc("npc_outside_session", %{
+                 name: "Outside Session",
+                 location: "loc_nowhere",
+                 metadata: %{
+                   behaviors: [
+                     %{
+                       trigger: :world_tick,
+                       action: :change_status,
+                       status: :busy
+                     }
+                   ]
+                 }
+               })
+
+      assert {:ok, tick_summary} = GameSession.tick(session)
+
+      ticked_ids =
+        tick_summary.actions
+        |> Enum.map(fn action ->
+          Map.get(action, :entity_id) || Map.get(action, :from)
+        end)
+        |> Enum.uniq()
+
+      refute "npc_outside_session" in ticked_ids
+
+      outside_state = Procession.Entity.get_state("npc_outside_session")
+      assert outside_state.status == :idle
+    end
   end
 
   describe "perform/3" do
@@ -823,6 +857,48 @@ defmodule Procession.GameSessionTest do
       assert {:ok, local_entities} = GameSession.local_entities(session)
 
       refute "npc_global_intruder" in local_entities
+    end
+  end
+
+  describe "location-relative gameplay after travel" do
+    test "look returns the player's new location after travel" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, before_travel} = Procession.GameSession.look(session)
+      assert before_travel.id == "loc_crossroads"
+
+      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+
+      assert {:ok, after_travel} = Procession.GameSession.look(session)
+      assert after_travel.id == "loc_briar_village"
+      assert after_travel.name == "Briar Village"
+    end
+
+    test "local_entities updates after travel" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.GameSession.local_entities(session) == {:ok, ["npc_tobin"]}
+
+      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+
+      assert Procession.GameSession.local_entities(session) == {:ok, ["npc_mira"]}
+    end
+
+    test "look local_entities updates after travel" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, before_travel} = Procession.GameSession.look(session)
+      assert before_travel.local_entities == ["npc_tobin"]
+
+      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+
+      assert {:ok, after_travel} = Procession.GameSession.look(session)
+      assert after_travel.local_entities == ["npc_mira"]
+      refute "npc_tobin" in after_travel.local_entities
+      refute "npc_elin" in after_travel.local_entities
     end
   end
 

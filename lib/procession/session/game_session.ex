@@ -503,7 +503,7 @@ defmodule Procession.GameSession do
 
   @impl true
   def handle_call(:tick, _from, state) do
-    case Game.tick_world() do
+    case Game.tick_entities(state.active_entities) do
       {:ok, tick_summary} ->
         new_state = %{state | last_tick_summary: tick_summary}
         {:reply, {:ok, tick_summary}, new_state}

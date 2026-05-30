@@ -526,6 +526,61 @@ defmodule Procession.GameTest do
     end
   end
 
+  describe "tick_entities/1" do
+    test "ticks only the provided entity ids" do
+      assert {:ok, _included_pid} =
+               Procession.EntitySupervisor.start_npc("npc_included", %{
+                 name: "Included",
+                 location: "loc_nowhere",
+                 metadata: %{
+                   behaviors: [
+                     %{
+                       trigger: :world_tick,
+                       action: :change_status,
+                       status: :busy
+                     }
+                   ]
+                 }
+               })
+
+      assert {:ok, _excluded_pid} =
+               Procession.EntitySupervisor.start_npc("npc_excluded", %{
+                 name: "Excluded",
+                 location: "loc_nowhere",
+                 metadata: %{
+                   behaviors: [
+                     %{
+                       trigger: :world_tick,
+                       action: :change_status,
+                       status: :busy
+                     }
+                   ]
+                 }
+               })
+
+      assert {:ok, summary} = Game.tick_entities(["npc_included"])
+
+      assert summary.entities_ticked == 1
+
+      assert Enum.any?(summary.successful_actions, fn action ->
+               action.action == :change_status and
+                 action.entity_id == "npc_included" and
+                 action.new_status == :busy
+             end)
+
+      included = Procession.Entity.get_state("npc_included")
+      excluded = Procession.Entity.get_state("npc_excluded")
+
+      assert included.status == :busy
+      assert excluded.status == :idle
+    end
+
+    test "rejects invalid entity id input" do
+      assert Game.tick_entities(nil) == {:error, :invalid_entity_ids}
+      assert Game.tick_entities("npc_mira") == {:error, :invalid_entity_ids}
+    end
+  end
+
   describe "recent_events/1" do
     test "recent_events returns entity tick memories for an entity" do
       assert {:ok, _game} = Procession.Game.new_game("anything")

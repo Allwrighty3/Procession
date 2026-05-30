@@ -139,36 +139,30 @@ defmodule Procession.Game do
   """
 
   def tick_world do
-    results =
+    entity_ids =
       EntitySupervisor.list_entities()
-      |> Enum.map(fn {id, _pid} ->
-        safe_tick_entity(id)
-      end)
+      |> Enum.map(fn {id, _pid} -> id end)
 
-    actions =
-      results
-      |> Enum.flat_map(fn
-        {:ok, %{actions: actions}} -> actions
-        _ -> []
-      end)
+    tick_entities(entity_ids)
+  end
 
-    successful_actions =
-      Enum.filter(actions, fn action ->
-        Map.get(action, :status) == :ok
-      end)
+  @doc """
+  Ticks only the provided live entity IDs.
 
-    failed_actions =
-      Enum.filter(actions, fn action ->
-        Map.get(action, :status) == :error
-      end)
+  This is useful for session-scoped ticking, active scopes, and future partial-world
+  simulation. Missing or dead entities are reported as failed tick actions instead
+  of crashing the caller.
+  """
+  def tick_entities(entity_ids) when is_list(entity_ids) do
+    results =
+      entity_ids
+      |> Enum.map(&safe_tick_entity/1)
 
-    {:ok,
-     %{
-       entities_ticked: length(results),
-       actions: actions,
-       successful_actions: successful_actions,
-       failed_actions: failed_actions
-     }}
+    summarize_tick_results(results)
+  end
+
+  def tick_entities(_entity_ids) do
+    {:error, :invalid_entity_ids}
   end
 
   @doc """
@@ -248,6 +242,33 @@ defmodule Procession.Game do
            ]
          }}
     end
+  end
+
+  defp summarize_tick_results(results) do
+    actions =
+      results
+      |> Enum.flat_map(fn
+        {:ok, %{actions: actions}} -> actions
+        _ -> []
+      end)
+
+    successful_actions =
+      Enum.filter(actions, fn action ->
+        Map.get(action, :status) == :ok
+      end)
+
+    failed_actions =
+      Enum.filter(actions, fn action ->
+        Map.get(action, :status) == :error
+      end)
+
+    {:ok,
+     %{
+       entities_ticked: length(results),
+       actions: actions,
+       successful_actions: successful_actions,
+       failed_actions: failed_actions
+     }}
   end
 
   defp normalize_tick_exit_reason({{:noproc, _}, _details}), do: :entity_not_found
