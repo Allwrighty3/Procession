@@ -99,83 +99,6 @@ AI is therefore core to the experience, but not sovereign over the state.
 
 ---
 
-## Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
-
-Phase 16 brings AI closer to the playable experience.
-
-The goal is to prove that AI improves NPC interaction while Elixir remains authoritative over state. AI dialogue should make the world feel more alive, but it should not directly mutate memory, behavior, world state, quests, or entity metadata.
-
-### First implementation slice
-
-- [x] Inspect the existing `Procession.AI` adapter boundary.
-- [x] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
-- [x] Confirm the fake adapter remains the default test path.
-- [x] Add a structured dialogue request shape if one does not already exist.
-  - Example fields: `:npc`, `:player_message`, `:relevant_memories`, `:location_context`, `:world_context`.
-- [x] Add a pure prompt builder function.
-  - It should accept validated data.
-  - It should return inspectable prompt text or structured prompt messages.
-  - It should not call Ollama directly.
-- [x] Add tests for prompt construction using deterministic data.
-- [x] Add tests proving AI dialogue returns text only.
-- [x] Add tests proving AI dialogue does not mutate memory.
-- [x] Add tests proving AI dialogue does not mutate behavior metadata.
-- [x] Add tests proving AI dialogue does not change NPC status/location.
-
-### AI dialogue boundary
-
-- [x] Add an explicit way to request Ollama-backed NPC dialogue.
-- [x] Keep deterministic fake adapter as default for tests.
-- [ ] Restrict AI dialogue to talkable NPCs.
-- [x] Reuse the existing `Procession.AI` adapter boundary.
-- [ ] Keep command parsing deterministic.
-- [ ] Do not use AI to interpret player commands in this phase.
-- [x] Return generated text only.
-- [x] Do not allow AI to directly mutate entity state.
-- [ ] Do not allow AI to create behavior metadata in this phase.
-- [x] Add tests using the fake adapter.
-- [x] Add manual docs for trying Ollama locally.
-
-### Prompt context
-
-- [x] Include NPC name, type, status, location, and traits.
-- [x] Include relevant memories.
-- [x] Include player message.
-- [x] Include current location context if available.
-- [ ] Include session/world context only if it is compact and useful.
-- [x] Keep prompts structured and inspectable.
-- [ ] Add tests for prompt construction if prompt logic grows.
-
-### Session and command integration
-
-- [ ] Decide the first AI dialogue call shape.
-  - Example: `Procession.GameSession.talk_to(session, npc_id, message, adapter: Procession.AI.Ollama)`
-- [ ] Keep existing deterministic dialogue behavior available.
-- [ ] Decide whether `Procession.Command.run/2` should remain deterministic for now.
-- [ ] If CLI support is added, make it explicit.
-  - Example: `mix procession.play --ai`
-- [ ] Keep CLI deterministic by default unless intentionally changed.
-- [ ] Add IEx examples for AI-backed dialogue.
-
-### AI safety and validation
-
-- [ ] Document that AI dialogue is expression, not authority.
-- [ ] Document that generated dialogue does not automatically become memory.
-- [ ] Document that generated dialogue does not automatically become behavior metadata.
-- [ ] Keep all state changes deterministic unless a future validated mutation path is added.
-- [ ] Add tests proving AI dialogue does not mutate entity state.
-
-### Deferred from Phase 16
-
-- [ ] Defer AI autonomous planning.
-- [ ] Defer AI-generated behavior metadata.
-- [ ] Defer AI command interpretation.
-- [ ] Defer memory mutation from AI output.
-- [ ] Defer quest systems.
-- [ ] Defer persistence.
-
----
-
 ## Phase 17: Dialogue Context & Grounded AI Responses
 
 Phase 17 creates a structured dialogue context system so AI-generated NPC dialogue is grounded in authoritative simulation data instead of ad hoc prompt text.
@@ -498,14 +421,14 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 
 ### Phase 16 is complete when:
 
-- [ ] Optional AI-backed NPC dialogue is available through an explicit safe path.
-- [ ] AI dialogue is restricted to talkable NPCs.
-- [ ] AI prompt context includes relevant NPC/session/player context.
-- [ ] AI dialogue returns text only and does not mutate game state directly.
-- [ ] Existing deterministic dialogue behavior remains available.
-- [ ] Tests use fake adapters and do not require Ollama.
-- [ ] Documentation explains deterministic play and AI-backed dialogue.
-- [ ] AI planning, AI command parsing, and AI-generated behavior mutation remain deferred.
+- [x] Optional AI-backed NPC dialogue is available through an explicit safe path.
+- [x] AI dialogue is restricted to talkable NPCs.
+- [x] AI prompt context includes relevant NPC/session/player context.
+- [x] AI dialogue returns text only and does not mutate game state directly.
+- [x] Existing deterministic dialogue behavior remains available.
+- [x] Tests use fake adapters and do not require Ollama.
+- [x] Documentation explains deterministic play and AI-backed dialogue.
+- [x] AI planning, AI command parsing, and AI-generated behavior mutation remain deferred.
 
 ### Phase 17 is complete when:
 

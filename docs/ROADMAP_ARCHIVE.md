@@ -1114,3 +1114,80 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 - [x] Defer large-world expansion.
 
 ---
+
+## Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
+
+Phase 16 brings AI closer to the playable experience.
+
+The goal is to prove that AI improves NPC interaction while Elixir remains authoritative over state. AI dialogue should make the world feel more alive, but it should not directly mutate memory, behavior, world state, quests, or entity metadata.
+
+### First implementation slice
+
+- [x] Inspect the existing `Procession.AI` adapter boundary.
+- [x] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
+- [x] Confirm the fake adapter remains the default test path.
+- [x] Add a structured dialogue request shape if one does not already exist.
+  - Example fields: `:npc`, `:player_message`, `:relevant_memories`, `:location_context`, `:world_context`.
+- [x] Add a pure prompt builder function.
+  - It should accept validated data.
+  - It should return inspectable prompt text or structured prompt messages.
+  - It should not call Ollama directly.
+- [x] Add tests for prompt construction using deterministic data.
+- [x] Add tests proving AI dialogue returns text only.
+- [x] Add tests proving AI dialogue does not mutate memory.
+- [x] Add tests proving AI dialogue does not mutate behavior metadata.
+- [x] Add tests proving AI dialogue does not change NPC status/location.
+
+### AI dialogue boundary
+
+- [x] Add an explicit way to request Ollama-backed NPC dialogue.
+- [x] Keep deterministic fake adapter as default for tests.
+- [x] Restrict AI dialogue to talkable NPCs.
+- [x] Reuse the existing `Procession.AI` adapter boundary.
+- [x] Keep command parsing deterministic.
+- [x] Do not use AI to interpret player commands in this phase.
+- [x] Return generated text only.
+- [x] Do not allow AI to directly mutate entity state.
+- [x] Do not allow AI to create behavior metadata in this phase.
+- [x] Add tests using the fake adapter.
+- [x] Add manual docs for trying Ollama locally.
+
+### Prompt context
+
+- [x] Include NPC name, type, status, location, and traits.
+- [x] Include relevant memories.
+- [x] Include player message.
+- [x] Include current location context if available.
+- [x] Include session/world context only if it is compact and useful.
+- [x] Keep prompts structured and inspectable.
+- [x] Add tests for prompt construction if prompt logic grows.
+
+### Session and command integration
+
+- [x] Decide the first AI dialogue call shape.
+  - Example: `Procession.GameSession.talk_to(session, npc_id, message, adapter: Procession.AI.Ollama)`
+- [x] Keep existing deterministic dialogue behavior available.
+- [x] Decide whether `Procession.Command.run/2` should remain deterministic for now.
+- [x] If CLI support is added, make it explicit.
+  - Example: `mix procession.play --ai`
+- [x] Keep CLI deterministic by default unless intentionally changed.
+- [x] Add IEx examples for AI-backed dialogue.
+
+### AI safety and validation
+
+- [x] Document that AI dialogue is expression, not authority.
+- [x] Document that generated dialogue does not automatically become memory.
+- [x] Document that generated dialogue does not automatically become behavior metadata.
+- [x] Keep all state changes deterministic unless a future validated mutation path is added.
+- [x] Add tests proving AI dialogue does not mutate entity state.
+
+### Deferred from Phase 16
+
+- [x] Defer AI autonomous planning.
+- [x] Defer AI-generated behavior metadata.
+- [x] Defer AI command interpretation.
+- [x] Defer memory mutation from AI output.
+- [x] Defer quest systems.
+- [x] Defer persistence.
+
+---
