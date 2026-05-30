@@ -44,7 +44,7 @@ defmodule Procession.CLITest do
         assert :ok = CLI.play()
       end)
 
-    assert output =~ "Error: :unknown_command"
+    assert output =~ "Error: I don't know what you mean. Try `help`."
     assert output =~ "Demo cleaned up."
   end
 
@@ -66,7 +66,7 @@ defmodule Procession.CLITest do
         assert :ok = CLI.play()
       end)
 
-    assert output =~ "Error: :unknown_command"
+    assert output =~ "Error: I don't know what you mean. Try `help`."
     assert output =~ "Demo cleaned up."
   end
 end

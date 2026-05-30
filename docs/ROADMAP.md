@@ -1354,12 +1354,12 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 #### Simple output formatting
 
-* [ ] Add basic display formatting for look results.
-* [ ] Add basic display formatting for memory/event results.
-* [ ] Add basic display formatting for travel results.
-* [ ] Add basic display formatting for errors.
-* [ ] Keep formatting separate from simulation logic.
-* [ ] Add tests for formatting helpers if they are separate modules.
+* [x] Add basic display formatting for look results.
+* [x] Add basic display formatting for memory/event results.
+* [x] Add basic display formatting for travel results.
+* [x] Add basic display formatting for errors.
+* [x] Keep formatting separate from simulation logic.
+* [x] Add tests for formatting helpers if they are separate modules.
 
 #### Safety and cleanup
 

@@ -98,10 +98,46 @@ defmodule Procession.Command.DisplayTest do
     assert text =~ "You travel to briar village."
   end
 
-  test "formats command errors as readable text" do
-    text = Display.format({:error, :unknown_command})
+  test "formats unknown command errors readably" do
+    assert Display.format({:error, :unknown_command}) ==
+             "Error: I don't know what you mean. Try `help`."
+  end
 
-    assert text == "Error: :unknown_command"
+  test "formats invalid command errors readably" do
+    assert Display.format({:error, :invalid_command}) ==
+             "Error: That command is not valid. Try `help`."
+  end
+
+  test "formats missing command parts readably" do
+    assert Display.format({:error, :missing_target}) ==
+             "Error: Missing target. Try: look at Tobin."
+
+    assert Display.format({:error, :missing_topic}) ==
+             "Error: Missing topic. Try: ask Tobin about road."
+
+    assert Display.format({:error, :missing_message}) ==
+             "Error: Missing message. Try: talk to Tobin: Hello."
+  end
+
+  test "formats target and travel errors readably" do
+    assert Display.format({:error, :entity_not_found}) ==
+             "Error: I couldn't find that target."
+
+    assert Display.format({:error, :unknown_destination}) ==
+             "Error: I don't know that destination."
+
+    assert Display.format({:error, :destination_unreachable}) ==
+             "Error: You can't get there from here."
+  end
+
+  test "formats ambiguous entity errors readably" do
+    assert Display.format({:error, {:ambiguous_entity, ["npc_a", "npc_b"]}}) ==
+             "Error: That name is ambiguous. Matching IDs: npc_a, npc_b"
+  end
+
+  test "falls back for unrecognized errors" do
+    assert Display.format({:error, :weird_new_error}) ==
+             "Error: :weird_new_error"
   end
 
   test "formats talk to command output as readable text" do

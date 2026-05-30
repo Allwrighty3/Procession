@@ -66,7 +66,7 @@ defmodule Procession.DemoTest do
         assert :ok = Demo.run(demo, "dance majestically")
       end)
 
-    assert output =~ "Error: :unknown_command"
+    assert output =~ "Error: I don't know what you mean. Try `help`."
   end
 
   test "rejects invalid demo sessions" do

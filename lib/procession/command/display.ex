@@ -127,6 +127,42 @@ defmodule Procession.Command.Display do
     "#{target} says: #{response}"
   end
 
+  def format({:error, :unknown_command}) do
+    "Error: I don't know what you mean. Try `help`."
+  end
+
+  def format({:error, :invalid_command}) do
+    "Error: That command is not valid. Try `help`."
+  end
+
+  def format({:error, :missing_target}) do
+    "Error: Missing target. Try: look at Tobin."
+  end
+
+  def format({:error, :missing_topic}) do
+    "Error: Missing topic. Try: ask Tobin about road."
+  end
+
+  def format({:error, :missing_message}) do
+    "Error: Missing message. Try: talk to Tobin: Hello."
+  end
+
+  def format({:error, :entity_not_found}) do
+    "Error: I couldn't find that target."
+  end
+
+  def format({:error, :unknown_destination}) do
+    "Error: I don't know that destination."
+  end
+
+  def format({:error, :destination_unreachable}) do
+    "Error: You can't get there from here."
+  end
+
+  def format({:error, {:ambiguous_entity, matches}}) do
+    "Error: That name is ambiguous. Matching IDs: #{Enum.join(matches, ", ")}"
+  end
+
   def format({:error, reason}) do
     "Error: #{inspect(reason)}"
   end
