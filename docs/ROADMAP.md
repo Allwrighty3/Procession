@@ -998,39 +998,39 @@ This phase should keep the first player model small and deterministic.
 
 #### Session player ownership
 
-* [ ] Add player ID to session state.
-* [ ] Add a session API for fetching the current player.
+* [x] Add player ID to session state.
+* [x] Add a session API for fetching the current player.
 
   * Example: `Procession.GameSession.player(session)`
-* [ ] Add a session API for fetching player location.
+* [x] Add a session API for fetching player location.
 
   * Example: `Procession.GameSession.player_location(session)`
-* [ ] Include the player in session cleanup.
-* [ ] Add tests proving cleanup stops the player entity.
-* [ ] Add tests for player summary output.
+* [x] Include the player in session cleanup.
+* [x] Add tests proving cleanup stops the player entity.
+* [x] Add tests for player summary output.
 
 #### Location context
 
-* [ ] Add a helper for looking at the player's current location.
+* [x] Add a helper for looking at the player's current location.
 
   * Example: `Procession.GameSession.look(session)`
-* [ ] Keep `look(session, entity_id)` available for specific targets.
-* [ ] Return current location summary when no target is provided.
-* [ ] Include known NPCs or entities at the current location if simple.
-* [ ] Add tests for location-relative look.
-* [ ] Add tests for looking at a specific entity from the session.
-* [ ] Add predictable errors when the player has no valid location.
+* [x] Keep `look(session, entity_id)` available for specific targets.
+* [x] Return current location summary when no target is provided.
+* [x] Include known NPCs or entities at the current location if simple.
+* [x] Add tests for location-relative look.
+* [x] Add tests for looking at a specific entity from the session.
+* [x] Add predictable errors when the player has no valid location.
 
 #### Local entity discovery
 
-* [ ] Add a helper for listing entities at the player's current location.
+* [x] Add a helper for listing entities at the player's current location.
 
   * Example: `Procession.GameSession.local_entities(session)`
-* [ ] Use live entity state to determine locations.
-* [ ] Limit results to session-owned entities.
-* [ ] Add tests proving only session-owned entities are listed.
-* [ ] Add tests proving entities in other locations are excluded.
-* [ ] Add tests proving unknown global entities are excluded.
+* [x] Use live entity state to determine locations.
+* [x] Limit results to session-owned entities.
+* [x] Add tests proving only session-owned entities are listed.
+* [x] Add tests proving entities in other locations are excluded.
+* [x] Add tests proving unknown global entities are excluded.
 
 #### Player memory preparation
 
