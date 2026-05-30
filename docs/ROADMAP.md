@@ -71,7 +71,7 @@ AI is central to Procession’s purpose. It provides the creative force behind d
 
 Elixir/OTP provides the armor and scaffolding that keeps AI output usable, testable, and safe. AI may propose possibilities, but Elixir validates, constrains, supervises, and simulates accepted possibilities.
 
-Procession should not minimize AI. It should contain and structure AI so that its creativity can drive the world without turning the simulation into inconsistent Lovecraftian nonsense (unless that's the goal).
+Procession should not minimize AI. It should contain and structure AI so that its creativity can drive the world without turning the simulation into inconsistent Lovecraftian nonsense  — unless that is the explicit design goal of a validated world, region, faction, entity, or event.
 
 The intended loop is:
 
