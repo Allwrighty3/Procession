@@ -286,4 +286,120 @@ defmodule Procession.GameSessionTest do
       assert {:error, :entity_not_found} = GameSession.look(session, entity_id)
     end
   end
+
+  describe "ask_about/3" do
+    test "asks about memories for a session-owned live entity" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok, memories} = GameSession.ask_about(session, entity_id, "road")
+      assert is_list(memories)
+    end
+
+    test "rejects memory queries for an entity id not owned by the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.ask_about(session, "npc_not_owned", "road")
+    end
+
+    test "rejects invalid entity ids before querying memories" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :entity_not_in_session} = GameSession.ask_about(session, nil, "road")
+
+      assert {:error, :entity_not_in_session} = GameSession.ask_about(session, :npc_mira, "road")
+
+      assert {:error, :entity_not_in_session} = GameSession.ask_about(session, 123, "road")
+    end
+
+    test "delegates invalid topics to the global game API for owned entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:error, :invalid_topic} = GameSession.ask_about(session, entity_id, nil)
+    end
+
+    test "returns entity_not_found for a session-owned entity that is no longer live" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      :ok = Procession.EntitySupervisor.stop_entity(entity_id)
+
+      assert {:error, :entity_not_found} = GameSession.ask_about(session, entity_id, "road")
+    end
+  end
+
+  describe "talk_to/4" do
+    test "talks to a session-owned live NPC" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      npc_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok, response} =
+               GameSession.talk_to(session, npc_id, "Hello there.",
+                 adapter: Procession.AI.FakeAdapter
+               )
+
+      assert is_binary(response)
+    end
+
+    test "rejects dialogue with an entity id not owned by the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.talk_to(
+                 session,
+                 "npc_not_owned",
+                 "Hello there.",
+                 adapter: Procession.AI.FakeAdapter
+               )
+    end
+
+    test "rejects invalid entity ids before dialogue" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.talk_to(session, nil, "Hello.", adapter: Procession.AI.FakeAdapter)
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.talk_to(session, :npc_mira, "Hello.",
+                 adapter: Procession.AI.FakeAdapter
+               )
+
+      assert {:error, :entity_not_in_session} =
+               GameSession.talk_to(session, 123, "Hello.", adapter: Procession.AI.FakeAdapter)
+    end
+
+    test "delegates invalid messages to the global game API for owned entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      npc_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:error, :invalid_message} =
+               GameSession.talk_to(session, npc_id, nil, adapter: Procession.AI.FakeAdapter)
+    end
+
+    test "returns entity_not_found for a session-owned NPC that is no longer live" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      npc_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      :ok = Procession.EntitySupervisor.stop_entity(npc_id)
+
+      assert {:error, :entity_not_found} =
+               GameSession.talk_to(session, npc_id, "Hello?", adapter: Procession.AI.FakeAdapter)
+    end
+  end
 end

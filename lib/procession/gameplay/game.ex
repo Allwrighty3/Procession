@@ -19,20 +19,25 @@ defmodule Procession.Game do
   """
   def look(entity_id) do
     if EntitySupervisor.exists?(entity_id) do
-      state = Entity.get_state(entity_id)
+      try do
+        state = Entity.get_state(entity_id)
 
-      {:ok,
-       %{
-         id: state.id,
-         name: state.name,
-         type: state.type,
-         location: state.location,
-         status: state.status,
-         traits: state.traits,
-         relationships: Map.get(state.metadata, :relationships, []),
-         description: Map.get(state.metadata, :description),
-         memory_summary: Entity.memory_summary(entity_id)
-       }}
+        {:ok,
+         %{
+           id: state.id,
+           name: state.name,
+           type: state.type,
+           location: state.location,
+           status: state.status,
+           traits: state.traits,
+           relationships: Map.get(state.metadata, :relationships, []),
+           description: Map.get(state.metadata, :description),
+           memory_summary: Entity.memory_summary(entity_id)
+         }}
+      catch
+        :exit, _reason ->
+          {:error, :entity_not_found}
+      end
     else
       {:error, :entity_not_found}
     end
@@ -47,7 +52,12 @@ defmodule Procession.Game do
 
   def ask_about(entity_id, topic) when is_binary(topic) do
     if EntitySupervisor.exists?(entity_id) do
-      {:ok, Entity.recall(entity_id, topic)}
+      try do
+        {:ok, Entity.recall(entity_id, topic)}
+      catch
+        :exit, _reason ->
+          {:error, :entity_not_found}
+      end
     else
       {:error, :entity_not_found}
     end
@@ -65,7 +75,12 @@ defmodule Procession.Game do
   """
   def talk_to(npc_id, player_message, opts \\ []) when is_binary(player_message) do
     if EntitySupervisor.exists?(npc_id) do
-      Entity.generate_response(npc_id, player_message, opts)
+      try do
+        Entity.generate_response(npc_id, player_message, opts)
+      catch
+        :exit, _reason ->
+          {:error, :entity_not_found}
+      end
     else
       {:error, :entity_not_found}
     end

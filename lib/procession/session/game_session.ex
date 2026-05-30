@@ -74,12 +74,41 @@ defmodule Procession.GameSession do
     GenServer.call(session, :cleanup)
   end
 
+  @doc """
+  Look at a session-owned entity.
 
+  Returns `{:error, :entity_not_in_session}` when the entity does not belong
+  to this session.
+  """
   def look(session, entity_id) when is_binary(entity_id) do
     GenServer.call(session, {:look, entity_id})
   end
 
   def look(_session, _entity_id), do: {:error, :entity_not_in_session}
+
+  @doc """
+  Asks about memories for a session-owned entity.
+
+  Returns `{:error, :entity_not_in_session}` when the entity does not belong
+  to this session.
+  """
+  def ask_about(session, entity_id, topic) when is_binary(entity_id) do
+    GenServer.call(session, {:ask_about, entity_id, topic})
+  end
+
+  def ask_about(_session, _entity_id, _topic), do: {:error, :entity_not_in_session}
+
+  @doc """
+  Talks to a session-owned NPC.
+
+  Returns `{:error, :entity_not_in_session}` when the entity does not belong
+  to this session.
+  """
+  def talk_to(session, entity_id, message, opts \\ []) when is_binary(entity_id) do
+    GenServer.call(session, {:talk_to, entity_id, message, opts})
+  end
+
+  def talk_to(_session, _entity_id, _message, _opts), do: {:error, :entity_not_in_session}
 
   defp extract_entity_ids(game_summary) do
     game_summary
@@ -163,6 +192,24 @@ defmodule Procession.GameSession do
   def handle_call({:look, entity_id}, _from, state) do
     if entity_id in state.active_entities do
       {:reply, Game.look(entity_id), state}
+    else
+      {:reply, {:error, :entity_not_in_session}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:ask_about, entity_id, topic}, _from, state) do
+    if entity_id in state.active_entities do
+      {:reply, Game.ask_about(entity_id, topic), state}
+    else
+      {:reply, {:error, :entity_not_in_session}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:talk_to, entity_id, message, opts}, _from, state) do
+    if entity_id in state.active_entities do
+      {:reply, Game.talk_to(entity_id, message, opts), state}
     else
       {:reply, {:error, :entity_not_in_session}, state}
     end

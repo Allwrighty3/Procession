@@ -231,6 +231,17 @@ defmodule Procession.GameTest do
              ) == {:error, :entity_not_found}
     end
 
+    test "talk_to returns entity_not_found when the entity disappears before response generation" do
+      {:ok, summary} = Procession.Game.new_game("a quiet frontier town")
+
+      npc_id = Enum.find(summary.npcs, &String.starts_with?(&1, "npc_"))
+
+      :ok = Procession.EntitySupervisor.stop_entity(npc_id)
+
+      assert {:error, :entity_not_found} =
+               Procession.Game.talk_to(npc_id, "Hello?", adapter: Procession.AI.FakeAdapter)
+    end
+
     test "talk_to rejects invalid player messages" do
       assert Procession.Game.talk_to("npc_mira", nil) == {:error, :invalid_message}
       assert Procession.Game.talk_to("npc_mira", :hello) == {:error, :invalid_message}
