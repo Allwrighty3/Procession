@@ -1,3 +1,9 @@
+# Roadmap Archive
+
+Historical phase checklists for completed Procession work. Active future planning lives in [ROADMAP.md](ROADMAP.md).
+
+---
+
 ### Phase 1: Core Entity System & Message Passing
 
 Phase 1 is complete by the criteria below. The remaining items here are backlog/refinement tasks.
