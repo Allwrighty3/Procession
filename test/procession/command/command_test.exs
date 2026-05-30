@@ -425,4 +425,60 @@ defmodule Procession.CommandTest do
                {:error, :entity_not_found}
     end
   end
+
+  describe "Phase 13 vertical slice" do
+    test "runs a playable multi-command demo sequence" do
+      assert {:ok, demo} = Procession.GameSession.start_demo()
+      session = demo.session
+
+      assert {:ok, look_tobin} = Procession.Command.run(session, "look at Tobin")
+
+      assert look_tobin.command == :look_at
+      assert look_tobin.entity_id == "npc_tobin"
+      assert look_tobin.result.name == "Tobin"
+      assert look_tobin.result.location == "loc_crossroads"
+
+      assert {:ok, ask_tobin} = Procession.Command.run(session, "ask Tobin about road")
+
+      assert ask_tobin.command == :ask_about
+
+      assert Enum.any?(ask_tobin.result, fn memory ->
+               memory.content ==
+                 "The old road has been quieter since the mine started echoing again."
+             end)
+
+      assert {:ok, wait_result} = Procession.Command.run(session, "wait")
+
+      assert wait_result.command == :wait
+
+      assert Enum.any?(wait_result.result.successful_actions, fn action ->
+               action.action == :send_message and
+                 action.from == "npc_tobin" and
+                 action.to == "npc_mira" and
+                 action.content == "Tobin quietly warned Mira that the mine road was watched."
+             end)
+
+      assert {:ok, travel_result} = Procession.Command.run(session, "go to Briar Village")
+
+      assert travel_result.command == :travel_to
+      assert travel_result.destination_id == "loc_briar_village"
+      assert travel_result.result.from == "loc_crossroads"
+      assert travel_result.result.to == "loc_briar_village"
+
+      assert {:ok, look_village} = Procession.Command.run(session, "look")
+
+      assert look_village.command == :look
+      assert look_village.result.id == "loc_briar_village"
+      assert look_village.result.local_entities == ["npc_mira"]
+
+      assert {:ok, ask_mira} = Procession.Command.run(session, "ask Mira about mine")
+
+      assert ask_mira.command == :ask_about
+
+      assert Enum.any?(ask_mira.result, fn memory ->
+               memory.content == "Tobin quietly warned Mira that the mine road was watched." and
+                 memory.metadata.source == :entity_tick
+             end)
+    end
+  end
 end
