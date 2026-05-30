@@ -55,6 +55,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `lib/procession/gameplay/behavior.ex` - Safe behavior schema validation and execution for generated entity behavior metadata.
 - `lib/procession/gameplay/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
 - `lib/procession/session/game_session.ex` - Runtime game session boundary for session-owned entities, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware gameplay helpers, cleanup, and last tick summary storage.
+- `lib/procession/command/command.ex` - Deterministic text command boundary that translates simple player commands into existing session-aware gameplay APIs without owning gameplay logic.
 - `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
 - `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
 - `Procession.GameSession` owns active live entity IDs for one play session, including `player_main`, but does not yet provide persistence, command parsing, travel, inventory, quests, or session-scoped ticking.
@@ -83,6 +84,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `test/procession/gameplay/behavior_test.exs` - Behavior schema validation and execution tests.
 - `test/procession/gameplay/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
 - `test/procession/session/game_session_test.exs` - Session runtime boundary, session ownership, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware actions, cleanup, and tick delegation tests.
+- `test/procession/command/command_test.exs` - Deterministic command parsing tests for supported commands, invalid input, unknown commands, command result shapes, and session-aware delegation.
 
 ### Development direction
 

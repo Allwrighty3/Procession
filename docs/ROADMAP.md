@@ -1069,24 +1069,24 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 
 #### Command boundary
 
-* [ ] Add a command module.
+* [x] Add a command module.
 
   * Example: `Procession.Command`
-* [ ] Define a public command API.
+* [x] Define a public command API.
 
   * Example: `Procession.Command.run(session, command_text)`
-* [ ] Require command input to be a binary string.
-* [ ] Return predictable errors for invalid input.
+* [x] Require command input to be a binary string.
+* [x] Return predictable errors for invalid input.
 
   * Example: `{:error, :invalid_command}`
-* [ ] Keep command parsing deterministic.
-* [ ] Do not call AI for command parsing.
-* [ ] Add tests for invalid command input.
-* [ ] Add tests for unknown commands.
+* [x] Keep command parsing deterministic.
+* [x] Do not call AI for command parsing.
+* [x] Add tests for invalid command input.
+* [x] Add tests for unknown commands.
 
 #### Basic command support
 
-* [ ] Support `look`.
+* [x] Support `look`.
 
   * Looks at the player's current location.
 * [ ] Support `look at <target>`.
@@ -1121,9 +1121,9 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 
 #### Command result formatting
 
-* [ ] Return command results as plain data first.
-* [ ] Avoid human-readable prose formatting until command data is stable.
-* [ ] Use consistent result shapes.
+* [x] Return command results as plain data first.
+* [x] Avoid human-readable prose formatting until command data is stable.
+* [x] Use consistent result shapes.
 
   * Example: `{:ok, %{command: :look, result: summary}}`
 * [ ] Add tests for command result shapes.
