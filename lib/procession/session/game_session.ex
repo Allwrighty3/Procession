@@ -17,7 +17,8 @@ defmodule Procession.GameSession do
     :world,
     :active_scope,
     status: :new,
-    active_entities: []
+    active_entities: [],
+    last_tick_summary: nil
   ]
 
   @type status :: :new | :active | :cleaned_up
@@ -27,7 +28,8 @@ defmodule Procession.GameSession do
           world: map() | nil,
           active_entities: [String.t()],
           active_scope: String.t() | nil,
-          status: status()
+          status: status(),
+          last_tick_summary: map() | nil
         }
 
   @doc """
@@ -121,6 +123,16 @@ defmodule Procession.GameSession do
   end
 
   def recent_events(_session, _entity_id), do: {:error, :entity_not_in_session}
+
+  @doc """
+  Ticks the world through this session.
+
+  The first Phase 9 version delegates to `Procession.Game.tick_world/0`.
+  It is not yet scoped to session-owned entities.
+  """
+  def tick(session) do
+    GenServer.call(session, :tick)
+  end
 
   defp extract_entity_ids(game_summary) do
     game_summary
@@ -233,6 +245,18 @@ defmodule Procession.GameSession do
       {:reply, Game.recent_events(entity_id), state}
     else
       {:reply, {:error, :entity_not_in_session}, state}
+    end
+  end
+
+  @impl true
+  def handle_call(:tick, _from, state) do
+    case Game.tick_world() do
+      {:ok, tick_summary} ->
+        new_state = %{state | last_tick_summary: tick_summary}
+        {:reply, {:ok, tick_summary}, new_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 end

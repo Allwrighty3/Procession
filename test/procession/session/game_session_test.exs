@@ -443,4 +443,29 @@ defmodule Procession.GameSessionTest do
       assert {:error, :entity_not_found} = GameSession.recent_events(session, entity_id)
     end
   end
+
+  describe "tick/1" do
+    test "ticks world behavior through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, session_summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, tick_summary} = GameSession.tick(session)
+
+      assert tick_summary.entities_ticked >= length(session_summary.active_entities)
+      assert is_list(tick_summary.actions)
+      assert is_list(tick_summary.successful_actions)
+      assert is_list(tick_summary.failed_actions)
+    end
+
+    test "stores the latest tick summary in session state" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, tick_summary} = GameSession.tick(session)
+
+      session_summary = GameSession.summary(session)
+
+      assert session_summary.last_tick_summary == tick_summary
+    end
+  end
 end
