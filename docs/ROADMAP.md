@@ -65,21 +65,23 @@ Current priorities:
 
 ## Architecture Guardrails
 
-### AI is essential to the purpose of Procession
+### AI is the creative core; Elixir is the authoritative scaffold
 
-AI is not a decorative add-on. AI is central to Procession’s long-term purpose: dynamic dialogue, content expansion, emergent rumors, faction tension, behavior proposals, and cascading world generation.
+AI is central to Procession’s purpose. It provides the creative force behind dynamic dialogue, world expansion, emergent rumors, faction tension, behavior proposals, and cascading content generation.
 
-Without AI, Procession becomes mostly an Elixir/OTP architecture exercise. The goal is not to minimize AI. The goal is to domesticate it.
+Elixir/OTP provides the armor and scaffolding that keeps AI output usable, testable, and safe. AI may propose possibilities, but Elixir validates, constrains, supervises, and simulates accepted possibilities.
 
-Procession should be understood as:
+Procession should not minimize AI. It should contain and structure AI so that its creativity can drive the world without turning the simulation into inconsistent Lovecraftian nonsense (unless that's the goal).
 
-> AI-enhanced by design, Elixir-authoritative by necessity.
+The intended loop is:
 
-AI may generate possibilities. Elixir validates those possibilities. OTP simulates accepted possibilities. The player experiences the result.
+1. AI proposes expressive or generative content.
+2. Elixir parses and validates the proposal.
+3. Validated data becomes memory, behavior metadata, thread state, scope data, or blueprint content.
+4. OTP processes simulate the accepted world state.
+5. The player experiences the result through CLI, IEx, or future UI adapters.
 
-AI output must never be treated as authoritative by itself. AI output is a proposal until parsed, validated, and accepted by Elixir.
-
-Core tests should use deterministic fake adapters so the system remains reliable, local, and debuggable. Ollama-backed behavior should be available through explicit AI boundaries, not hidden inside uncontrolled simulation paths.
+AI is therefore core to the experience, but not sovereign over the state.
 
 ### General simulation rules
 
