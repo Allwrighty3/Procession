@@ -31,6 +31,36 @@ defmodule Procession.CLITest do
     assert output =~ "Local entities:"
   end
 
+  test "play supports the main demo command sequence" do
+    output =
+      capture_io(
+        """
+        look at Tobin
+        ask Tobin about road
+        talk to Tobin: Hello
+        wait
+        go to Briar Village
+        where
+        ask Mira about mine
+        events for Mira
+        quit
+        """,
+        fn ->
+          assert :ok = CLI.play()
+        end
+      )
+
+    assert output =~ "Tobin"
+    assert output =~ "The old road has been quieter"
+    assert output =~ "Tobin says:"
+    assert output =~ "Time passes."
+    assert output =~ "You travel to Briar Village."
+    assert output =~ "Briar Village"
+    assert output =~ "Mira remembers about mine:"
+    assert output =~ "Recent events for Mira:"
+    assert output =~ "Demo cleaned up."
+  end
+
   test "play handles CLI control commands case-insensitively" do
     output =
       capture_io("HELP\nQUIT\n", fn ->
