@@ -106,66 +106,46 @@ defmodule Procession.Command do
   defp parse(_command), do: {:error, :unknown_command}
 
   defp execute({:ok, :look}, session) do
-    case GameSession.perform(session, :look) do
-      {:ok, result} ->
-        {:ok, %{command: :look, result: result}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    session
+    |> GameSession.perform(:look)
+    |> wrap_result(:look)
   end
 
   defp execute({:ok, :wait}, session) do
-    case GameSession.perform(session, :tick) do
-      {:ok, result} ->
-        {:ok, %{command: :wait, result: result}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    session
+    |> GameSession.perform(:tick)
+    |> wrap_result(:wait)
   end
 
   defp execute({:ok, {:look_at, target}}, session) do
-    with {:ok, entity_id} <- resolve_entity(session, target),
-         {:ok, result} <- GameSession.perform(session, :look, entity_id: entity_id) do
-      {:ok, %{command: :look_at, target: target, entity_id: entity_id, result: result}}
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      session
+      |> GameSession.perform(:look, entity_id: entity_id)
+      |> wrap_result(:look_at, %{target: target, entity_id: entity_id})
     end
   end
 
   defp execute({:ok, {:ask_about, target, topic}}, session) do
-    with {:ok, entity_id} <- resolve_entity(session, target),
-         {:ok, result} <-
-           GameSession.perform(session, :ask_about, entity_id: entity_id, topic: topic) do
-      {:ok,
-       %{command: :ask_about, target: target, entity_id: entity_id, topic: topic, result: result}}
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      session
+      |> GameSession.perform(:ask_about, entity_id: entity_id, topic: topic)
+      |> wrap_result(:ask_about, %{target: target, entity_id: entity_id, topic: topic})
     end
   end
 
   defp execute({:ok, {:talk_to, target, message}}, session) do
-    with {:ok, entity_id} <- resolve_entity(session, target),
-         {:ok, result} <-
-           GameSession.perform(session, :talk_to, entity_id: entity_id, message: message) do
-      {:ok,
-       %{
-         command: :talk_to,
-         target: target,
-         entity_id: entity_id,
-         message: message,
-         result: result
-       }}
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      session
+      |> GameSession.perform(:talk_to, entity_id: entity_id, message: message)
+      |> wrap_result(:talk_to, %{target: target, entity_id: entity_id, message: message})
     end
   end
 
   defp execute({:ok, {:recent_events, target}}, session) do
-    with {:ok, entity_id} <- resolve_entity(session, target),
-         {:ok, result} <- GameSession.perform(session, :recent_events, entity_id: entity_id) do
-      {:ok,
-       %{
-         command: :recent_events,
-         target: target,
-         entity_id: entity_id,
-         result: result
-       }}
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      session
+      |> GameSession.perform(:recent_events, entity_id: entity_id)
+      |> wrap_result(:recent_events, %{target: target, entity_id: entity_id})
     end
   end
 
@@ -209,5 +189,21 @@ defmodule Procession.Command do
     else
       false
     end
+  end
+
+  defp wrap_result({:ok, result}, command) do
+    {:ok, %{command: command, result: result}}
+  end
+
+  defp wrap_result({:error, reason}, _command) do
+    {:error, reason}
+  end
+
+  defp wrap_result({:ok, result}, command, metadata) do
+    {:ok, Map.merge(%{command: command, result: result}, metadata)}
+  end
+
+  defp wrap_result({:error, reason}, _command, _metadata) do
+    {:error, reason}
   end
 end
