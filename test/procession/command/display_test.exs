@@ -224,4 +224,22 @@ defmodule Procession.Command.DisplayTest do
     assert text =~ "Local entities: Tobin"
     refute text =~ "Local entities: npc_tobin"
   end
+
+  test "formats local entities from raw ids when readable names are unavailable" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :look,
+           result: %{
+             name: "Old Road Crossroads",
+             description: "A muddy crossroads.",
+             exits: [],
+             local_entities: ["npc_tobin"]
+           }
+         }}
+      )
+
+    assert text =~ "Local entities: npc_tobin"
+  end
 end

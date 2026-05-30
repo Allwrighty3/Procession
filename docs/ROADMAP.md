@@ -153,8 +153,8 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 - [x] Improve local entity output in `look`.
 - [x] Improve travel output after movement.
 - [x] Improve error messages for unsupported capabilities.
-- [ ] Keep display formatting separate from simulation logic.
-- [ ] Add tests for display formatting improvements.
+- [x] Keep display formatting separate from simulation logic.
+- [x] Add tests for display formatting improvements.
 
 ### Demo stability
 

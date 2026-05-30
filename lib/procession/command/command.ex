@@ -129,6 +129,7 @@ defmodule Procession.Command do
   defp execute({:ok, :look}, session) do
     session
     |> GameSession.perform(:look)
+    |> enrich_look_result()
     |> wrap_result(:look)
   end
 
@@ -334,4 +335,15 @@ defmodule Procession.Command do
   defp wrap_result({:error, reason}, _command, _metadata) do
     {:error, reason}
   end
+
+  defp enrich_look_result({:ok, result}) do
+    local_entity_names =
+      result
+      |> Map.get(:local_entities, [])
+      |> Enum.map(&entity_display_name/1)
+
+    {:ok, Map.put(result, :local_entity_names, local_entity_names)}
+  end
+
+  defp enrich_look_result(error), do: error
 end

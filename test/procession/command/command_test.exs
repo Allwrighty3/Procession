@@ -549,4 +549,13 @@ defmodule Procession.CommandTest do
     assert Procession.Command.run(demo.session, "ask Roadwardens about road") ==
              {:error, :entity_not_askable}
   end
+
+  test "look command includes readable local entity names for display" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+
+    assert {:ok, result} = Procession.Command.run(demo.session, "look")
+
+    assert result.result.local_entities == ["npc_tobin"]
+    assert result.result.local_entity_names == ["Tobin"]
+  end
 end
