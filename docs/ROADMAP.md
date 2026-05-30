@@ -109,7 +109,7 @@ The goal is to prove that AI improves NPC interaction while Elixir remains autho
 - [x] Inspect the existing `Procession.AI` adapter boundary.
 - [x] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
 - [x] Confirm the fake adapter remains the default test path.
-- [ ] Add a structured dialogue request shape if one does not already exist.
+- [x] Add a structured dialogue request shape if one does not already exist.
   - Example fields: `:npc`, `:player_message`, `:relevant_memories`, `:location_context`, `:world_context`.
 - [x] Add a pure prompt builder function.
   - It should accept validated data.
