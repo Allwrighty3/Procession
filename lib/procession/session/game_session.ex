@@ -50,6 +50,22 @@ defmodule Procession.GameSession do
     GenServer.call(session, {:new_game, prompt})
   end
 
+  @doc """
+  Returns the active entity IDs owned by this session.
+  """
+  def active_entities(session) do
+    GenServer.call(session, :active_entities)
+  end
+
+  @doc """
+  Returns whether the given entity ID belongs to this session.
+  """
+  def owns_entity?(session, entity_id) when is_binary(entity_id) do
+    GenServer.call(session, {:owns_entity?, entity_id})
+  end
+
+  def owns_entity?(_session, _entity_id), do: false
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -92,5 +108,15 @@ defmodule Procession.GameSession do
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
+  end
+
+  @impl true
+  def handle_call(:active_entities, _from, state) do
+    {:reply, state.active_entities, state}
+  end
+
+  @impl true
+  def handle_call({:owns_entity?, entity_id}, _from, state) do
+    {:reply, entity_id in state.active_entities, state}
   end
 end

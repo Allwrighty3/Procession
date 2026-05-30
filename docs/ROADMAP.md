@@ -785,18 +785,18 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Active entity ownership
 
-* [ ] Add an API for listing active session entities.
+* [x] Add an API for listing active session entities.
 
   * Example: `Procession.GameSession.active_entities(session)`
-* [ ] Add an API for checking whether an entity belongs to a session.
+* [x] Add an API for checking whether an entity belongs to a session.
 
   * Example: `Procession.GameSession.owns_entity?(session, entity_id)`
-* [ ] Keep ownership as plain string IDs.
-* [ ] Do not create atoms from generated IDs.
-* [ ] Avoid relying on fixture-specific NPC names in session logic.
-* [ ] Add tests for active entity listing.
-* [ ] Add tests for ownership checks.
-* [ ] Add tests proving unknown entities are not owned by the session.
+* [x] Keep ownership as plain string IDs.
+* [x] Do not create atoms from generated IDs.
+* [x] Avoid relying on fixture-specific NPC names in session logic.
+* [x] Add tests for active entity listing.
+* [x] Add tests for ownership checks.
+* [x] Add tests proving unknown entities are not owned by the session.
 
 #### Session cleanup
 

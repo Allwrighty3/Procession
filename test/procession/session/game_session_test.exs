@@ -92,4 +92,48 @@ defmodule Procession.GameSessionTest do
              end)
     end
   end
+
+  describe "active_entities/1" do
+    test "returns active session entity ids after creating a game" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert GameSession.active_entities(session) == summary.active_entities
+    end
+
+    test "returns an empty list before a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert GameSession.active_entities(session) == []
+    end
+  end
+
+  describe "owns_entity?/2" do
+    test "returns true for session-owned entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      owned_entity = hd(summary.active_entities)
+
+      assert GameSession.owns_entity?(session, owned_entity)
+    end
+
+    test "returns false for unknown entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      refute GameSession.owns_entity?(session, "npc_not_real")
+    end
+
+    test "returns false for invalid entity ids" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      refute GameSession.owns_entity?(session, nil)
+      refute GameSession.owns_entity?(session, :npc_mira)
+      refute GameSession.owns_entity?(session, 123)
+    end
+  end
 end
