@@ -1741,3 +1741,17 @@ It intentionally defers:
 The simulation core remains Elixir/OTP-first. The CLI is only a local terminal wrapper over the existing session, command, display, and cleanup APIs.
 
 Phoenix LiveView is still deferred. A future UI should remain a client of the Elixir simulation kernel rather than replacing gameplay state or rules.
+
+## Current capability limits
+
+The CLI is a thin visibility layer over the Elixir/OTP simulation.
+
+Entities have simple first-pass capability rules:
+
+- NPCs can be inspected, asked about topics, talked to, and ticked autonomously.
+- The player can be inspected and moved.
+- Locations can be inspected and used as travel destinations.
+- Factions can be inspected but not directly talked to or asked about topics.
+- Non-NPC entities are skipped during autonomous world ticks.
+
+These rules are intentionally simple for now. Later phases may replace or extend them with richer validated capability metadata.

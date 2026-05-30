@@ -106,50 +106,50 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 
 ### Entity capability rules
 
-- [ ] Define the first simple capability rules for entity types.
+- [x] Define the first simple capability rules for entity types.
   - NPCs are inspectable, talkable, askable, and tickable.
   - Players are inspectable and movable.
   - Locations are inspectable and may contain exits.
   - Factions are inspectable but not directly talkable or movable.
-- [ ] Decide whether capability checks live in a small module or private helpers.
+- [x] Decide whether capability checks live in a small module or private helpers.
   - Example: `Procession.EntityCapabilities`
-- [ ] Add helpers for common capability checks.
+- [x] Add helpers for common capability checks.
   - Example: `talkable?/1`
   - Example: `movable?/1`
   - Example: `location?/1`
   - Example: `tickable?/1`
-- [ ] Keep capability checks separate from text parsing.
-- [ ] Add tests for capability checks by entity type.
-- [ ] Document that richer capability metadata may replace simple type checks later.
+- [x] Keep capability checks separate from text parsing.
+- [x] Add tests for capability checks by entity type.
+- [x] Document that richer capability metadata may replace simple type checks later.
 
 ### Gameplay error handling
 
-- [ ] Prevent talking to non-talkable entities.
+- [x] Prevent talking to non-talkable entities.
   - Example: locations and factions.
-- [ ] Prevent travel to non-location entities.
-- [ ] Prevent movement of non-movable entities if movement helpers become generic.
-- [ ] Return predictable errors for unsupported capabilities.
+- [x] Prevent travel to non-location entities.
+- [x] Prevent movement of non-movable entities if movement helpers become generic.
+- [x] Return predictable errors for unsupported capabilities.
   - Example: `{:error, :entity_not_talkable}`
   - Example: `{:error, :entity_not_movable}`
   - Example: `{:error, :entity_not_a_location}`
-- [ ] Add tests for talking to a location.
-- [ ] Add tests for talking to a faction.
-- [ ] Add tests for trying to travel to an NPC.
-- [ ] Add tests proving valid NPC dialogue still works.
-- [ ] Add tests proving valid travel still works.
+- [x] Add tests for talking to a location.
+- [x] Add tests for talking to a faction.
+- [x] Add tests for trying to travel to an NPC.
+- [x] Add tests proving valid NPC dialogue still works.
+- [x] Add tests proving valid travel still works.
 
 ### Tick behavior boundaries
 
-- [ ] Decide which entity types should be ticked in the current simulation.
-- [ ] First version should probably tick NPCs and skip player/location/faction autonomous behavior unless explicitly enabled.
-- [ ] Keep behavior execution owned by `Entity.tick/1`.
-- [ ] Avoid moving ticking rules into command parsing.
-- [ ] Add tests proving non-tickable entities are not treated as autonomous actors if filtering is implemented.
-- [ ] Keep failed behavior actions visible as structured data.
+- [x] Decide which entity types should be ticked in the current simulation.
+- [x] First version should probably tick NPCs and skip player/location/faction autonomous behavior unless explicitly enabled.
+- [x] Keep behavior execution owned by `Entity.tick/1`.
+- [x] Avoid moving ticking rules into command parsing.
+- [x] Add tests proving non-tickable entities are not treated as autonomous actors if filtering is implemented.
+- [x] Keep failed behavior actions visible as structured data.
 
 ### CLI and display polish
 
-- [ ] Improve display output to prefer readable names over raw IDs where practical.
+- [x] Improve display output to prefer readable names over raw IDs where practical.
 - [ ] Improve local entity output in `look`.
 - [ ] Improve travel output after movement.
 - [ ] Improve error messages for unsupported capabilities.
@@ -173,7 +173,7 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 
 ### Documentation
 
-- [ ] Update `docs/USAGE.md` or demo docs with capability limits.
+- [x] Update `docs/USAGE.md` or demo docs with capability limits.
 - [ ] Document that the CLI is a thin playability layer.
 - [ ] Document that capability rules are intentionally simple for now.
 - [ ] Document deferred richer capability metadata.
