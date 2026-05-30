@@ -1207,13 +1207,13 @@ The goal is not full maps or pathfinding. The goal is to let the player move bet
 
 #### Active scope preparation
 
-* [ ] Add a simple active scope concept to session state if useful.
+* [x] Add a simple active scope concept to session state if useful.
 
   * Example: `active_scope: "scope_starter_area"`
-* [ ] Keep active scope as metadata or plain data first.
-* [ ] Do not implement lazy spawning yet.
+* [x] Keep active scope as metadata or plain data first.
+* [x] Do not implement lazy spawning yet.
 * [ ] Document that all starter locations are still live in this phase.
-* [ ] Add tests for active scope summary if implemented.
+* [x] Add tests for active scope summary if implemented.
 
 #### Documentation and IEx demos
 

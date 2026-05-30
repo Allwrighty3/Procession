@@ -102,6 +102,34 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "active scope" do
+    test "starts without an active scope before game creation" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      summary = GameSession.summary(session)
+
+      assert summary.active_scope == nil
+    end
+
+    test "sets a starter active scope when creating a new game" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert summary.active_scope == "scope_starter_area"
+    end
+
+    test "stores active scope in session summary after game creation" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      session_summary = GameSession.summary(session)
+
+      assert session_summary.active_scope == "scope_starter_area"
+    end
+  end
+
   describe "active_entities/1" do
     test "returns active session entity ids after creating a game" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")

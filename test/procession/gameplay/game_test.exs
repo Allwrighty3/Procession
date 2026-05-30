@@ -563,7 +563,7 @@ defmodule Procession.GameTest do
 
       assert {:ok, summary} = Game.tick_entities(["npc_included"])
 
-      assert summary.entities_ticked >= 1
+      assert summary.entities_ticked == 1
 
       assert Enum.any?(summary.successful_actions, fn action ->
                action.action == :change_status and

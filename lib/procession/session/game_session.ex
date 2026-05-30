@@ -378,6 +378,7 @@ defmodule Procession.GameSession do
               | world: game_summary,
                 player_id: player_id,
                 active_entities: active_entities,
+                active_scope: "scope_starter_area",
                 status: :active
             }
 
