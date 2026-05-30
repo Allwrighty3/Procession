@@ -482,6 +482,16 @@ defmodule Procession.CommandTest do
 
       assert {:ok, ask_mira} = Procession.Command.run(session, "ask Mira about mine")
 
+      assert {:ok, events_mira} = Procession.Command.run(session, "events for Mira")
+
+      assert events_mira.command == :recent_events
+      assert events_mira.entity_id == "npc_mira"
+
+      assert Enum.any?(events_mira.result, fn event ->
+               event.content == "Tobin quietly warned Mira that the mine road was watched." and
+                 event.metadata.source == :entity_tick
+             end)
+
       assert ask_mira.command == :ask_about
 
       assert Enum.any?(ask_mira.result, fn memory ->

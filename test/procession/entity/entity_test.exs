@@ -884,7 +884,9 @@ defmodule Procession.EntityTest do
       )
 
     assert {:ok, response} = result
-    assert response =~ "If Tobin is finally admitting trouble, then the mine is worse than I thought."
+
+    assert response =~
+             "If Tobin is finally admitting trouble, then the mine is worse than I thought."
   end
 
   test "entity AI response does not mutate memory" do

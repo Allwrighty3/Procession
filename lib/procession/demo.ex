@@ -34,9 +34,12 @@ defmodule Procession.Demo do
       - look
       - look at Tobin
       - ask Tobin about road
+      - talk to Tobin: Any news from the road?
       - wait
       - go to Briar Village
+      - look
       - ask Mira about mine
+      - events for Mira
       """)
 
       demo.session
