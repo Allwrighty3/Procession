@@ -123,26 +123,26 @@ The goal is to prove that AI improves NPC interaction while Elixir remains autho
 
 ### AI dialogue boundary
 
-- [ ] Add an explicit way to request Ollama-backed NPC dialogue.
-- [ ] Keep deterministic fake adapter as default for tests.
+- [x] Add an explicit way to request Ollama-backed NPC dialogue.
+- [x] Keep deterministic fake adapter as default for tests.
 - [ ] Restrict AI dialogue to talkable NPCs.
-- [ ] Reuse the existing `Procession.AI` adapter boundary.
+- [x] Reuse the existing `Procession.AI` adapter boundary.
 - [ ] Keep command parsing deterministic.
 - [ ] Do not use AI to interpret player commands in this phase.
-- [ ] Return generated text only.
-- [ ] Do not allow AI to directly mutate entity state.
+- [x] Return generated text only.
+- [x] Do not allow AI to directly mutate entity state.
 - [ ] Do not allow AI to create behavior metadata in this phase.
-- [ ] Add tests using the fake adapter.
-- [ ] Add manual docs for trying Ollama locally.
+- [x] Add tests using the fake adapter.
+- [x] Add manual docs for trying Ollama locally.
 
 ### Prompt context
 
-- [ ] Include NPC name, type, status, location, and traits.
-- [ ] Include relevant memories.
-- [ ] Include player message.
-- [ ] Include current location context if available.
+- [x] Include NPC name, type, status, location, and traits.
+- [x] Include relevant memories.
+- [x] Include player message.
+- [x] Include current location context if available.
 - [ ] Include session/world context only if it is compact and useful.
-- [ ] Keep prompts structured and inspectable.
+- [x] Keep prompts structured and inspectable.
 - [ ] Add tests for prompt construction if prompt logic grows.
 
 ### Session and command integration
