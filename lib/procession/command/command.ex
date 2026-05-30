@@ -7,6 +7,8 @@ defmodule Procession.Command do
   """
 
   alias Procession.GameSession
+  alias Procession.Entity
+  alias Procession.EntitySupervisor
 
   @doc """
   Runs a deterministic player command against a game session.
@@ -52,14 +54,51 @@ defmodule Procession.Command do
   end
 
   defp execute({:ok, {:look_at, target}}, session) do
-    case GameSession.perform(session, :look, entity_id: target) do
-      {:ok, result} ->
-        {:ok, %{command: :look_at, target: target, result: result}}
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, entity_id} <- resolve_entity(session, target),
+         {:ok, result} <- GameSession.perform(session, :look, entity_id: entity_id) do
+      {:ok, %{command: :look_at, target: target, entity_id: entity_id, result: result}}
     end
   end
 
   defp execute({:error, reason}, _session), do: {:error, reason}
+
+  defp resolve_entity(session, target) do
+    owned_entities = GameSession.active_entities(session)
+
+    cond do
+      target in owned_entities ->
+        {:ok, target}
+
+      true ->
+        resolve_entity_by_name(owned_entities, target)
+    end
+  end
+
+  defp resolve_entity_by_name(entity_ids, target_name) do
+    matches =
+      entity_ids
+      |> Enum.filter(fn entity_id ->
+        entity_name_matches?(entity_id, target_name)
+      end)
+
+    case matches do
+      [] -> {:error, :entity_not_found}
+      [entity_id] -> {:ok, entity_id}
+      matches -> {:error, {:ambiguous_entity, matches}}
+    end
+  end
+
+  defp entity_name_matches?(entity_id, target_name) do
+    if EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Entity.get_state(entity_id)
+        entity.name == target_name
+      catch
+        :exit, _reason ->
+          false
+      end
+    else
+      false
+    end
+  end
 end

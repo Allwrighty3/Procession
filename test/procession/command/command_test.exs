@@ -88,11 +88,43 @@ defmodule Procession.CommandTest do
       assert {:error, :missing_target} = Command.run(session, "look at    ")
     end
 
-    test "returns entity_not_in_session for look at with an unknown exact id" do
+    test "returns entity_not_foundfor look at with an unknown exact id" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
 
-      assert {:error, :entity_not_in_session} = Command.run(session, "look at npc_not_owned")
+      assert {:error, :entity_not_found} = Command.run(session, "look at npc_not_owned")
+    end
+
+    test "runs look at against an exact session-owned entity name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+      target_state = Procession.Entity.get_state(target_id)
+
+      assert {:ok, %{command: :look_at, entity_id: ^target_id, result: result}} =
+               Command.run(session, "look at #{target_state.name}")
+
+      assert result.id == target_id
+    end
+
+    test "prefers exact entity id over entity name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok, %{command: :look_at, entity_id: ^target_id, result: result}} =
+               Command.run(session, "look at #{target_id}")
+
+      assert result.id == target_id
+    end
+
+    test "returns entity_not_found for unknown look at name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_found} = Command.run(session, "look at Definitely Not A Person")
     end
   end
 end

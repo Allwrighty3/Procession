@@ -1105,18 +1105,18 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 
 #### Entity name resolution
 
-* [ ] Add simple entity name lookup within a session.
-* [ ] Match exact entity IDs first.
-* [ ] Match entity names second.
-* [ ] Limit lookup to session-owned entities.
+* [x] Add simple entity name lookup within a session.
+* [x] Match exact entity IDs first.
+* [x] Match entity names second.
+* [x] Limit lookup to session-owned entities.
 * [ ] Return predictable errors for ambiguous names.
 
   * Example: `{:error, {:ambiguous_entity, matches}}`
-* [ ] Return predictable errors for unknown names.
+* [x] Return predictable errors for unknown names.
 
   * Example: `{:error, :entity_not_found}`
-* [ ] Add tests for ID lookup.
-* [ ] Add tests for name lookup.
+* [x] Add tests for ID lookup.
+* [x] Add tests for name lookup.
 * [ ] Add tests for unknown and ambiguous names.
 
 #### Command result formatting
