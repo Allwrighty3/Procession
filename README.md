@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–7 and is ready for the next roadmap phase.
+Procession has completed Phases 1–10 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
@@ -13,6 +13,9 @@ Procession has completed Phases 1–7 and is ready for the next roadmap phase.
 - [x] Phase 5: Gameplay Systems & Polish
 - [x] Phase 6: Entity Autonomy & Behavior Schema
 - [x] Phase 7: World Simulation Clock & Scheduling
+- [x] Phase 8: Behavior Execution Integration
+- [x] Phase 9: Game Session Runtime Boundary
+- [x] Phase 10: Player Entity & Location Context
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion criteria.
 
@@ -21,12 +24,12 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `mix.exs` - Mix project configuration, OTP application setup, and dependency declarations.
 - `lib/procession.ex` - Top-level Procession module.
 - `lib/procession/application.ex` - OTP application supervision tree; starts the registry, dynamic entity supervisor, and supervised world clock.
-- `lib/procession/id.ex` - Shared string ID generation helpers for entities, memory entries, and generated runtime objects.
+- `lib/procession/id.ex` - Shared string ID generation helpers for entities, memory entries, sessions, and generated runtime objects.
 
 ### Core entity system
 
 - `lib/procession/entity/entity.ex` - GenServer entity process, messaging APIs, state updates, recall APIs, AI response integration, memory integration, and entity-driven tick behavior.
-- `lib/procession/entity/supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types.
+- `lib/procession/entity/entity_supervisor.ex` - DynamicSupervisor wrapper for starting, stopping, looking up, listing, and generating common entity types, including NPCs, locations, factions, and the session-owned player entity.
 
 ### Memory system
 
@@ -46,19 +49,21 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `lib/procession/generator/generator.ex` - Public generator boundary for deterministic world generation, blueprint validation, spawning generated worlds, relationship metadata attachment, starter memory attachment, generated behavior metadata, and optional AI-assisted generation text.
 - `lib/procession/generator/prompt.ex` - Prompt-building helper for optional AI-assisted world blueprint generation.
 
-### Gameplay and simulation
+### Gameplay, sessions, and simulation
 
-- `lib/procession/gameplay/game.ex` - Public gameplay boundary for deterministic game setup, player-facing inspection, player actions, dialogue requests, memory queries, recent autonomous event inspection, and manual world ticks.
+- `lib/procession/gameplay/game.ex` - Public gameplay boundary for deterministic game setup, player-facing inspection, player actions, dialogue responder checks, memory queries, recent autonomous event inspection, and manual world ticks.
 - `lib/procession/gameplay/behavior.ex` - Safe behavior schema validation and execution for generated entity behavior metadata.
 - `lib/procession/gameplay/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
+- `lib/procession/session/game_session.ex` - Runtime game session boundary for session-owned entities, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware gameplay helpers, cleanup, and last tick summary storage.
 - `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
 - `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
-- Future gameplay modules may be split out only when the public `Procession.Game` boundary becomes too large.
+- `Procession.GameSession` owns active live entity IDs for one play session, including `player_main`, but does not yet provide persistence, command parsing, travel, inventory, quests, or session-scoped ticking.
+- Future gameplay modules may be split out only when the public `Procession.Game` or `Procession.GameSession` boundaries become too large.
 
 ### Documentation
 
 - `docs/ROADMAP.md` - Detailed phase roadmap, task checklists, and phase completion criteria.
-- `docs/USAGE.md` - Copy-pasteable IEx examples for entities, memory, AI, generation, gameplay APIs, manual world ticking, and optional interval ticking.
+- `docs/USAGE.md` - Copy-pasteable IEx examples for entities, memory, AI, generation, gameplay APIs, manual world ticking, game sessions, player entity state, location-relative look, local entity discovery, and optional interval ticking.
 - `docs/ARCHITECTURE.md` - Core architecture principles, OTP ownership, AI validation boundaries, behavior metadata rules, and specialized subsystem guidance.
 - `docs/WORLD_GENERATION.md` - Long-term cascading world generation vision, blueprint hierarchy, lazy expansion, and selective spawning strategy.
 
@@ -74,15 +79,18 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `test/procession/ai/ollama_test.exs` - Ollama adapter tests that do not require Ollama to be running.
 - `test/procession/generator/generator_test.exs` - Procedural generator, blueprint validation, spawning, starter memory, relationship metadata, generated behavior metadata, and optional AI-generation boundary tests.
 - `test/procession/generator/prompt_test.exs` - Generator prompt construction tests.
-- `test/procession/gameplay/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue, memory queries, recent event inspection, and entity-driven world tick tests.
+- `test/procession/gameplay/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue responder restrictions, memory queries, recent event inspection, and entity-driven world tick tests.
 - `test/procession/gameplay/behavior_test.exs` - Behavior schema validation and execution tests.
 - `test/procession/gameplay/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
+- `test/procession/session/game_session_test.exs` - Session runtime boundary, session ownership, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware actions, cleanup, and tick delegation tests.
 
 ### Development direction
 
 - Keep generated behavior metadata as data, not executable code.
 - Treat AI-generated behavior metadata as untrusted until it is validated.
 - Keep autonomous behavior owned by entities; `Procession.Game` and `Procession.WorldClock` should coordinate, not decide story logic.
+- Keep session ownership explicit; `Procession.GameSession` owns active live entity IDs for one play session.
+- Keep the player as a normal session-owned entity while avoiding assumptions that every entity is an actor or dialogue responder.
 - Keep interval ticking optional and disabled by default.
 - Preserve the separation between generated blueprint data and live OTP processes.
-- Build and test function-based APIs before adding command parsing, Phoenix LiveView, persistence, combat, inventory, quests, or deeper simulation systems.
+- Build and test function-based APIs before adding command parsing, Phoenix LiveView, persistence, combat, inventory, quests, travel, or deeper simulation systems.
