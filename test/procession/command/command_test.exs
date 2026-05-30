@@ -312,5 +312,51 @@ defmodule Procession.CommandTest do
 
       assert is_integer(result.entities_ticked)
     end
+
+    test "runs events for against an exact session-owned entity name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+      target_state = Procession.Entity.get_state(target_id)
+
+      assert {:ok,
+              %{
+                command: :recent_events,
+                entity_id: ^target_id,
+                result: events
+              }} = Command.run(session, "events for #{target_state.name}")
+
+      assert is_list(events)
+    end
+
+    test "runs events for against an exact session-owned entity id" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok,
+              %{
+                command: :recent_events,
+                entity_id: ^target_id,
+                result: events
+              }} = Command.run(session, "events for #{target_id}")
+
+      assert is_list(events)
+    end
+
+    test "returns missing_target for malformed events for command" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = Command.run(session, "events for ")
+    end
+
+    test "returns entity_not_found for events for with an unknown target" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_found} = Command.run(session, "events for Nobody")
+    end
   end
 end

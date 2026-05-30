@@ -31,6 +31,7 @@ defmodule Procession.Command do
   defp parse("look"), do: {:ok, :look}
   defp parse("wait"), do: {:ok, :wait}
   defp parse("look at"), do: {:error, :missing_target}
+  defp parse("events for"), do: {:error, :missing_target}
 
   defp parse("look at " <> target) do
     target = String.trim(target)
@@ -92,6 +93,16 @@ defmodule Procession.Command do
     end
   end
 
+  defp parse("events for " <> target) do
+    target = String.trim(target)
+
+    if target == "" do
+      {:error, :missing_target}
+    else
+      {:ok, {:recent_events, target}}
+    end
+  end
+
   defp parse(_command), do: {:error, :unknown_command}
 
   defp execute({:ok, :look}, session) do
@@ -140,6 +151,19 @@ defmodule Procession.Command do
          target: target,
          entity_id: entity_id,
          message: message,
+         result: result
+       }}
+    end
+  end
+
+  defp execute({:ok, {:recent_events, target}}, session) do
+    with {:ok, entity_id} <- resolve_entity(session, target),
+         {:ok, result} <- GameSession.perform(session, :recent_events, entity_id: entity_id) do
+      {:ok,
+       %{
+         command: :recent_events,
+         target: target,
+         entity_id: entity_id,
          result: result
        }}
     end
