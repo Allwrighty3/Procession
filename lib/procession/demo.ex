@@ -72,6 +72,26 @@ defmodule Procession.Demo do
   end
 
   @doc """
+  Cleans up a demo session and prints a short cleanup summary.
+
+  Accepts either the full demo map returned by `start/1` or the session pid.
+  """
+  def stop(demo_or_session) do
+    with {:ok, session} <- session_from(demo_or_session) do
+      cleanup_summary = GameSession.cleanup(session)
+
+      IO.puts("""
+      Demo cleaned up.
+      Stopped entities: #{length(cleanup_summary.stopped)}
+      Missing entities: #{length(cleanup_summary.missing)}
+      Status: #{cleanup_summary.status}
+      """)
+
+      :ok
+    end
+  end
+
+  @doc """
   Runs a command and returns formatted text without printing it.
 
   Useful for tests or for callers that want to decide how to display output.

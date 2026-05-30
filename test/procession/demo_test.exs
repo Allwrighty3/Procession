@@ -121,4 +121,24 @@ defmodule Procession.DemoTest do
     assert output =~ "Recent events for Mira:"
     assert output =~ "Tobin quietly warned Mira"
   end
+
+  test "stops a demo session and prints a cleanup summary" do
+    assert {:ok, demo} = Demo.start()
+
+    output =
+      capture_io(fn ->
+        assert :ok = Demo.stop(demo)
+      end)
+
+    assert output =~ "Demo cleaned up."
+    assert output =~ "Stopped entities:"
+    assert output =~ "Missing entities:"
+    assert output =~ "Status: cleaned_up"
+
+    refute Procession.EntitySupervisor.exists?("player_main")
+  end
+
+  test "rejects invalid demo sessions during cleanup" do
+    assert Demo.stop(%{}) == {:error, :invalid_demo_session}
+  end
 end
