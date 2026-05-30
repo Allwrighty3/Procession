@@ -14,6 +14,24 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  defmodule ExplicitAdapterAssertAdapter do
+    @behaviour Procession.AI
+
+    @impl true
+    def generate(prompt, opts) do
+      cond do
+        Keyword.get(opts, :model) != "test-model" ->
+          {:error, :missing_model_opt}
+
+        prompt =~ "Speaker:" and prompt =~ "Current location context:" ->
+          {:ok, "explicit adapter received structured dialogue"}
+
+        true ->
+          {:error, :missing_structured_prompt_context}
+      end
+    end
+  end
+
   alias Procession.GameSession
 
   setup do
@@ -336,6 +354,20 @@ defmodule Procession.GameSessionTest do
       assert {:ok, after_cleanup_tick} = Procession.WorldClock.tick(clock)
       assert after_cleanup_tick.entities_considered == 0
       assert after_cleanup_tick.entities_ticked == 0
+    end
+
+    test "session talk_to passes explicit AI adapter options through dialogue boundary" do
+      {:ok, session} = GameSession.start_link()
+      {:ok, _summary} = GameSession.new_game(session, "anything")
+
+      assert {:ok, "explicit adapter received structured dialogue"} =
+               GameSession.talk_to(
+                 session,
+                 "npc_mira",
+                 "What do you know about Tobin?",
+                 adapter: __MODULE__.ExplicitAdapterAssertAdapter,
+                 model: "test-model"
+               )
     end
   end
 
