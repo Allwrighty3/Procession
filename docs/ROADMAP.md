@@ -20,6 +20,7 @@ The detailed historical phase checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_AR
 - [x] Phase 12: Basic Travel & Active Scope Preparation
 - [x] Phase 13: First Playable Vertical Slice
 - [x] Phase 14: Tiny Local CLI Loop
+- [x] Phase 15: Capability Boundaries & Playability Polish
 
 Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
@@ -29,11 +30,10 @@ Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
 ### Current Focus
 
-- [ ] Phase 15: Capability Boundaries & Playability Polish
+- [ ] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
 
 ### Near-Term
 
-- [ ] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
 - [ ] Phase 17: Starter Area Content Depth & World Reactivity
 - [ ] Phase 18: Rumor / Thread Prototype
 
@@ -158,8 +158,8 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 
 ### Demo stability
 
-- [ ] Add or update a short demo transcript test.
-- [ ] Ensure the basic command loop still supports:
+- [x] Add or update a short demo transcript test.
+- [x] Ensure the basic command loop still supports:
   - `look`
   - `look at Tobin`
   - `ask Tobin about road`
@@ -168,15 +168,15 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
   - `go to Briar Village`
   - `look`
   - `events for Mira`
-- [ ] Keep the CLI deterministic by default.
-- [ ] Ensure tests do not require Ollama.
+- [x] Keep the CLI deterministic by default.
+- [x] Ensure tests do not require Ollama.
 
 ### Documentation
 
 - [x] Update `docs/USAGE.md` or demo docs with capability limits.
-- [ ] Document that the CLI is a thin playability layer.
-- [ ] Document that capability rules are intentionally simple for now.
-- [ ] Document deferred richer capability metadata.
+- [x] Document that the CLI is a thin playability layer.
+- [x] Document that capability rules are intentionally simple for now.
+- [x] Document deferred richer capability metadata.
 
 ### Deferred from Phase 15
 
@@ -504,15 +504,15 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 
 ### Phase 15 is complete when:
 
-- [ ] Basic entity capability rules exist.
-- [ ] Gameplay APIs return predictable errors for unsupported capabilities.
-- [ ] Non-talkable entities cannot be talked to.
-- [ ] Non-location entities cannot be traveled to.
-- [ ] Tick behavior boundaries are documented or enforced.
-- [ ] CLI/display output is clearer without owning gameplay logic.
-- [ ] Tests cover capability rules and common failure cases.
-- [ ] The playable demo loop still works.
-- [ ] Ollama, persistence, quests, combat, and large-world expansion remain deferred.
+- [x] Basic entity capability rules exist.
+- [x] Gameplay APIs return predictable errors for unsupported capabilities.
+- [x] Non-talkable entities cannot be talked to.
+- [x] Non-location entities cannot be traveled to.
+- [x] Tick behavior boundaries are documented or enforced.
+- [x] CLI/display output is clearer without owning gameplay logic.
+- [x] Tests cover capability rules and common failure cases.
+- [x] The playable demo loop still works.
+- [x] Ollama, persistence, quests, combat, and large-world expansion remain deferred.
 
 ### Phase 16 is complete when:
 
