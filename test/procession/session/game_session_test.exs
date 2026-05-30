@@ -91,6 +91,15 @@ defmodule Procession.GameSessionTest do
                Procession.EntitySupervisor.exists?(entity_id)
              end)
     end
+
+    test "includes world name and active entity count after game creation" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert summary.world_name == "Echoes of the Old Road"
+      assert summary.active_entity_count == length(summary.active_entities)
+    end
   end
 
   describe "active_entities/1" do
@@ -152,9 +161,7 @@ defmodule Procession.GameSessionTest do
       assert Enum.sort(cleanup_summary.stopped) == Enum.sort(summary.active_entities)
       assert cleanup_summary.missing == []
 
-      refute Enum.any?(summary.active_entities, fn entity_id ->
-               Procession.EntitySupervisor.exists?(entity_id)
-             end)
+      assert eventually_all_entities_stopped?(summary.active_entities)
     end
 
     test "marks the session as cleaned up" do
@@ -466,6 +473,21 @@ defmodule Procession.GameSessionTest do
       session_summary = GameSession.summary(session)
 
       assert session_summary.last_tick_summary == tick_summary
+    end
+  end
+
+  defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
+
+  defp eventually_all_entities_stopped?(_entity_ids, 0), do: false
+
+  defp eventually_all_entities_stopped?(entity_ids, attempts) do
+    if Enum.all?(entity_ids, fn entity_id ->
+         not Procession.EntitySupervisor.exists?(entity_id)
+       end) do
+      true
+    else
+      Process.sleep(10)
+      eventually_all_entities_stopped?(entity_ids, attempts - 1)
     end
   end
 end

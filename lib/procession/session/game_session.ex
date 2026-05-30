@@ -142,6 +142,22 @@ defmodule Procession.GameSession do
     |> Enum.uniq()
   end
 
+  defp build_summary(state) do
+    %{
+      session_id: state.session_id,
+      status: state.status,
+      world: state.world,
+      world_name: world_name(state.world),
+      active_scope: state.active_scope,
+      active_entities: state.active_entities,
+      active_entity_count: length(state.active_entities),
+      last_tick_summary: state.last_tick_summary
+    }
+  end
+
+  defp world_name(nil), do: nil
+  defp world_name(world), do: Map.get(world, :name)
+
   @impl true
   def init(opts) do
     session_id = Keyword.get_lazy(opts, :session_id, fn -> Id.generate("session") end)
@@ -155,7 +171,7 @@ defmodule Procession.GameSession do
 
   @impl true
   def handle_call(:summary, _from, state) do
-    {:reply, Map.from_struct(state), state}
+    {:reply, build_summary(state), state}
   end
 
   @impl true
@@ -171,7 +187,7 @@ defmodule Procession.GameSession do
             status: :active
         }
 
-        {:reply, {:ok, Map.from_struct(new_state)}, new_state}
+        {:reply, {:ok, build_summary(new_state)}, new_state}
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
