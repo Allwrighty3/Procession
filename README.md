@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–10 and is ready for the next roadmap phase.
+Procession has completed Phases 1–11 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
@@ -59,8 +59,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `lib/procession/command/command.ex` - Deterministic text command boundary for `look`, `look at`, `ask about`, `talk to`, `wait`, and recent-event inspection commands; resolves session-owned entity IDs/names and delegates to existing session-aware gameplay APIs without owning gameplay logic.
 - `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
 - `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
-- `Procession.GameSession` owns active live entity IDs for one play session, including `player_main`, but does not yet provide persistence, command parsing, travel, inventory, quests, or session-scoped ticking.
-- Future gameplay modules may be split out only when the public `Procession.Game` or `Procession.GameSession` boundaries become too large.
+- `Procession.GameSession` owns active live entity IDs for one play session, including `player_main`, but does not yet provide persistence, travel, inventory, quests, or session-scoped ticking.
 
 ### Documentation
 
