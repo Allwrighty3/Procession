@@ -819,14 +819,14 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Session and clock relationship
 
-* [ ] Decide how sessions relate to the existing supervised world clock.
-* [ ] Keep the first version simple.
+* [x] Decide how sessions relate to the existing supervised world clock.
+* [x] Keep the first version simple.
 
   * Recommended first version: session does not own a private clock.
-* [ ] Document that `WorldClock` still ticks all live entities for now.
-* [ ] Defer session-scoped ticking until after ownership is stable.
-* [ ] Add tests proving existing `WorldClock` behavior still works with session-created entities.
-* [ ] Do not add per-session clocks yet unless clearly needed.
+* [x] Document that `WorldClock` still ticks all live entities for now.
+* [x] Defer session-scoped ticking until after ownership is stable.
+* [x] Add tests proving existing `WorldClock` behavior still works with session-created entities.
+* [x] Do not add per-session clocks yet unless clearly needed.
 
 #### Documentation and IEx demos
 

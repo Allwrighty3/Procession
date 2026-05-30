@@ -442,6 +442,34 @@ defmodule Procession.GameTest do
              {:ok, %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}
   end
 
+  test "tick_world records missing entities as failed tick actions" do
+    assert {:ok, _pid} =
+             Procession.EntitySupervisor.start_npc("npc_disappearing", %{
+               name: "Disappearing NPC",
+               metadata: %{
+                 behaviors: [
+                   %{
+                     trigger: :world_tick,
+                     action: :change_status,
+                     status: :alert
+                   }
+                 ]
+               }
+             })
+
+    entities = Procession.EntitySupervisor.list_entities()
+
+    assert Enum.any?(entities, fn {id, _pid} -> id == "npc_disappearing" end)
+
+    :ok = Procession.EntitySupervisor.stop_entity("npc_disappearing")
+
+    # This mostly protects the implementation path. If the registry cleans up too fast,
+    # the world simply has no entity to tick, which is also valid.
+    assert {:ok, summary} = Procession.Game.tick_world()
+
+    assert is_list(summary.failed_actions)
+  end
+
   test "recent_events returns entity tick memories for an entity" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 

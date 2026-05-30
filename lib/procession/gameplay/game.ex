@@ -111,7 +111,7 @@ defmodule Procession.Game do
     results =
       EntitySupervisor.list_entities()
       |> Enum.map(fn {id, _pid} ->
-        Entity.tick(id)
+        safe_tick_entity(id)
       end)
 
     actions =
@@ -194,4 +194,27 @@ defmodule Procession.Game do
       :error -> {:error, error_reason}
     end
   end
+
+  defp safe_tick_entity(entity_id) do
+    try do
+      Entity.tick(entity_id)
+    catch
+      :exit, reason ->
+        {:ok,
+         %{
+           actions: [
+             %{
+               status: :error,
+               action: :tick,
+               entity_id: entity_id,
+               reason: normalize_tick_exit_reason(reason)
+             }
+           ]
+         }}
+    end
+  end
+
+  defp normalize_tick_exit_reason({{:noproc, _}, _details}), do: :entity_not_found
+  defp normalize_tick_exit_reason({:noproc, _details}), do: :entity_not_found
+  defp normalize_tick_exit_reason(reason), do: reason
 end

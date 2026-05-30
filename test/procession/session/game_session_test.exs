@@ -165,7 +165,7 @@ defmodule Procession.GameSessionTest do
 
       session_summary = GameSession.summary(session)
 
-      assert session_summary.status
+      assert session_summary.status == :cleaned_up
     end
 
     test "retains owned entity ids after cleanup for inspection" do
@@ -211,6 +211,40 @@ defmodule Procession.GameSessionTest do
       GameSession.cleanup(session)
 
       assert Process.alive?(session)
+    end
+  end
+
+  describe "session and clock relationship" do
+    test "world clock ticks session-created entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, session_summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, clock} = Procession.WorldClock.start_link(name: nil)
+
+      assert {:ok, tick_summary} = Procession.WorldClock.tick(clock)
+
+      assert tick_summary.entities_ticked >= length(session_summary.active_entities)
+      assert is_list(tick_summary.actions)
+      assert is_list(tick_summary.failed_actions)
+    end
+
+    test "session cleanup removes entities from future world clock ticks" do
+      {:ok, session} = GameSession.start_link(session_id: "session_id")
+      {:ok, session_summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, clock} = Procession.WorldClock.start_link(name: nil)
+
+      assert {:ok, before_cleanup_tick} = Procession.WorldClock.tick(clock)
+      assert before_cleanup_tick.entities_ticked >= length(session_summary.active_entities)
+
+      cleanup_summary = GameSession.cleanup(session)
+
+      assert cleanup_summary.status == :cleaned_up
+
+      Process.sleep(10)
+
+      assert {:ok, after_cleanup_tick} = Procession.WorldClock.tick(clock)
+      assert after_cleanup_tick.entities_ticked == 0
     end
   end
 end
