@@ -294,20 +294,39 @@ defmodule Procession.Entity do
       |> Procession.Memory.flatten()
       |> Procession.AI.MemoryContext.select(opts)
 
-    prompt =
-      Procession.AI.Prompt.npc_response(%{
-        name: state.name,
-        status: state.status,
-        location: state.location,
-        traits: state.traits,
-        memories: memories,
-        player_message: player_message
-      })
+    with {:ok, request} <-
+           Procession.AI.DialogueRequest.from_entity_state(
+             state,
+             player_message,
+             memories,
+             Keyword.take(opts, [:location_context, :world_context])
+           ) do
+      prompt =
+        Procession.AI.Prompt.npc_response(%{
+          name: request.npc.name,
+          status: request.npc.status,
+          location: request.npc.location,
+          traits: request.npc.traits,
+          memories: request.relevant_memories,
+          player_message: request.player_message
+        })
 
-    ai_opts = Keyword.drop(opts, [:recent_count, :minimum_importance])
-    result = Procession.AI.generate(prompt, ai_opts)
+      ai_opts =
+        opts
+        |> Keyword.drop([
+          :recent_count,
+          :minimum_importance,
+          :location_context,
+          :world_context
+        ])
 
-    {:reply, result, state}
+      result = Procession.AI.generate(prompt, ai_opts)
+
+      {:reply, result, state}
+    else
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   @impl true

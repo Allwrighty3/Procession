@@ -908,6 +908,40 @@ defmodule Procession.EntityTest do
     assert after_summary == before_summary
   end
 
+  test "entity AI response does not mutate behavior metadata, status, or location" do
+    {:ok, _pid} =
+      Procession.EntitySupervisor.start_npc("npc_ai_state_boundary_test", %{
+        name: "Mira",
+        location: "blacksmith_shop",
+        status: :watching,
+        metadata: %{
+          behaviors: [
+            %{
+              trigger: :world_tick,
+              action: :change_status,
+              status: :alert
+            }
+          ],
+          description: "Mira watches the road from the inn window."
+        }
+      })
+
+    before_state = Procession.Entity.get_state("npc_ai_state_boundary_test")
+
+    assert {:ok, _response} =
+             Procession.Entity.generate_response(
+               "npc_ai_state_boundary_test",
+               "What do you know about the road?",
+               adapter: Procession.AI.FakeAdapter
+             )
+
+    after_state = Procession.Entity.get_state("npc_ai_state_boundary_test")
+
+    assert after_state.status == before_state.status
+    assert after_state.location == before_state.location
+    assert after_state.metadata == before_state.metadata
+  end
+
   test "tick performs send_message behavior from entity metadata" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
 

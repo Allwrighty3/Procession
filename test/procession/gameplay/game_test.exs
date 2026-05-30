@@ -294,6 +294,29 @@ defmodule Procession.GameTest do
       assert {:error, :entity_not_talkable} =
                Game.talk_to(faction_id, "Hello?", adapter: Procession.AI.FakeAdapter)
     end
+
+    test "talk_to returns dialogue text without mutating NPC state" do
+      assert {:ok, _game} = Procession.Game.new_game("anything")
+
+      before_state = Procession.Entity.get_state("npc_mira")
+      before_memory = Procession.Entity.memory_summary("npc_mira")
+
+      assert {:ok, response} =
+               Procession.Game.talk_to(
+                 "npc_mira",
+                 "What do you know about Tobin?",
+                 adapter: Procession.AI.FakeAdapter
+               )
+
+      after_state = Procession.Entity.get_state("npc_mira")
+      after_memory = Procession.Entity.memory_summary("npc_mira")
+
+      assert is_binary(response)
+      assert after_memory == before_memory
+      assert after_state.status == before_state.status
+      assert after_state.location == before_state.location
+      assert after_state.metadata == before_state.metadata
+    end
   end
 
   describe "perform/2" do

@@ -106,20 +106,20 @@ The goal is to prove that AI improves NPC interaction while Elixir remains autho
 
 ### First implementation slice
 
-- [ ] Inspect the existing `Procession.AI` adapter boundary.
-- [ ] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
-- [ ] Confirm the fake adapter remains the default test path.
+- [x] Inspect the existing `Procession.AI` adapter boundary.
+- [x] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
+- [x] Confirm the fake adapter remains the default test path.
 - [ ] Add a structured dialogue request shape if one does not already exist.
   - Example fields: `:npc`, `:player_message`, `:relevant_memories`, `:location_context`, `:world_context`.
-- [ ] Add a pure prompt builder function.
+- [x] Add a pure prompt builder function.
   - It should accept validated data.
   - It should return inspectable prompt text or structured prompt messages.
   - It should not call Ollama directly.
-- [ ] Add tests for prompt construction using deterministic data.
-- [ ] Add tests proving AI dialogue returns text only.
-- [ ] Add tests proving AI dialogue does not mutate memory.
-- [ ] Add tests proving AI dialogue does not mutate behavior metadata.
-- [ ] Add tests proving AI dialogue does not change NPC status/location.
+- [x] Add tests for prompt construction using deterministic data.
+- [x] Add tests proving AI dialogue returns text only.
+- [x] Add tests proving AI dialogue does not mutate memory.
+- [x] Add tests proving AI dialogue does not mutate behavior metadata.
+- [x] Add tests proving AI dialogue does not change NPC status/location.
 
 ### AI dialogue boundary
 
