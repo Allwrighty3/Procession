@@ -558,4 +558,21 @@ defmodule Procession.CommandTest do
     assert result.result.local_entities == ["npc_tobin"]
     assert result.result.local_entity_names == ["Tobin"]
   end
+
+  test "talk command uses deterministic dialogue path by default" do
+    {:ok, session} = Procession.GameSession.start_link()
+    {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+    assert {:ok, result} =
+             Procession.Command.run(session, "talk to Mira: What do you know about Tobin?")
+
+    assert result.command == :talk_to
+    assert result.entity_id == "npc_mira"
+    assert result.entity_name == "Mira"
+    assert result.target == "Mira"
+    assert result.message == "What do you know about Tobin?"
+
+    assert result.result =~
+             "If Tobin is finally admitting trouble, then the mine is worse than I thought."
+  end
 end
