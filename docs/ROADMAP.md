@@ -34,14 +34,15 @@ Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
 ### Near-Term
 
-- [ ] Phase 17: Starter Area Content Depth & World Reactivity
-- [ ] Phase 18: Rumor / Thread Prototype
+- [ ] Phase 17: Dialogue Context & Grounded AI Responses
+- [ ] Phase 18: Starter Area Content Depth & World Reactivity
+- [ ] Phase 19: Rumor / Thread Prototype
 
 ### Larger Simulation Direction
 
-- [ ] Phase 19: Active Scope & Selective Simulation
-- [ ] Phase 20: Cascading World Generation Foundation
-- [ ] Phase 21: AI-Assisted Validated Expansion
+- [ ] Phase 20: Active Scope & Selective Simulation
+- [ ] Phase 21: Cascading World Generation Foundation
+- [ ] Phase 22: AI-Assisted Validated Expansion
 
 ---
 
@@ -175,9 +176,64 @@ The goal is to prove that AI improves NPC interaction while Elixir remains autho
 
 ---
 
-## Phase 17: Starter Area Content Depth & World Reactivity
+## Phase 17: Dialogue Context & Grounded AI Responses
 
-Phase 17 makes the current starter area more interesting while keeping the simulation deterministic and inspectable.
+Phase 17 creates a structured dialogue context system so AI-generated NPC dialogue is grounded in authoritative simulation data instead of ad hoc prompt text.
+
+The goal is to reduce hallucinated NPC facts while preserving the rule that AI dialogue is expression, not state authority.
+
+### Context boundary
+
+- [ ] Add a plain-data dialogue context module.
+  - Example: `Procession.Dialogue.Context`
+- [ ] Keep dialogue context construction outside the AI adapter.
+- [ ] Build context from authoritative Elixir state only.
+- [ ] Keep context data inspectable in tests.
+- [ ] Do not store AI output as memory in this phase.
+
+### First context slice
+
+- [ ] Include target NPC facts.
+  - ID, name, type, status, location, traits.
+- [ ] Include speaker facts.
+  - ID, name, type.
+- [ ] Include current location facts.
+  - ID, name, description, exits.
+- [ ] Include known active entities in the current session/scope.
+  - ID, name, type, status, location, traits.
+- [ ] Include relevant target memories.
+- [ ] Add tests proving known entity facts appear in context.
+
+### Prompt grounding
+
+- [ ] Update prompt builder to consume dialogue context.
+- [ ] Add explicit instruction not to invent facts outside provided context.
+- [ ] Add tests proving prompt includes known entity roles and locations.
+- [ ] Add tests proving prompt includes uncertainty instructions.
+- [ ] Keep prompt construction pure.
+
+### CLI-visible behavior
+
+- [ ] Verify AI dialogue can answer simple grounded questions.
+  - Example: “Who is Mira?”
+  - Example: “What is Mira’s occupation?”
+  - Example: “Where is Mira?”
+- [ ] Document that small local models may still hallucinate.
+- [ ] Keep CLI deterministic by default.
+
+### Deferred from Phase 17
+
+- [ ] Defer storing AI dialogue as memory.
+- [ ] Defer AI-generated facts becoming world truth.
+- [ ] Defer long-term conversation memory.
+- [ ] Defer validated rumor/thread mutation.
+- [ ] Defer NPC-specific knowledge limits beyond active scope.
+
+---
+
+## Phase 18: Starter Area Content Depth & World Reactivity
+
+Phase 18 makes the current starter area more interesting while keeping the simulation deterministic and inspectable.
 
 The goal is to improve visible world reactivity. The starter area should feel less like a static demo and more like a small living situation.
 
@@ -209,7 +265,7 @@ The goal is to improve visible world reactivity. The starter area should feel le
 - [ ] Add optional AI-enhanced demo notes if Phase 16 supports them.
 - [ ] Keep the demo focused on simulation behavior, not just prettier text.
 
-### Deferred from Phase 17
+### Deferred from Phase 18
 
 - [ ] Defer full quest systems.
 - [ ] Defer combat.
@@ -219,9 +275,9 @@ The goal is to improve visible world reactivity. The starter area should feel le
 
 ---
 
-## Phase 18: Rumor / Thread Prototype
+## Phase 19: Rumor / Thread Prototype
 
-Phase 18 introduces a small world-thread system.
+Phase 19 introduces a small world-thread system.
 
 The goal is to track emerging story threads without building a rigid quest system. Threads should help the player follow world activity while preserving the simulation-first design.
 
@@ -262,7 +318,7 @@ The goal is to track emerging story threads without building a rigid quest syste
 - [ ] Keep output readable but not overly polished.
 - [ ] Document that threads are not full quests yet.
 
-### Deferred from Phase 18
+### Deferred from Phase 19
 
 - [ ] Defer quest rewards.
 - [ ] Defer objectives/checklists unless they naturally emerge.
@@ -272,9 +328,9 @@ The goal is to track emerging story threads without building a rigid quest syste
 
 ---
 
-## Phase 19: Active Scope & Selective Simulation
+## Phase 20: Active Scope & Selective Simulation
 
-Phase 19 returns to the long-term large-world architecture.
+Phase 20 returns to the long-term large-world architecture.
 
 The goal is to formalize the difference between live active content and inactive blueprint/summary content. This prevents large worlds from becoming fully spawned GenServer forests.
 
@@ -314,7 +370,7 @@ The goal is to formalize the difference between live active content and inactive
 - [ ] Avoid storing all future content as live entities.
 - [ ] Add small examples in `WORLD_GENERATION.md` if useful.
 
-### Deferred from Phase 19
+### Deferred from Phase 20
 
 - [ ] Defer region-scale generation.
 - [ ] Defer save/load.
@@ -324,9 +380,9 @@ The goal is to formalize the difference between live active content and inactive
 
 ---
 
-## Phase 20: Cascading World Generation Foundation
+## Phase 21: Cascading World Generation Foundation
 
-Phase 20 begins the large-world generation pipeline.
+Phase 21 begins the large-world generation pipeline.
 
 The goal is not to generate everything at once. The goal is to generate broad summaries first, then expand details only when needed.
 
@@ -367,7 +423,7 @@ The goal is not to generate everything at once. The goal is to generate broad su
 - [ ] Keep active scope ownership explicit.
 - [ ] Add tests for activating generated scope data.
 
-### Deferred from Phase 20
+### Deferred from Phase 21
 
 - [ ] Defer AI-generated hierarchy if deterministic generation is not stable.
 - [ ] Defer persistence.
@@ -377,9 +433,9 @@ The goal is not to generate everything at once. The goal is to generate broad su
 
 ---
 
-## Phase 21: AI-Assisted Validated Expansion
+## Phase 22: AI-Assisted Validated Expansion
 
-Phase 21 uses local AI to propose larger world content.
+Phase 22 uses local AI to propose larger world content.
 
 The goal is to let Ollama assist generation without making it authoritative. AI proposes. Elixir validates. Invalid content gets rejected, repaired, or ignored.
 
@@ -416,7 +472,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Consider Python tooling later for prompt evaluation or generation diagnostics.
 - [ ] Do not add Python into the simulation runtime.
 
-### Deferred from Phase 21
+### Deferred from Phase 22
 
 - [ ] Defer AI autonomous planning.
 - [ ] Defer direct AI state mutation.
@@ -453,6 +509,19 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 
 ### Phase 17 is complete when:
 
+- [ ] A dedicated plain-data dialogue context module exists.
+- [ ] Dialogue context is built from authoritative Elixir state, not AI output.
+- [ ] Dialogue context includes target NPC facts, speaker facts, current location facts, known active entities, and relevant memories.
+- [ ] Prompt construction consumes structured dialogue context instead of scattered ad hoc fields.
+- [ ] Prompts include grounding instructions that discourage invented occupations, locations, relationships, timelines, and events.
+- [ ] `GameSession.talk_to/4` uses structured dialogue context while preserving explicit adapter options and timeout support.
+- [ ] CLI AI dialogue can answer simple grounded questions more consistently when answers exist in context.
+- [ ] Tests cover dialogue context construction, prompt rendering, and session integration without requiring Ollama.
+- [ ] Documentation explains grounded AI dialogue and makes clear that AI output is expression, not world truth.
+- [ ] Long-term conversation memory, AI-generated world facts, validated rumor/thread mutation, semantic memory search, and AI command interpretation remain deferred.
+
+### Phase 18 is complete when:
+
 - [ ] The starter area has richer deterministic memories or topics.
 - [ ] At least one `wait` action creates a visible consequence.
 - [ ] Player-facing inspection can reveal new world activity.
@@ -461,7 +530,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Documentation explains the updated starter-area demo.
 - [ ] Quests, combat, inventory, persistence, and large-world expansion remain deferred.
 
-### Phase 18 is complete when:
+### Phase 19 is complete when:
 
 - [ ] A simple world-thread data model exists.
 - [ ] At least one starter thread can be discovered.
@@ -472,7 +541,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Tests cover thread discovery and inspection.
 - [ ] Full quest systems, rewards, branching quests, and AI-authored progression remain deferred.
 
-### Phase 19 is complete when:
+### Phase 20 is complete when:
 
 - [ ] Active scope is represented as explicit session/runtime data.
 - [ ] Session ticking can be limited to active-scope entities.
@@ -482,7 +551,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Documentation explains active scope versus blueprint versus live process.
 - [ ] Region-scale generation, persistence, and inactive background simulation remain deferred.
 
-### Phase 20 is complete when:
+### Phase 21 is complete when:
 
 - [ ] A cascading world hierarchy shape exists.
 - [ ] Region summaries can be generated or represented as inert data.
@@ -493,7 +562,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Documentation explains the broad-to-detailed generation pipeline.
 - [ ] AI generation, persistence, and large-scale background simulation remain deferred unless explicitly started.
 
-### Phase 21 is complete when:
+### Phase 22 is complete when:
 
 - [ ] Local AI can propose region or scope expansion content through a controlled boundary.
 - [ ] AI output is parsed into candidate data.

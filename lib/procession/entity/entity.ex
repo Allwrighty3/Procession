@@ -108,8 +108,12 @@ defmodule Procession.Entity do
     GenServer.call(via_tuple(id), :memory_summary)
   end
 
+  @default_dialogue_timeout 60_000
+
   def generate_response(id, player_message, opts \\ []) do
-    GenServer.call(via_tuple(id), {:generate_response, player_message, opts})
+    timeout = Keyword.get(opts, :timeout, @default_dialogue_timeout)
+
+    GenServer.call(via_tuple(id), {:generate_response, player_message, opts}, timeout)
   end
 
   def tick(id) do
@@ -320,7 +324,8 @@ defmodule Procession.Entity do
           :minimum_importance,
           :speaker,
           :location_context,
-          :world_context
+          :world_context,
+          :timeout
         ])
 
       result = Procession.AI.generate(prompt, ai_opts)

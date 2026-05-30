@@ -1,6 +1,18 @@
 defmodule Procession.CommandTest do
   use ExUnit.Case, async: false
 
+  defmodule ExplicitDialogueAdapter do
+    @behaviour Procession.AI
+
+    @impl true
+    def generate(_prompt, opts) do
+      case Keyword.get(opts, :model) do
+        "cli-test-model" -> {:ok, "AI adapter response from command path."}
+        _ -> {:error, :missing_cli_model}
+      end
+    end
+  end
+
   alias Procession.Command
   alias Procession.GameSession
 
@@ -574,5 +586,22 @@ defmodule Procession.CommandTest do
 
     assert result.result =~
              "If Tobin is finally admitting trouble, then the mine is worse than I thought."
+  end
+
+  test "talk command can use explicit AI dialogue adapter options" do
+    {:ok, session} = Procession.GameSession.start_link()
+    {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+    assert {:ok, result} =
+             Procession.Command.run(
+               session,
+               "talk to Mira: What do you know about Tobin?",
+               adapter: __MODULE__.ExplicitDialogueAdapter,
+               model: "cli-test-model"
+             )
+
+    assert result.command == :talk_to
+    assert result.entity_id == "npc_mira"
+    assert result.result == "AI adapter response from command path."
   end
 end

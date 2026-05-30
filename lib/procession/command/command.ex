@@ -17,15 +17,18 @@ defmodule Procession.Command do
   Command parsing is intentionally small and local. AI command interpretation,
   fuzzy matching, aliases, and CLI behavior are deferred.
   """
-  def run(_session, command_text) when not is_binary(command_text) do
+
+  def run(session, command_text, opts \\ [])
+
+  def run(_session, command_text, _opts) when not is_binary(command_text) do
     {:error, :invalid_command}
   end
 
-  def run(session, command_text) do
+  def run(session, command_text, opts) when is_list(opts) do
     command_text
     |> String.trim()
     |> parse()
-    |> execute(session)
+    |> execute(session, opts)
   end
 
   defp parse(""), do: {:error, :invalid_command}
@@ -126,20 +129,20 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:ok, :look}, session) do
+  defp execute({:ok, :look}, session, _opts) do
     session
     |> GameSession.perform(:look)
     |> enrich_look_result()
     |> wrap_result(:look)
   end
 
-  defp execute({:ok, :wait}, session) do
+  defp execute({:ok, :wait}, session, _opts) do
     session
     |> GameSession.perform(:tick)
     |> wrap_result(:wait)
   end
 
-  defp execute({:ok, {:look_at, target}}, session) do
+  defp execute({:ok, {:look_at, target}}, session, _opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:look, entity_id: entity_id)
@@ -151,7 +154,7 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:ok, {:ask_about, target, topic}}, session) do
+  defp execute({:ok, {:ask_about, target, topic}}, session, _opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:ask_about, entity_id: entity_id, topic: topic)
@@ -164,10 +167,16 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:ok, {:talk_to, target, message}}, session) do
+  defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
+      dialogue_opts =
+        opts
+        |> Keyword.take([:adapter, :model, :timeout])
+
+      perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
+
       session
-      |> GameSession.perform(:talk_to, entity_id: entity_id, message: message)
+      |> GameSession.perform(:talk_to, perform_opts)
       |> wrap_result(:talk_to, %{
         target: target,
         entity_id: entity_id,
@@ -177,7 +186,7 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:ok, {:recent_events, target}}, session) do
+  defp execute({:ok, {:recent_events, target}}, session, _opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:recent_events, entity_id: entity_id)
@@ -189,7 +198,7 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:ok, {:travel_to, destination}}, session) do
+  defp execute({:ok, {:travel_to, destination}}, session, _opts) do
     with {:ok, destination_id} <- resolve_location(session, destination) do
       session
       |> GameSession.perform(:travel, destination_id: destination_id)
@@ -201,7 +210,7 @@ defmodule Procession.Command do
     end
   end
 
-  defp execute({:error, reason}, _session), do: {:error, reason}
+  defp execute({:error, reason}, _session, _opts), do: {:error, reason}
 
   defp resolve_entity(session, target) do
     owned_entities = GameSession.active_entities(session)

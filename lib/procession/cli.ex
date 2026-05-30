@@ -26,15 +26,15 @@ defmodule Procession.CLI do
   - quit
   """
 
-  def play(prompt \\ "a quiet frontier town") do
+  def play(prompt \\ "a quiet frontier town", opts \\ []) do
     with {:ok, demo} <- GameSession.start_demo(prompt) do
-      print_intro()
+      print_intro(opts)
       print_current_location(demo.session)
-      loop(demo.session)
+      loop(demo.session, opts)
     end
   end
 
-  defp loop(session) do
+  defp loop(session, opts) do
     case IO.gets("> ") do
       nil ->
         quit(session)
@@ -42,26 +42,26 @@ defmodule Procession.CLI do
       input ->
         input
         |> String.trim()
-        |> handle_input(session)
+        |> handle_input(session, opts)
     end
   end
 
-  defp handle_input(input, session) do
+  defp handle_input(input, session, opts) do
     case String.downcase(input) do
       "" ->
-        loop(session)
+        loop(session, opts)
 
       "help" ->
         print_help()
-        loop(session)
+        loop(session, opts)
 
       "commands" ->
         print_help()
-        loop(session)
+        loop(session, opts)
 
       "where" ->
         print_current_location(session)
-        loop(session)
+        loop(session, opts)
 
       "quit" ->
         quit(session)
@@ -70,7 +70,7 @@ defmodule Procession.CLI do
         quit(session)
 
       _ ->
-        run_game_command(input, session)
+        run_game_command(input, session, opts)
     end
   end
 
@@ -78,18 +78,26 @@ defmodule Procession.CLI do
     IO.puts(@help_text)
   end
 
-  defp run_game_command(command_text, session) do
+  defp run_game_command(command_text, session, opts) do
     session
-    |> Command.run(command_text)
+    |> Command.run(command_text, opts)
     |> Display.format()
     |> IO.puts()
 
-    loop(session)
+    loop(session, opts)
   end
 
-  defp print_intro do
+  defp print_intro(opts) do
+    ai_mode =
+      case Keyword.get(opts, :adapter) do
+        Procession.AI.Ollama -> "AI dialogue: Ollama adapter enabled."
+        nil -> "AI dialogue: deterministic fake adapter."
+        adapter -> "AI dialogue: custom adapter #{inspect(adapter)}."
+      end
+
     IO.puts("""
     Procession local demo started.
+    #{ai_mode}
 
     Type `help` for commands.
     Type `quit` to exit.

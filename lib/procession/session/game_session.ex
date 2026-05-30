@@ -153,10 +153,14 @@ defmodule Procession.GameSession do
   Returns `{:error, :entity_not_in_session}` when the entity does not belong
   to this session.
   """
+  @default_dialogue_timeout 60_000
+
   def talk_to(session, entity_id, message, opts \\ [])
 
   def talk_to(session, entity_id, message, opts) when is_binary(entity_id) do
-    GenServer.call(session, {:talk_to, entity_id, message, opts})
+    timeout = Keyword.get(opts, :timeout, @default_dialogue_timeout)
+
+    GenServer.call(session, {:talk_to, entity_id, message, opts}, timeout)
   end
 
   def talk_to(_session, _entity_id, _message, _opts), do: {:error, :entity_not_in_session}
