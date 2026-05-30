@@ -193,7 +193,25 @@ defmodule Procession.Command.Display do
   end
 
   defp format_local_entities([]), do: "none"
-  defp format_local_entities(entity_ids), do: Enum.join(entity_ids, ", ")
+
+  defp format_local_entities(entity_ids) do
+    entity_ids
+    |> Enum.map(&display_entity_name/1)
+    |> Enum.join(", ")
+  end
+
+  defp display_entity_name(entity_id) do
+    if Procession.EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Procession.Entity.get_state(entity_id)
+        entity.name || entity_id
+      catch
+        :exit, _reason -> entity_id
+      end
+    else
+      entity_id
+    end
+  end
 
   defp format_traits(traits) when traits == %{}, do: "none"
 

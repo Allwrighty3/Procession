@@ -22,7 +22,7 @@ defmodule Procession.Command.DisplayTest do
     assert text =~ "Old Road Crossroads"
     assert text =~ "Exits:"
     assert text =~ "Local entities:"
-    assert text =~ "npc_tobin"
+    refute text =~ "npc_tobin"
   end
 
   test "formats ask about command output as readable text" do
@@ -213,5 +213,15 @@ defmodule Procession.Command.DisplayTest do
   test "formats unreachable travel errors" do
     assert Display.format({:error, :destination_unreachable}) ==
              "You cannot reach that place from here."
+  end
+
+  test "formats local entities with readable names when available" do
+    assert {:ok, demo} = GameSession.start_demo()
+    result = Command.run(demo.session, "look")
+
+    text = Display.format(result)
+
+    assert text =~ "Local entities: Tobin"
+    refute text =~ "Local entities: npc_tobin"
   end
 end
