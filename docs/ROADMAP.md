@@ -98,102 +98,28 @@ AI is therefore core to the experience, but not sovereign over the state.
 
 ---
 
-## Phase 15: Capability Boundaries & Playability Polish
-
-Phase 15 clarifies what different entity types can do.
-
-The goal is to prevent commands, ticking, travel, and dialogue from treating every entity as if it were an NPC-style actor. This protects the simulation model while making the CLI more understandable.
-
-### Entity capability rules
-
-- [x] Define the first simple capability rules for entity types.
-  - NPCs are inspectable, talkable, askable, and tickable.
-  - Players are inspectable and movable.
-  - Locations are inspectable and may contain exits.
-  - Factions are inspectable but not directly talkable or movable.
-- [x] Decide whether capability checks live in a small module or private helpers.
-  - Example: `Procession.EntityCapabilities`
-- [x] Add helpers for common capability checks.
-  - Example: `talkable?/1`
-  - Example: `movable?/1`
-  - Example: `location?/1`
-  - Example: `tickable?/1`
-- [x] Keep capability checks separate from text parsing.
-- [x] Add tests for capability checks by entity type.
-- [x] Document that richer capability metadata may replace simple type checks later.
-
-### Gameplay error handling
-
-- [x] Prevent talking to non-talkable entities.
-  - Example: locations and factions.
-- [x] Prevent travel to non-location entities.
-- [x] Prevent movement of non-movable entities if movement helpers become generic.
-- [x] Return predictable errors for unsupported capabilities.
-  - Example: `{:error, :entity_not_talkable}`
-  - Example: `{:error, :entity_not_movable}`
-  - Example: `{:error, :entity_not_a_location}`
-- [x] Add tests for talking to a location.
-- [x] Add tests for talking to a faction.
-- [x] Add tests for trying to travel to an NPC.
-- [x] Add tests proving valid NPC dialogue still works.
-- [x] Add tests proving valid travel still works.
-
-### Tick behavior boundaries
-
-- [x] Decide which entity types should be ticked in the current simulation.
-- [x] First version should probably tick NPCs and skip player/location/faction autonomous behavior unless explicitly enabled.
-- [x] Keep behavior execution owned by `Entity.tick/1`.
-- [x] Avoid moving ticking rules into command parsing.
-- [x] Add tests proving non-tickable entities are not treated as autonomous actors if filtering is implemented.
-- [x] Keep failed behavior actions visible as structured data.
-
-### CLI and display polish
-
-- [x] Improve display output to prefer readable names over raw IDs where practical.
-- [x] Improve local entity output in `look`.
-- [x] Improve travel output after movement.
-- [x] Improve error messages for unsupported capabilities.
-- [x] Keep display formatting separate from simulation logic.
-- [x] Add tests for display formatting improvements.
-
-### Demo stability
-
-- [x] Add or update a short demo transcript test.
-- [x] Ensure the basic command loop still supports:
-  - `look`
-  - `look at Tobin`
-  - `ask Tobin about road`
-  - `talk to Tobin: Hello`
-  - `wait`
-  - `go to Briar Village`
-  - `look`
-  - `events for Mira`
-- [x] Keep the CLI deterministic by default.
-- [x] Ensure tests do not require Ollama.
-
-### Documentation
-
-- [x] Update `docs/USAGE.md` or demo docs with capability limits.
-- [x] Document that the CLI is a thin playability layer.
-- [x] Document that capability rules are intentionally simple for now.
-- [x] Document deferred richer capability metadata.
-
-### Deferred from Phase 15
-
-- [ ] Defer inventory.
-- [ ] Defer combat.
-- [ ] Defer quests.
-- [ ] Defer persistence.
-- [ ] Defer AI command parsing.
-- [ ] Defer large-world expansion.
-
----
-
 ## Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
 
 Phase 16 brings AI closer to the playable experience.
 
 The goal is to prove that AI improves NPC interaction while Elixir remains authoritative over state. AI dialogue should make the world feel more alive, but it should not directly mutate memory, behavior, world state, quests, or entity metadata.
+
+### First implementation slice
+
+- [ ] Inspect the existing `Procession.AI` adapter boundary.
+- [ ] Inspect current `Procession.Game.talk_to/3` and `Procession.Entity.generate_response/3`.
+- [ ] Confirm the fake adapter remains the default test path.
+- [ ] Add a structured dialogue request shape if one does not already exist.
+  - Example fields: `:npc`, `:player_message`, `:relevant_memories`, `:location_context`, `:world_context`.
+- [ ] Add a pure prompt builder function.
+  - It should accept validated data.
+  - It should return inspectable prompt text or structured prompt messages.
+  - It should not call Ollama directly.
+- [ ] Add tests for prompt construction using deterministic data.
+- [ ] Add tests proving AI dialogue returns text only.
+- [ ] Add tests proving AI dialogue does not mutate memory.
+- [ ] Add tests proving AI dialogue does not mutate behavior metadata.
+- [ ] Add tests proving AI dialogue does not change NPC status/location.
 
 ### AI dialogue boundary
 
