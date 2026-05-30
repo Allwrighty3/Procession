@@ -74,6 +74,13 @@ defmodule Procession.GameSession do
     GenServer.call(session, :cleanup)
   end
 
+
+  def look(session, entity_id) when is_binary(entity_id) do
+    GenServer.call(session, {:look, entity_id})
+  end
+
+  def look(_session, _entity_id), do: {:error, :entity_not_in_session}
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -150,5 +157,14 @@ defmodule Procession.GameSession do
     new_state = %{state | status: :cleaned_up}
 
     {:reply, cleanup_summary, new_state}
+  end
+
+  @impl true
+  def handle_call({:look, entity_id}, _from, state) do
+    if entity_id in state.active_entities do
+      {:reply, Game.look(entity_id), state}
+    else
+      {:reply, {:error, :entity_not_in_session}, state}
+    end
   end
 end

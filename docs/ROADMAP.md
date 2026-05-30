@@ -867,15 +867,15 @@ This phase should keep the existing `Procession.Game` APIs working. Session-awar
   * Example: `Procession.GameSession.ask_about(session, entity_id, topic)`
   * Example: `Procession.GameSession.talk_to(session, entity_id, message, opts \\ [])`
 * [ ] Keep existing `Procession.Game.look/1`, `ask_about/2`, and `talk_to/3` usable.
-* [ ] Delegate to `Procession.Game` where possible.
-* [ ] Require target entities to belong to the session.
-* [ ] Return predictable errors for entities outside the session.
+* [x] Delegate to `Procession.Game` where possible.
+* [x] Require target entities to belong to the session.
+* [x] Return predictable errors for entities outside the session.
 
   * Example: `{:error, :entity_not_in_session}`
-* [ ] Add tests for successful session-aware look.
+* [x] Add tests for successful session-aware look.
 * [ ] Add tests for successful session-aware memory queries.
 * [ ] Add tests for successful session-aware dialogue.
-* [ ] Add tests for missing or non-owned target entities.
+* [x] Add tests for missing or non-owned target entities.
 
 #### Session-aware ticking
 

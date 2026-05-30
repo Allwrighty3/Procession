@@ -247,4 +247,43 @@ defmodule Procession.GameSessionTest do
       assert after_cleanup_tick.entities_ticked == 0
     end
   end
+
+  describe "look/2" do
+    test "looks at a session-owned live entity" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      assert {:ok, look_summary} = GameSession.look(session, entity_id)
+      assert look_summary.id == entity_id
+      assert is_binary(look_summary.name)
+    end
+
+    test "rejects an entity id not owned by the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_in_session} = GameSession.look(session, "npc_not_owned")
+    end
+
+    test "rejects invalid entity ids" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :entity_not_in_session} = GameSession.look(session, nil)
+      assert {:error, :entity_not_in_session} = GameSession.look(session, :npc_mira)
+      assert {:error, :entity_not_in_session} = GameSession.look(session, 123)
+    end
+
+    test "returns entity_not_found for a session-owned entity that is no longer live" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      :ok = Procession.EntitySupervisor.stop_entity(entity_id)
+
+      assert {:error, :entity_not_found} = GameSession.look(session, entity_id)
+    end
+  end
 end
