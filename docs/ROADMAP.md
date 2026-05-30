@@ -879,58 +879,58 @@ This phase should keep the existing `Procession.Game` APIs working. Session-awar
 
 #### Session-aware ticking
 
-* [ ] Add a session tick API.
+* [x] Add a session tick API.
 
   * Example: `Procession.GameSession.tick(session)`
-* [ ] First version may delegate to `Procession.Game.tick_world/0`.
-* [ ] Document that session tick is not yet scoped to session-owned entities unless implemented.
-* [ ] Return the tick summary as plain data.
-* [ ] Store the latest tick summary in session state if useful.
-* [ ] Add tests proving session tick coordinates world behavior.
-* [ ] Add tests proving failed behavior actions are still returned as data.
-* [ ] Do not duplicate entity tick logic inside `GameSession`.
+* [x] First version may delegate to `Procession.Game.tick_world/0`.
+* [x] Document that session tick is not yet scoped to session-owned entities unless implemented.
+* [x] Return the tick summary as plain data.
+* [x] Store the latest tick summary in session state if useful.
+* [x] Add tests proving session tick coordinates world behavior.
+* [x] Add tests proving failed behavior actions are still returned as data.
+* [x] Do not duplicate entity tick logic inside `GameSession`.
 
 #### Session event inspection
 
-* [ ] Add session-aware recent event inspection.
+* [x] Add session-aware recent event inspection.
 
   * Example: `Procession.GameSession.recent_events(session, entity_id)`
-* [ ] Require the entity to belong to the session.
-* [ ] Delegate to existing event/memory APIs where possible.
-* [ ] Return predictable errors for non-session entities.
-* [ ] Add tests for recent events through the session boundary.
-* [ ] Add tests for invalid or outside-session event requests.
+* [x] Require the entity to belong to the session.
+* [x] Delegate to existing event/memory APIs where possible.
+* [x] Return predictable errors for non-session entities.
+* [x] Add tests for recent events through the session boundary.
+* [x] Add tests for invalid or outside-session event requests.
 
 #### Session action API
 
-* [ ] Add a generic session action helper if useful.
+* [x] Add a generic session action helper if useful.
 
   * Example: `Procession.GameSession.perform(session, :look, entity_id: "npc_mira")`
-* [ ] Keep actions as atoms and keyword options.
-* [ ] Do not parse text commands yet.
-* [ ] Delegate existing player actions to session-aware helpers.
-* [ ] Return predictable errors for invalid actions.
-* [ ] Add tests for supported session actions.
-* [ ] Add tests for unsupported session actions.
-* [ ] Add tests for missing action arguments.
+* [x] Keep actions as atoms and keyword options.
+* [x] Do not parse text commands yet.
+* [x] Delegate existing player actions to session-aware helpers.
+* [x] Return predictable errors for invalid actions.
+* [x] Add tests for supported session actions.
+* [x] Add tests for unsupported session actions.
+* [x] Add tests for missing action arguments.
 
 #### Session summary improvements
 
-* [ ] Include active entity counts in session summary.
-* [ ] Include world name or generated game name in session summary.
-* [ ] Include session status.
-* [ ] Include last tick summary if stored.
-* [ ] Keep summary as plain data.
-* [ ] Add tests for useful session summary output.
+* [x] Include active entity counts in session summary.
+* [x] Include world name or generated game name in session summary.
+* [x] Include session status.
+* [x] Include last tick summary if stored.
+* [x] Keep summary as plain data.
+* [x] Add tests for useful session summary output.
 
 #### Documentation and IEx demos
 
-* [ ] Add examples for looking at entities through a session.
-* [ ] Add examples for asking NPCs about memories through a session.
-* [ ] Add examples for dialogue through a session.
-* [ ] Add examples for ticking through a session.
-* [ ] Add examples for inspecting recent events through a session.
-* [ ] Document that session-aware APIs protect against interacting with unrelated live entities.
+* [x] Add examples for looking at entities through a session.
+* [x] Add examples for asking NPCs about memories through a session.
+* [x] Add examples for dialogue through a session.
+* [x] Add examples for ticking through a session.
+* [x] Add examples for inspecting recent events through a session.
+* [x] Document that session-aware APIs protect against interacting with unrelated live entities.
 
 #### Deferred from Phase 9
 
@@ -1457,28 +1457,28 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 8 is complete when:
 
-* [ ] A `Procession.GameSession` boundary exists.
-* [ ] A session can start a deterministic generated game.
-* [ ] A session tracks its owned active entity IDs.
-* [ ] Session summaries expose useful runtime state as plain data.
-* [ ] Session cleanup stops owned entities predictably.
-* [ ] Cleanup is safe to call more than once.
-* [ ] Existing `Procession.Game` and `Procession.WorldClock` APIs still work.
-* [ ] Tests prove session ownership, summary, game creation, and cleanup behavior.
-* [ ] README or USAGE documentation explains basic session usage.
-* [ ] Persistence, command parsing, scoped spawning, and UI remain deferred.
+* [x] A `Procession.GameSession` boundary exists.
+* [x] A session can start a deterministic generated game.
+* [x] A session tracks its owned active entity IDs.
+* [x] Session summaries expose useful runtime state as plain data.
+* [x] Session cleanup stops owned entities predictably.
+* [x] Cleanup is safe to call more than once.
+* [x] Existing `Procession.Game` and `Procession.WorldClock` APIs still work.
+* [x] Tests prove session ownership, summary, game creation, and cleanup behavior.
+* [x] README or USAGE documentation explains basic session usage.
+* [x] Persistence, command parsing, scoped spawning, and UI remain deferred.
 
 ### Phase 9 is complete when:
 
-* [ ] Gameplay actions can be performed through a session boundary.
-* [ ] Session-aware gameplay rejects entities not owned by the session.
-* [ ] Session-aware look, ask, talk, tick, and recent event APIs work.
-* [ ] Existing global gameplay APIs still work unless intentionally changed.
-* [ ] Session tick behavior delegates to existing world tick flow.
-* [ ] Session summaries include useful gameplay state.
-* [ ] Tests cover successful and failed session-aware gameplay actions.
-* [ ] Documentation includes a session-based IEx gameplay loop.
-* [ ] Command parsing, player entity, travel, persistence, and UI remain deferred.
+* [x] Gameplay actions can be performed through a session boundary.
+* [x] Session-aware gameplay rejects entities not owned by the session.
+* [x] Session-aware look, ask, talk, tick, and recent event APIs work.
+* [x] Existing global gameplay APIs still work unless intentionally changed.
+* [x] Session tick behavior delegates to existing world tick flow.
+* [x] Session summaries include useful gameplay state.
+* [x] Tests cover successful and failed session-aware gameplay actions.
+* [x] Documentation includes a session-based IEx gameplay loop.
+* [x] Command parsing, player entity, travel, persistence, and UI remain deferred.
 
 ### Phase 10 is complete when:
 

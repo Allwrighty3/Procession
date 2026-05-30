@@ -954,3 +954,94 @@ Game sessions currently own live entity IDs only. They do not yet provide:
 - inactive blueprint hydration
 
 Inactive blueprint scopes and selective spawning are still future work.
+### Session-aware gameplay helpers
+
+`Procession.GameSession` provides a session-aware boundary for player-facing actions.
+
+The existing `Procession.Game` helpers still work globally, but the session helpers first check whether the target entity belongs to the active session.
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link(session_id: "session_demo")
+
+{:ok, game} =
+  Procession.GameSession.new_game(session, "a quiet frontier town")
+
+game.world_name
+# => "Echoes of the Old Road"
+
+game.active_entity_count
+# => 7
+
+npc_id =
+  Enum.find(game.active_entities, &String.starts_with?(&1, "npc_"))
+
+{:ok, look_summary} =
+  Procession.GameSession.look(session, npc_id)
+
+look_summary.name
+
+{:ok, memories} =
+  Procession.GameSession.ask_about(session, npc_id, "road")
+
+{:ok, dialogue} =
+  Procession.GameSession.talk_to(
+    session,
+    npc_id,
+    "What do you know about the old road?",
+    adapter: Procession.AI.FakeAdapter
+  )
+
+{:ok, tick_summary} =
+  Procession.GameSession.tick(session)
+
+tick_summary.entities_ticked
+tick_summary.failed_actions
+
+{:ok, events} =
+  Procession.GameSession.recent_events(session, npc_id)
+
+session_summary = Procession.GameSession.summary(session)
+
+session_summary.world_name
+session_summary.active_entity_count
+session_summary.last_tick_summary
+
+Procession.GameSession.cleanup(session)
+```
+
+Session-aware helpers reject entities that do not belong to the session:
+
+```elixir
+Procession.GameSession.look(session, "npc_not_owned")
+# => {:error, :entity_not_in_session}
+
+Procession.GameSession.ask_about(session, "npc_not_owned", "road")
+# => {:error, :entity_not_in_session}
+```
+
+The generic action helper can route supported gameplay actions without parsing text commands:
+
+```elixir
+Procession.GameSession.perform(session, :look, entity_id: npc_id)
+
+Procession.GameSession.perform(
+  session,
+  :ask_about,
+  entity_id: npc_id,
+  topic: "road"
+)
+
+Procession.GameSession.perform(
+  session,
+  :talk_to,
+  entity_id: npc_id,
+  message: "Hello.",
+  adapter: Procession.AI.FakeAdapter
+)
+
+Procession.GameSession.perform(session, :recent_events, entity_id: npc_id)
+
+Procession.GameSession.perform(session, :tick)
+```
+
+`GameSession.tick/1` currently delegates to `Procession.Game.tick_world/0`. It is session-routed, but not yet scoped to only session-owned entities.
