@@ -13,7 +13,9 @@ defmodule Procession.AI.Ollama do
   @default_model "llama3.2"
 
   @impl true
-  def generate(prompt, opts \\ []) when is_binary(prompt) do
+  def generate(prompt, opts \\ [])
+
+  def generate(prompt, opts) when is_binary(prompt) do
     url = opts |> Keyword.get(:url, @default_url) |> normalize_url()
     model = Keyword.get(opts, :model, @default_model)
     http_client = Keyword.get(opts, :http_client, &:httpc.request/4)

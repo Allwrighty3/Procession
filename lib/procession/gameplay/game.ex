@@ -83,7 +83,9 @@ defmodule Procession.Game do
   This delegates to the existing entity AI response boundary and returns generated
   dialogue as data. It does not mutate NPC state from the generated response.
   """
-  def talk_to(target_id, message, opts \\ []) when is_binary(message) do
+  def talk_to(target_id, message, opts \\ [])
+
+  def talk_to(target_id, message, opts) when is_binary(message) do
     if EntitySupervisor.exists?(target_id) do
       try do
         state = Entity.get_state(target_id)

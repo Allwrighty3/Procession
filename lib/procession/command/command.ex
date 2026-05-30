@@ -43,16 +43,6 @@ defmodule Procession.Command do
     parse_travel_destination(destination)
   end
 
-  defp parse_travel_destination(destination) do
-    destination = String.trim(destination)
-
-    if destination == "" do
-      {:error, :missing_target}
-    else
-      {:ok, {:travel_to, destination}}
-    end
-  end
-
   defp parse("look at " <> target) do
     target = String.trim(target)
 
@@ -76,23 +66,6 @@ defmodule Procession.Command do
 
       _ ->
         parse_ask_with_topic(rest)
-    end
-  end
-
-  defp parse_ask_with_topic(rest) do
-    case String.split(rest, " about ", parts: 2) do
-      [target, topic] ->
-        target = String.trim(target)
-        topic = String.trim(topic)
-
-        cond do
-          target == "" -> {:error, :missing_target}
-          topic == "" -> {:error, :missing_topic}
-          true -> {:ok, {:ask_about, target, topic}}
-        end
-
-      _ ->
-        {:error, :invalid_command}
     end
   end
 
@@ -124,6 +97,33 @@ defmodule Procession.Command do
   end
 
   defp parse(_command), do: {:error, :unknown_command}
+
+  defp parse_travel_destination(destination) do
+    destination = String.trim(destination)
+
+    if destination == "" do
+      {:error, :missing_target}
+    else
+      {:ok, {:travel_to, destination}}
+    end
+  end
+
+  defp parse_ask_with_topic(rest) do
+    case String.split(rest, " about ", parts: 2) do
+      [target, topic] ->
+        target = String.trim(target)
+        topic = String.trim(topic)
+
+        cond do
+          target == "" -> {:error, :missing_target}
+          topic == "" -> {:error, :missing_topic}
+          true -> {:ok, {:ask_about, target, topic}}
+        end
+
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
 
   defp execute({:ok, :look}, session) do
     session

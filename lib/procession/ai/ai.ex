@@ -23,7 +23,9 @@ defmodule Procession.AI do
   """
 
   @spec generate(prompt(), keyword()) :: response()
-  def generate(prompt, opts \\ []) when is_binary(prompt) do
+  def generate(prompt, opts \\ [])
+
+  def generate(prompt, opts) when is_binary(prompt) do
     adapter = Keyword.get(opts, :adapter, Procession.AI.FakeAdapter)
 
     adapter.generate(prompt, opts)

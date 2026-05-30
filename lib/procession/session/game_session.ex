@@ -50,6 +50,43 @@ defmodule Procession.GameSession do
   end
 
   @doc """
+  Starts the first deterministic playable demo session.
+
+  This helper packages the Phase 13 vertical slice setup into one IEx-friendly call:
+  it starts a session process, creates the deterministic starter world, creates the
+  player entity through `new_game/2`, and returns both the session pid and startup
+  summary as plain data.
+  """
+  def start_demo(prompt \\ "a quiet frontier town")
+
+  def start_demo(prompt) when is_binary(prompt) do
+    with {:ok, session} <- start_link(),
+         {:ok, summary} <- new_game(session, prompt),
+         {:ok, player_location} <- player_location(session) do
+      {:ok,
+       %{
+         session: session,
+         summary: summary,
+         player_id: summary.player_id,
+         player_location: player_location,
+         active_scope: summary.active_scope,
+         active_entities: summary.active_entities,
+         commands: [
+           "look",
+           "look at Tobin",
+           "ask Tobin about road",
+           "talk to Tobin: Hello.",
+           "wait",
+           "go to Briar Village",
+           "look"
+         ]
+       }}
+    end
+  end
+
+  def start_demo(_prompt), do: {:error, :invalid_prompt}
+
+  @doc """
   Creates a deterministic game through the session and tracks the generated entities.
   """
   def new_game(session, prompt) do
@@ -116,7 +153,9 @@ defmodule Procession.GameSession do
   Returns `{:error, :entity_not_in_session}` when the entity does not belong
   to this session.
   """
-  def talk_to(session, entity_id, message, opts \\ []) when is_binary(entity_id) do
+  def talk_to(session, entity_id, message, opts \\ [])
+
+  def talk_to(session, entity_id, message, opts) when is_binary(entity_id) do
     GenServer.call(session, {:talk_to, entity_id, message, opts})
   end
 
@@ -149,7 +188,9 @@ defmodule Procession.GameSession do
 
   This is not text command parsing. Actions are atoms and arguments are keyword options.
   """
-  def perform(session, action, opts \\ []) when is_atom(action) and is_list(opts) do
+  def perform(session, action, opts \\ [])
+
+  def perform(session, action, opts) when is_atom(action) and is_list(opts) do
     case action do
       :look ->
         case Keyword.fetch(opts, :entity_id) do

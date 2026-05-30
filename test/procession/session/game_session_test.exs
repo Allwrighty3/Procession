@@ -35,6 +35,34 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "start_demo/1" do
+    test "starts a deterministic playable demo session" do
+      assert {:ok, demo} = GameSession.start_demo("a quiet frontier town")
+
+      assert Process.alive?(demo.session)
+      assert demo.summary.status == :active
+      assert demo.summary.world_name == "Echoes of the Old Road"
+      assert demo.player_id == "player_main"
+      assert demo.player_location == "loc_crossroads"
+      assert demo.active_scope == "scope_starter_area"
+
+      assert "player_main" in demo.active_entities
+      assert Enum.any?(demo.active_entities, &String.starts_with?(&1, "loc_"))
+      assert Enum.any?(demo.active_entities, &String.starts_with?(&1, "npc_"))
+      assert Enum.any?(demo.active_entities, &String.starts_with?(&1, "faction_"))
+
+      assert "look" in demo.commands
+      assert "wait" in demo.commands
+      assert "go to Briar Village" in demo.commands
+    end
+
+    test "rejects invalid demo prompts" do
+      assert GameSession.start_demo(nil) == {:error, :invalid_prompt}
+      assert GameSession.start_demo(:bad_prompt) == {:error, :invalid_prompt}
+      assert GameSession.start_demo(123) == {:error, :invalid_prompt}
+    end
+  end
+
   describe "summary/1" do
     test "returns initial session state as plain data" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")

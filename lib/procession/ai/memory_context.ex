@@ -10,7 +10,9 @@ defmodule Procession.AI.MemoryContext do
   @default_recent_count 5
   @default_minimum_importance 4
 
-  def select(memories, opts \\ []) when is_list(memories) do
+  def select(memories, opts \\ [])
+
+  def select(memories, opts) when is_list(memories) do
     recent_count = Keyword.get(opts, :recent_count, @default_recent_count)
     minimum_importance = Keyword.get(opts, :minimum_importance, @default_minimum_importance)
 
