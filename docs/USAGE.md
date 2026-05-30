@@ -1351,3 +1351,226 @@ Deferred:
 * full CLI loop
 * Phoenix LiveView
 
+## Phase 12: Travel, Exits, and Active Scope
+
+Phase 12 adds simple deterministic travel between known starter locations.
+
+Travel is intentionally small in this phase:
+
+* Locations expose exits as plain metadata.
+* The player can move only through reachable exits.
+* Travel is session-aware.
+* Command travel delegates to the session API.
+* Active scope is tracked as plain session data.
+* Maps, pathfinding, travel time, locked exits, random encounters, lazy spawning, hydration, region-to-region travel, and large-world scope loading are deferred.
+
+### Location exits
+
+Generated starter locations include deterministic exits in location metadata.
+
+Example exit shape:
+
+```elixir
+%{to: "loc_briar_village", label: "village road"}
+```
+
+Example IEx usage:
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+{:ok, location} = Procession.GameSession.look(session)
+
+location.id
+# "loc_crossroads"
+
+location.exits
+# [
+#   %{to: "loc_briar_village", label: "village road"},
+#   %{to: "loc_silent_mine", label: "mine road"}
+# ]
+```
+
+Only location summaries include exits. NPCs, factions, and players do not expose exit data.
+
+### Player travel
+
+Use `Procession.GameSession.travel/2` to move the player to a reachable location.
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+Procession.GameSession.player_location(session)
+# {:ok, "loc_crossroads"}
+
+Procession.GameSession.travel(session, "loc_briar_village")
+# {:ok, %{from: "loc_crossroads", to: "loc_briar_village", via: "village road"}}
+
+Procession.GameSession.player_location(session)
+# {:ok, "loc_briar_village"}
+```
+
+Travel requires the destination to be reachable from the player's current location.
+
+Example unreachable destination:
+
+```elixir
+Procession.GameSession.travel(session, "loc_silent_mine")
+# {:error, :destination_unreachable}
+```
+
+Example unknown destination:
+
+```elixir
+Procession.GameSession.travel(session, "loc_nowhere")
+# {:error, :unknown_destination}
+```
+
+Example invalid destination input:
+
+```elixir
+Procession.GameSession.travel(session, nil)
+# {:error, :invalid_destination}
+```
+
+### Command-based travel
+
+The deterministic command boundary supports simple travel commands:
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+Procession.Command.run(session, "go to Briar Village")
+# {:ok, %{command: :travel_to, ...}}
+
+Procession.Command.run(session, "travel to loc_silent_mine")
+# {:ok, %{command: :travel_to, ...}}
+```
+
+Destination resolution follows the existing command pattern:
+
+1. Exact entity ID first.
+2. Exact entity name second.
+3. Session-owned locations only.
+4. Reachability is checked by the session travel API.
+
+Malformed travel commands return predictable errors:
+
+```elixir
+Procession.Command.run(session, "go to")
+# {:error, :missing_target}
+
+Procession.Command.run(session, "travel to")
+# {:error, :missing_target}
+```
+
+### Looking before and after travel
+
+`look` is location-relative. After travel, it reflects the player's new location and local entities.
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+{:ok, before_travel} = Procession.Command.run(session, "look")
+
+before_travel.result.id
+# "loc_crossroads"
+
+before_travel.result.local_entities
+# ["npc_tobin"]
+
+{:ok, _travel} = Procession.Command.run(session, "go to Briar Village")
+
+{:ok, after_travel} = Procession.Command.run(session, "look")
+
+after_travel.result.id
+# "loc_briar_village"
+
+after_travel.result.local_entities
+# ["npc_mira"]
+```
+
+`Procession.GameSession.local_entities/1` also updates after travel:
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+Procession.GameSession.local_entities(session)
+# {:ok, ["npc_tobin"]}
+
+Procession.GameSession.travel(session, "loc_briar_village")
+# {:ok, %{from: "loc_crossroads", to: "loc_briar_village", via: "village road"}}
+
+Procession.GameSession.local_entities(session)
+# {:ok, ["npc_mira"]}
+```
+
+Local entity listing remains session-aware. Entities from other sessions or unrelated global entities are not treated as local.
+
+### Active scope
+
+Sessions now track a simple active scope value.
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, summary} = Procession.GameSession.new_game(session, "anything")
+
+summary.active_scope
+# "scope_starter_area"
+
+Procession.GameSession.summary(session).active_scope
+# "scope_starter_area"
+```
+
+In Phase 12, all starter locations are still spawned and live. `active_scope` is plain session data for future active-scope simulation, lazy spawning, hydration, and large-world generation.
+
+No lazy spawning or scope loading is implemented yet.
+
+### Scoped ticking
+
+`Procession.GameSession.tick/1` now ticks only session-owned active entities.
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link()
+{:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+Procession.GameSession.tick(session)
+# {:ok, %{entities_ticked: ..., actions: ..., successful_actions: ..., failed_actions: ...}}
+```
+
+The lower-level helper:
+
+```elixir
+Procession.Game.tick_entities(entity_ids)
+```
+
+ticks an explicit list of entity IDs.
+
+The temporary global helper:
+
+```elixir
+Procession.Game.tick_all_live_entities()
+```
+
+ticks every live entity currently registered. It is primarily useful as a temporary global debugging or smoke-test helper. Session gameplay should prefer `Procession.GameSession.tick/1`.
+
+### Deferred from Phase 12
+
+The following systems are intentionally deferred:
+
+* pathfinding
+* travel time
+* random encounters
+* locked exits
+* region-to-region travel
+* lazy spawning and hydration
+* large-scale maps
+* NPC autonomous movement through behavior metadata
+
+NPCs can still be moved at the raw entity level through `Procession.Entity.move_to/2`, but autonomous NPC movement should later be added through validated behavior metadata rather than through the player travel API.
+

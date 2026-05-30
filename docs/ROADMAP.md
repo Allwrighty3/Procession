@@ -1156,54 +1156,54 @@ The goal is not full maps or pathfinding. The goal is to let the player move bet
 
 #### Location exits
 
-* [ ] Decide how location exits are represented.
+* [x] Decide how location exits are represented.
 
   * Recommended first version: location metadata.
   * Example: `metadata.exits`
-* [ ] Define a simple exit shape.
+* [x] Define a simple exit shape.
 
   * Example: `%{to: "loc_silent_mine", label: "mine road"}`
-* [ ] Add deterministic exits to the starter generated world.
-* [ ] Validate that exit destinations reference known locations.
-* [ ] Do not add pathfinding yet.
-* [ ] Do not add travel time yet unless trivial.
-* [ ] Add tests for valid exits.
-* [ ] Add tests for invalid exit destinations.
+* [x] Add deterministic exits to the starter generated world.
+* [x] Validate that exit destinations reference known locations.
+* [x] Do not add pathfinding yet.
+* [x] Do not add travel time yet unless trivial.
+* [x] Add tests for valid exits.
+* [x] Add tests for invalid exit destinations.
 
 #### Player movement
 
-* [ ] Add a session-aware movement API.
+* [x] Add a session-aware movement API.
 
   * Example: `Procession.GameSession.travel(session, destination)`
-* [ ] Require the player entity to exist.
-* [ ] Require the destination to be reachable from the current location.
-* [ ] Update player location through existing entity state APIs.
-* [ ] Return a plain movement summary.
+* [x] Require the player entity to exist.
+* [x] Require the destination to be reachable from the current location.
+* [x] Update player location through existing entity state APIs.
+* [x] Return a plain movement summary.
 
   * Example: `%{from: "loc_a", to: "loc_b"}`
-* [ ] Return predictable errors for unreachable destinations.
-* [ ] Return predictable errors for unknown destinations.
-* [ ] Add tests for successful movement.
-* [ ] Add tests for failed movement.
+* [x] Return predictable errors for unreachable destinations.
+* [x] Return predictable errors for unknown destinations.
+* [x] Add tests for successful movement.
+* [x] Add tests for failed movement.
 
 #### Travel commands
 
-* [ ] Add command support for travel.
+* [x] Add command support for travel.
 
   * Example: `go to Silent Mine`
   * Example: `travel to Crossroads`
-* [ ] Resolve destination by location ID or name.
-* [ ] Require the destination to be reachable.
-* [ ] Add tests for successful travel commands.
-* [ ] Add tests for invalid travel commands.
+* [x] Resolve destination by location ID or name.
+* [x] Require the destination to be reachable.
+* [x] Add tests for successful travel commands.
+* [x] Add tests for invalid travel commands.
 
 #### Location-relative gameplay
 
-* [ ] Update `look` to show the player's current location after travel.
-* [ ] Update local entity listing after travel.
-* [ ] Ensure entities from other locations are not shown as local.
-* [ ] Add tests proving local context changes after travel.
-* [ ] Add tests for looking after movement.
+* [x] Update `look` to show the player's current location after travel.
+* [x] Update local entity listing after travel.
+* [x] Ensure entities from other locations are not shown as local.
+* [x] Add tests proving local context changes after travel.
+* [x] Add tests for looking after movement.
 
 #### Active scope preparation
 
@@ -1212,26 +1212,26 @@ The goal is not full maps or pathfinding. The goal is to let the player move bet
   * Example: `active_scope: "scope_starter_area"`
 * [x] Keep active scope as metadata or plain data first.
 * [x] Do not implement lazy spawning yet.
-* [ ] Document that all starter locations are still live in this phase.
+* [x] Document that all starter locations are still live in this phase.
 * [x] Add tests for active scope summary if implemented.
 
 #### Documentation and IEx demos
 
-* [ ] Add examples for location exits.
-* [ ] Add examples for player travel.
-* [ ] Add examples for command-based travel.
-* [ ] Add examples showing `look` before and after travel.
-* [ ] Document that maps, pathfinding, travel time, and large-world scope loading are deferred.
+* [x] Add examples for location exits.
+* [x] Add examples for player travel.
+* [x] Add examples for command-based travel.
+* [x] Add examples showing `look` before and after travel.
+* [x] Document that maps, pathfinding, travel time, and large-world scope loading are deferred.
 
 #### Deferred from Phase 12
 
-* [ ] Defer pathfinding.
-* [ ] Defer travel time.
-* [ ] Defer random encounters.
-* [ ] Defer locked exits.
-* [ ] Defer region-to-region travel.
-* [ ] Defer lazy spawning and hydration.
-* [ ] Defer large-scale maps.
+* [x] Defer pathfinding.
+* [x] Defer travel time.
+* [x] Defer random encounters.
+* [x] Defer locked exits.
+* [x] Defer region-to-region travel.
+* [x] Defer lazy spawning and hydration.
+* [x] Defer large-scale maps.
 
 ---
 
@@ -1537,16 +1537,16 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 12 is complete when:
 
-* [ ] Locations can define simple deterministic exits.
-* [ ] Exit destinations are validated against known locations.
-* [ ] The player can travel between reachable starter locations.
-* [ ] Travel updates the player's location.
-* [ ] Unreachable and unknown destinations return predictable errors.
-* [ ] Travel commands work through the command boundary.
-* [ ] `look` and local entity listing reflect the player's new location after travel.
-* [ ] Tests cover valid travel, invalid travel, and location context after movement.
-* [ ] Documentation explains basic travel and its limitations.
-* [ ] Pathfinding, travel time, region travel, and lazy spawning remain deferred.
+* [x] Locations can define simple deterministic exits.
+* [x] Exit destinations are validated against known locations.
+* [x] The player can travel between reachable starter locations.
+* [x] Travel updates the player's location.
+* [x] Unreachable and unknown destinations return predictable errors.
+* [x] Travel commands work through the command boundary.
+* [x] `look` and local entity listing reflect the player's new location after travel.
+* [x] Tests cover valid travel, invalid travel, and location context after movement.
+* [x] Documentation explains basic travel and its limitations.
+* [x] Pathfinding, travel time, region travel, and lazy spawning remain deferred.
 
 ### Phase 13 is complete when:
 
