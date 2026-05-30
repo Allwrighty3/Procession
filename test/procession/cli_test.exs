@@ -23,6 +23,7 @@ defmodule Procession.CLITest do
     assert output =~ "Commands:"
     assert output =~ "look"
     assert output =~ "quit"
+    assert output =~ "where"
     assert output =~ "Demo cleaned up."
     assert output =~ "Status: cleaned_up"
     assert output =~ "Old Road Crossroads"
@@ -39,6 +40,28 @@ defmodule Procession.CLITest do
     assert output =~ "Commands:"
     assert output =~ "Demo cleaned up."
     assert output =~ "Status: cleaned_up"
+  end
+
+  test "play supports where as a shortcut for look" do
+    output =
+      capture_io("where\nquit\n", fn ->
+        assert :ok = CLI.play()
+      end)
+
+    assert output =~ "Old Road Crossroads"
+    assert output =~ "Exits:"
+    assert output =~ "Local entities:"
+    assert output =~ "Demo cleaned up."
+  end
+
+  test "play supports where case-insensitively" do
+    output =
+      capture_io("WHERE\nQUIT\n", fn ->
+        assert :ok = CLI.play()
+      end)
+
+    assert length(String.split(output, "Old Road Crossroads")) >= 3
+    assert output =~ "Demo cleaned up."
   end
 
   test "play does not normalize game command text" do

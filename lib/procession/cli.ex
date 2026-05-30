@@ -13,6 +13,7 @@ defmodule Procession.CLI do
   @help_text """
   Commands:
   - look
+  - where
   - look at Tobin
   - ask Tobin about road
   - talk to Tobin: Any news from the road?
@@ -27,7 +28,7 @@ defmodule Procession.CLI do
   def play(prompt \\ "a quiet frontier town") do
     with {:ok, demo} <- GameSession.start_demo(prompt) do
       print_intro()
-      print_starting_location(demo.session)
+      print_current_location(demo.session)
       loop(demo.session)
     end
   end
@@ -51,6 +52,10 @@ defmodule Procession.CLI do
 
       "help" ->
         print_help()
+        loop(session)
+
+      "where" ->
+        print_current_location(session)
         loop(session)
 
       "quit" ->
@@ -86,7 +91,7 @@ defmodule Procession.CLI do
     """)
   end
 
-  defp print_starting_location(session) do
+  defp print_current_location(session) do
     session
     |> Command.run("look")
     |> Display.format()
