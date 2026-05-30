@@ -967,6 +967,35 @@ This phase should keep the first player model small and deterministic.
 * [ ] Add tests for starting a player entity.
 * [ ] Add tests proving the session owns the player entity.
 
+#### Entity type and capability boundaries
+
+* [ ] Clarify that all actors may be entities, but not all entities are actors.
+
+  * NPCs and players are actors.
+  * Locations, factions, regions, and world concepts may be entities without acting independently.
+* [ ] Keep `Procession.Entity` as the generic live entity process for now.
+* [ ] Avoid creating separate supervisors for each entity type in this phase.
+* [ ] Add minimal type-based capability rules before command parsing depends on broad entity assumptions.
+
+  * Example: NPCs are talkable.
+  * Example: players are movable.
+  * Example: locations are inspectable but not talkable.
+  * Example: factions are inspectable/relatable but not talkable or directly tickable.
+* [ ] Decide whether capability checks should start as private helpers or a small module.
+
+  * Example: `Procession.EntityCapabilities`
+  * Simpler first version: private helpers such as `talkable?/1`, `movable?/1`, or `tickable?/1`
+* [ ] Ensure gameplay APIs return predictable errors for unsupported entity capabilities.
+
+  * Example: `{:error, :entity_not_talkable}`
+  * Example: `{:error, :entity_not_movable}`
+  * Example: `{:error, :entity_not_tickable}`
+* [ ] Keep capability checks separate from text command parsing.
+* [ ] Add tests proving non-NPC entities cannot be talked to.
+* [ ] Add tests proving non-tickable entities are not treated as autonomous actors if ticking rules are updated.
+* [ ] Document that richer capability metadata may replace simple type checks later.
+
+
 #### Session player ownership
 
 * [ ] Add player ID to session state.
