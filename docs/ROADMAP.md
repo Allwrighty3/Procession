@@ -953,28 +953,28 @@ This phase should keep the first player model small and deterministic.
 
 #### Player entity foundation
 
-* [ ] Decide whether the player should be a normal `Procession.Entity` process or session state first.
+* [x] Decide whether the player should be a normal `Procession.Entity` process or session state first.
 
   * Recommended first version: player as a normal entity process owned by the session.
-* [ ] Add a player ID convention.
+* [x] Add a player ID convention.
 
   * Example: `player_main` or generated `player_...`
-* [ ] Add a helper for starting a player entity.
+* [x] Add a helper for starting a player entity.
 
   * Example: `EntitySupervisor.start_player/2` if useful.
-* [ ] Give the player a name, location, status, and metadata.
-* [ ] Keep player memory support available through the existing entity memory system.
-* [ ] Add tests for starting a player entity.
-* [ ] Add tests proving the session owns the player entity.
+* [x] Give the player a name, location, status, and metadata.
+* [x] Keep player memory support available through the existing entity memory system.
+* [x] Add tests for starting a player entity.
+* [x] Add tests proving the session owns the player entity.
 
 #### Entity type and capability boundaries
 
-* [ ] Clarify that all actors may be entities, but not all entities are actors.
+* [x] Clarify that all actors may be entities, but not all entities are actors.
 
   * NPCs and players are actors.
   * Locations, factions, regions, and world concepts may be entities without acting independently.
-* [ ] Keep `Procession.Entity` as the generic live entity process for now.
-* [ ] Avoid creating separate supervisors for each entity type in this phase.
+* [x] Keep `Procession.Entity` as the generic live entity process for now.
+* [x] Avoid creating separate supervisors for each entity type in this phase.
 * [ ] Add minimal type-based capability rules before command parsing depends on broad entity assumptions.
 
   * Example: NPCs are talkable.

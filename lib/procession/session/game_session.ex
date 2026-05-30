@@ -80,6 +80,13 @@ defmodule Procession.GameSession do
   end
 
   @doc """
+  Looks at the player's current location.
+  """
+  def look(session) do
+    GenServer.call(session, :look)
+  end
+
+  @doc """
   Look at a session-owned entity.
 
   Returns `{:error, :entity_not_in_session}` when the entity does not belong
@@ -229,6 +236,25 @@ defmodule Procession.GameSession do
     |> List.first()
   end
 
+  defp player_location_from_state(%{player_id: nil}) do
+    {:error, :player_not_found}
+  end
+
+  defp player_location_from_state(state) do
+    if EntitySupervisor.exists?(state.player_id) do
+      try do
+        player_state = Entity.get_state(state.player_id)
+
+        {:ok, player_state.location}
+      catch
+        :exit, _reason ->
+          {:error, :entity_not_found}
+      end
+    else
+      {:error, :entity_not_found}
+    end
+  end
+
   @impl true
   def init(opts) do
     session_id = Keyword.get_lazy(opts, :session_id, fn -> Id.generate("session") end)
@@ -318,6 +344,21 @@ defmodule Procession.GameSession do
   end
 
   @impl true
+  def handle_call(:look, _from, state) do
+    case player_location_from_state(state) do
+      {:ok, location_id} ->
+        if location_id in state.active_entities do
+          {:reply, Game.look(location_id), state}
+        else
+          {:reply, {:error, :entity_not_in_session}, state}
+        end
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  @impl true
   def handle_call({:look, entity_id}, _from, state) do
     if entity_id in state.active_entities do
       {:reply, Game.look(entity_id), state}
@@ -377,17 +418,6 @@ defmodule Procession.GameSession do
 
   @impl true
   def handle_call(:player_location, _from, state) do
-    if EntitySupervisor.exists?(state.player_id) do
-      try do
-        player_state = Entity.get_state(state.player_id)
-
-        {:reply, {:ok, player_state.location}, state}
-      catch
-        :exit, _reason ->
-          {:reply, {:error, :entity_not_found}, state}
-      end
-    else
-      {:reply, {:error, :entity_not_found}, state}
-    end
+    {:reply, player_location_from_state(state), state}
   end
 end
