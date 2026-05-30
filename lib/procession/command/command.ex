@@ -27,12 +27,34 @@ defmodule Procession.Command do
 
   defp parse(""), do: {:error, :invalid_command}
   defp parse("look"), do: {:ok, :look}
+  defp parse("look at"), do: {:error, :missing_target}
+
+  defp parse("look at " <> target) do
+    target = String.trim(target)
+
+    if target == "" do
+      {:error, :missing_target}
+    else
+      {:ok, {:look_at, target}}
+    end
+  end
+
   defp parse(_command), do: {:error, :unknown_command}
 
   defp execute({:ok, :look}, session) do
     case GameSession.perform(session, :look) do
       {:ok, result} ->
         {:ok, %{command: :look, result: result}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute({:ok, {:look_at, target}}, session) do
+    case GameSession.perform(session, :look, entity_id: target) do
+      {:ok, result} ->
+        {:ok, %{command: :look_at, target: target, result: result}}
 
       {:error, reason} ->
         {:error, reason}
