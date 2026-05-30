@@ -93,12 +93,13 @@ defmodule Procession.Command.Display do
 
   def format({:ok, %{command: :travel_to, result: result} = command}) do
     destination = display_destination(command)
+    route = format_route(result.via)
 
     """
-    You travel to #{destination}.
-    From: #{result.from}
-    To: #{result.to}
-    Via: #{result.via}
+    You travel to #{destination}#{route}.
+
+    You are now at #{destination}.
+    Previous location: #{result.from}
     """
     |> String.trim()
   end
@@ -219,6 +220,10 @@ defmodule Procession.Command.Display do
   defp format_failed_action(action) do
     "- #{inspect(action)}"
   end
+
+  defp format_route(nil), do: ""
+  defp format_route(""), do: ""
+  defp format_route(route), do: " by #{route}"
 
   defp display_target(%{entity_name: entity_name}) when is_binary(entity_name), do: entity_name
   defp display_target(%{target: target}), do: target

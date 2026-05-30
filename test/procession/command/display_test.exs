@@ -52,10 +52,10 @@ defmodule Procession.Command.DisplayTest do
 
     text = Display.format(result)
 
-    assert text =~ "You travel to Briar Village."
-    assert text =~ "From: loc_crossroads"
-    assert text =~ "To: loc_briar_village"
-    assert text =~ "Via: village road"
+    assert text =~ "You travel to Briar Village by village road."
+    assert text =~ "You are now at Briar Village."
+    assert text =~ "Previous location: loc_crossroads"
+    refute text =~ "To: loc_briar_village"
   end
 
   test "formats travel with canonical destination name when available" do
@@ -74,10 +74,10 @@ defmodule Procession.Command.DisplayTest do
          }}
       )
 
-    assert text =~ "You travel to Briar Village."
-    assert text =~ "From: loc_crossroads"
-    assert text =~ "To: loc_briar_village"
-    assert text =~ "Via: east"
+    assert text =~ "You travel to Briar Village by east."
+    assert text =~ "You are now at Briar Village."
+    assert text =~ "Previous location: loc_crossroads"
+    refute text =~ "To: loc_briar_village"
   end
 
   test "formats travel with typed destination when canonical destination name is unavailable" do
@@ -95,7 +95,29 @@ defmodule Procession.Command.DisplayTest do
          }}
       )
 
-    assert text =~ "You travel to briar village."
+    assert text =~ "You travel to briar village by east."
+    assert text =~ "You are now at briar village."
+  end
+
+  test "formats travel without route text when via is missing" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :travel_to,
+           destination: "briar village",
+           destination_name: "Briar Village",
+           result: %{
+             from: "loc_crossroads",
+             to: "loc_briar_village",
+             via: nil
+           }
+         }}
+      )
+
+    assert text =~ "You travel to Briar Village."
+    refute text =~ "by nil"
+    assert text =~ "You are now at Briar Village."
   end
 
   test "formats unknown command errors readably" do

@@ -151,8 +151,8 @@ The goal is to prevent commands, ticking, travel, and dialogue from treating eve
 
 - [x] Improve display output to prefer readable names over raw IDs where practical.
 - [ ] Improve local entity output in `look`.
-- [ ] Improve travel output after movement.
-- [ ] Improve error messages for unsupported capabilities.
+- [x] Improve travel output after movement.
+- [x] Improve error messages for unsupported capabilities.
 - [ ] Keep display formatting separate from simulation logic.
 - [ ] Add tests for display formatting improvements.
 
