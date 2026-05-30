@@ -380,13 +380,16 @@ defmodule Procession.GameSession do
 
   @impl true
   def handle_call(:look, _from, state) do
-    case player_location_from_state(state) do
-      {:ok, location_id} ->
-        if location_id in state.active_entities do
-          {:reply, Game.look(location_id), state}
-        else
-          {:reply, {:error, :entity_not_in_session}, state}
-        end
+    with {:ok, location_id} <- player_location_from_state(state),
+         true <- location_id in state.active_entities,
+         {:ok, location_summary} <- Game.look(location_id),
+         {:ok, local_entities} <- local_entities_from_state(state) do
+      location_summary = Map.put(location_summary, :local_entities, local_entities)
+
+      {:reply, {:ok, location_summary}, state}
+    else
+      false ->
+        {:reply, {:error, :entity_not_in_session}, state}
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}

@@ -675,6 +675,27 @@ defmodule Procession.GameSessionTest do
 
       assert {:error, :entity_not_found} = GameSession.look(session)
     end
+
+    test "includes local entities at the player's current location" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, location_summary} = GameSession.look(session)
+
+      assert Map.has_key?(location_summary, :local_entities)
+      assert is_list(location_summary.local_entities)
+      refute summary.player_id in location_summary.local_entities
+    end
+
+    test "location-relative look local entities match local_entities helper" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, local_entities} = GameSession.local_entities(session)
+      assert {:ok, location_summary} = GameSession.look(session)
+
+      assert Enum.sort(location_summary.local_entities) == Enum.sort(local_entities)
+    end
   end
 
   describe "local_entities/1" do
