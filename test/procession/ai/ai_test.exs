@@ -2,7 +2,7 @@ defmodule Procession.AITest do
   use ExUnit.Case
 
   test "generate returns a response through the default fake adapter" do
-    assert {:ok, "AI response to: Describe the village blacksmith."} =
+    assert {:ok, "I have nothing new to say right now."} =
              Procession.AI.generate("Describe the village blacksmith.")
   end
 

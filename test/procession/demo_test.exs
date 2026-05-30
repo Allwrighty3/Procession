@@ -96,4 +96,15 @@ defmodule Procession.DemoTest do
     assert output =~ "look at Tobin"
     assert output =~ "ask Mira about mine"
   end
+
+  test "runs talk to through the demo helper" do
+    assert {:ok, demo} = Demo.start()
+
+    output =
+      capture_io(fn ->
+        assert :ok = Demo.run(demo, "talk to Tobin: Hello there.")
+      end)
+
+    assert output =~ "Tobin says:"
+  end
 end

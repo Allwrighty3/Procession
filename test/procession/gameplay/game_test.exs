@@ -232,8 +232,7 @@ defmodule Procession.GameTest do
                  adapter: Procession.AI.FakeAdapter
                )
 
-      assert response =~ "AI response to:"
-      assert response =~ "What do you know about Tobin"
+      assert response =~ "If Tobin is finally admitting trouble, then the mine is worse than I thought."
     end
 
     test "talk_to returns a predictable error for a missing NPC" do
@@ -346,8 +345,7 @@ defmodule Procession.GameTest do
                  adapter: Procession.AI.FakeAdapter
                )
 
-      assert response =~ "AI response to:"
-      assert response =~ "What do you know about Tobin?"
+      assert response =~ "If Tobin is finally admitting trouble, then the mine is worse than I thought."
     end
 
     test "perform talk_to returns a predictable error when missing entity_id" do

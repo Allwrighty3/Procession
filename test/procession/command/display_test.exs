@@ -63,4 +63,13 @@ defmodule Procession.Command.DisplayTest do
 
     assert text == "Error: :unknown_command"
   end
+
+  test "formats talk to command output as readable text" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+    result = Procession.Command.run(demo.session, "talk to Tobin: Hello there.")
+
+    text = Procession.Command.Display.format(result)
+
+    assert text =~ "Tobin says:"
+  end
 end

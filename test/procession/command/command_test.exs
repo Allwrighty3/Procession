@@ -440,6 +440,15 @@ defmodule Procession.CommandTest do
 
       assert {:ok, ask_tobin} = Procession.Command.run(session, "ask Tobin about road")
 
+      assert {:ok, talk_tobin} =
+               Procession.Command.run(session, "talk to Tobin: Any news from the road?")
+
+      assert talk_tobin.command == :talk_to
+      assert talk_tobin.entity_id == "npc_tobin"
+      assert talk_tobin.target == "Tobin"
+      assert talk_tobin.message == "Any news from the road?"
+      assert is_binary(talk_tobin.result)
+
       assert ask_tobin.command == :ask_about
 
       assert Enum.any?(ask_tobin.result, fn memory ->

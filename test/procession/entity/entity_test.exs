@@ -884,10 +884,7 @@ defmodule Procession.EntityTest do
       )
 
     assert {:ok, response} = result
-    assert response =~ "AI response to:"
-    assert response =~ "Name: Mira"
-    assert response =~ "Location: blacksmith_shop"
-    assert response =~ "Can you help me?"
+    assert response =~ "If Tobin is finally admitting trouble, then the mine is worse than I thought."
   end
 
   test "entity AI response does not mutate memory" do

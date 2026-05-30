@@ -487,7 +487,7 @@ defmodule Procession.GeneratorTest do
 
       assert result.prompt =~ "small world blueprint"
       assert result.prompt =~ "a frontier village near a haunted mine"
-      assert result.response =~ "AI response to:"
+      assert result.response =~ "I have nothing new to say right now."
     end
 
     test "generate_world_ai rejects invalid prompts" do
