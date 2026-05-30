@@ -64,7 +64,13 @@ defmodule Procession.Game do
   def ask_about(entity_id, topic) when is_binary(topic) do
     if EntitySupervisor.exists?(entity_id) do
       try do
-        {:ok, Entity.recall(entity_id, topic)}
+        state = Entity.get_state(entity_id)
+
+        if EntityCapabilities.askable?(state) do
+          {:ok, Entity.recall(entity_id, topic)}
+        else
+          {:error, :entity_not_askable}
+        end
       catch
         :exit, _reason ->
           {:error, :entity_not_found}
@@ -96,7 +102,6 @@ defmodule Procession.Game do
         else
           {:error, :entity_not_talkable}
         end
-
       catch
         :exit, _reason ->
           {:error, :entity_not_found}

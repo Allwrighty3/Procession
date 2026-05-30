@@ -219,6 +219,22 @@ defmodule Procession.GameTest do
       assert Procession.Game.ask_about("npc_mira", :mine) == {:error, :invalid_topic}
       assert Procession.Game.ask_about("npc_mira", 123) == {:error, :invalid_topic}
     end
+
+    test "ask_about rejects locations as not askable" do
+      assert {:ok, summary} = Procession.Game.new_game("anything")
+
+      location_id = hd(summary.locations)
+
+      assert Procession.Game.ask_about(location_id, "road") == {:error, :entity_not_askable}
+    end
+
+    test "ask_about rejects factions as not askable" do
+      assert {:ok, summary} = Procession.Game.new_game("anything")
+
+      faction_id = hd(summary.factions)
+
+      assert Procession.Game.ask_about(faction_id, "road") == {:error, :entity_not_askable}
+    end
   end
 
   describe "talk_to/3" do

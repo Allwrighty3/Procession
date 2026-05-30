@@ -542,4 +542,11 @@ defmodule Procession.CommandTest do
     assert result.entity_id == "npc_tobin"
     assert result.entity_name == "Tobin"
   end
+
+  test "ask command rejects non-askable entity names" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+
+    assert Procession.Command.run(demo.session, "ask Roadwardens about road") ==
+             {:error, :entity_not_askable}
+  end
 end
