@@ -513,7 +513,14 @@ defmodule Procession.GameTest do
     test "tick_all_live_entities returns no actions when no live entities have tick behavior" do
       assert Procession.Game.tick_all_live_entities() ==
                {:ok,
-                %{entities_ticked: 0, actions: [], failed_actions: [], successful_actions: []}}
+                %{
+                  entities_ticked: 0,
+                  entities_considered: 0,
+                  actions: [],
+                  failed_actions: [],
+                  successful_actions: [],
+                  skipped_actions: []
+                }}
     end
 
     test "tick_all_live_entities records missing entities as failed tick actions" do
@@ -597,6 +604,64 @@ defmodule Procession.GameTest do
     test "rejects invalid entity id input" do
       assert Game.tick_entities(nil) == {:error, :invalid_entity_ids}
       assert Game.tick_entities("npc_mira") == {:error, :invalid_entity_ids}
+    end
+
+    test "tick_entities skips non-tickable entity types as structured data" do
+      assert {:ok, _player_pid} =
+               Procession.EntitySupervisor.start_player("player_test", %{
+                 name: "Player",
+                 location: "loc_crossroads"
+               })
+
+      assert {:ok, _location_pid} =
+               Procession.EntitySupervisor.start_location("loc_crossroads", %{
+                 name: "Crossroads"
+               })
+
+      assert {:ok, summary} = Game.tick_entities(["player_test", "loc_crossroads"])
+
+      assert summary.entities_considered == 2
+      assert summary.entities_ticked == 0
+      assert summary.successful_actions == []
+      assert summary.failed_actions == []
+
+      assert Enum.all?(summary.skipped_actions, fn action ->
+               action.status == :skipped and
+                 action.action == :tick and
+                 action.reason == :entity_not_tickable
+             end)
+
+      assert Enum.map(summary.skipped_actions, & &1.entity_id)
+             |> Enum.sort() == ["loc_crossroads", "player_test"]
+    end
+
+    test "tick_entities still ticks tickable NPCs" do
+      assert {:ok, _pid} =
+               Procession.EntitySupervisor.start_npc("npc_tickable", %{
+                 name: "Tickable",
+                 location: "loc_nowhere",
+                 metadata: %{
+                   behaviors: [
+                     %{
+                       trigger: :world_tick,
+                       action: :change_status,
+                       status: :busy
+                     }
+                   ]
+                 }
+               })
+
+      assert {:ok, summary} = Game.tick_entities(["npc_tickable"])
+
+      assert summary.entities_considered == 1
+      assert summary.entities_ticked == 1
+      assert summary.skipped_actions == []
+
+      assert Enum.any?(summary.successful_actions, fn action ->
+               action.action == :change_status and
+                 action.entity_id == "npc_tickable" and
+                 action.new_status == :busy
+             end)
     end
   end
 

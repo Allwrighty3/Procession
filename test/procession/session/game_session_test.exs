@@ -286,7 +286,19 @@ defmodule Procession.GameSessionTest do
 
       assert {:ok, tick_summary} = Procession.WorldClock.tick(clock)
 
-      assert tick_summary.entities_ticked >= length(session_summary.active_entities)
+      assert tick_summary.entities_considered == length(session_summary.active_entities)
+      assert tick_summary.entities_ticked == 1
+
+      assert Enum.any?(tick_summary.successful_actions, fn action ->
+               action.action == :send_message and
+                 action.from == "npc_tobin" and
+                 action.to == "npc_mira"
+             end)
+
+      assert Enum.all?(tick_summary.skipped_actions, fn action ->
+               action.status == :skipped and action.reason == :entity_not_tickable
+             end)
+
       assert is_list(tick_summary.actions)
       assert is_list(tick_summary.failed_actions)
     end
@@ -298,7 +310,9 @@ defmodule Procession.GameSessionTest do
       {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 
       assert {:ok, before_cleanup_tick} = Procession.WorldClock.tick(clock)
-      assert before_cleanup_tick.entities_ticked >= length(session_summary.active_entities)
+      assert before_cleanup_tick.entities_considered == length(session_summary.active_entities)
+      assert before_cleanup_tick.entities_ticked == 1
+      assert length(before_cleanup_tick.skipped_actions) > 0
 
       cleanup_summary = GameSession.cleanup(session)
 
@@ -307,6 +321,7 @@ defmodule Procession.GameSessionTest do
       Process.sleep(10)
 
       assert {:ok, after_cleanup_tick} = Procession.WorldClock.tick(clock)
+      assert after_cleanup_tick.entities_considered == 0
       assert after_cleanup_tick.entities_ticked == 0
     end
   end
@@ -527,7 +542,15 @@ defmodule Procession.GameSessionTest do
 
       assert {:ok, tick_summary} = GameSession.tick(session)
 
-      assert tick_summary.entities_ticked >= length(session_summary.active_entities)
+      assert tick_summary.entities_considered == length(session_summary.active_entities)
+      assert tick_summary.entities_ticked == 1
+
+      assert Enum.any?(tick_summary.successful_actions, fn action ->
+               action.action == :send_message and
+                 action.from == "npc_tobin" and
+                 action.to == "npc_mira"
+             end)
+
       assert is_list(tick_summary.actions)
       assert is_list(tick_summary.successful_actions)
       assert is_list(tick_summary.failed_actions)

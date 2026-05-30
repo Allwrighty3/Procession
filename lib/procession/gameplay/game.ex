@@ -236,7 +236,23 @@ defmodule Procession.Game do
 
   defp safe_tick_entity(entity_id) do
     try do
-      Entity.tick(entity_id)
+      state = Entity.get_state(entity_id)
+
+      if EntityCapabilities.tickable?(state) do
+        Entity.tick(entity_id)
+      else
+        {:ok,
+         %{
+           actions: [
+             %{
+               status: :skipped,
+               action: :tick,
+               entity_id: entity_id,
+               reason: :entity_not_tickable
+             }
+           ]
+         }}
+      end
     catch
       :exit, reason ->
         {:ok,
@@ -271,12 +287,19 @@ defmodule Procession.Game do
         Map.get(action, :status) == :error
       end)
 
+    skipped_actions =
+      Enum.filter(actions, fn action ->
+        Map.get(action, :status) == :skipped
+      end)
+
     {:ok,
      %{
-       entities_ticked: length(results),
+       entities_ticked: length(successful_actions) + length(failed_actions),
+       entities_considered: length(results),
        actions: actions,
        successful_actions: successful_actions,
-       failed_actions: failed_actions
+       failed_actions: failed_actions,
+       skipped_actions: skipped_actions
      }}
   end
 
