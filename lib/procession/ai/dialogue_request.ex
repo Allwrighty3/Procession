@@ -9,7 +9,8 @@ defmodule Procession.AI.DialogueRequest do
 
   defstruct [
     :npc,
-    :player_message,
+    :speaker,
+    :message,
     relevant_memories: [],
     location_context: nil,
     world_context: nil
@@ -24,16 +25,25 @@ defmodule Procession.AI.DialogueRequest do
           traits: map()
         }
 
+  @type speaker_context :: %{
+          id: String.t(),
+          name: String.t(),
+          type: atom()
+        }
+
   @type t :: %__MODULE__{
           npc: npc_context(),
-          player_message: String.t(),
+          speaker: speaker_context(),
+          message: String.t(),
           relevant_memories: [map()],
           location_context: map() | nil,
           world_context: map() | nil
         }
 
-  def from_entity_state(state, player_message, memories, opts \\ [])
-      when is_binary(player_message) and is_list(memories) do
+  def from_entity_state(state, message, memories, opts \\ [])
+
+  def from_entity_state(state, message, memories, opts)
+      when is_binary(message) and is_list(memories) and is_list(opts) do
     {:ok,
      %__MODULE__{
        npc: %{
@@ -44,14 +54,23 @@ defmodule Procession.AI.DialogueRequest do
          location: state.location,
          traits: state.traits
        },
-       player_message: player_message,
+       speaker: Keyword.get(opts, :speaker, default_speaker()),
+       message: message,
        relevant_memories: memories,
        location_context: Keyword.get(opts, :location_context),
        world_context: Keyword.get(opts, :world_context)
      }}
   end
 
-  def from_entity_state(_state, _player_message, _memories, _opts) do
+  def from_entity_state(_state, _message, _memories, _opts) do
     {:error, :invalid_dialogue_request}
+  end
+
+  defp default_speaker do
+    %{
+      id: "player",
+      type: :player,
+      name: "Player"
+    }
   end
 end

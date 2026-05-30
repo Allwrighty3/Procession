@@ -1,6 +1,19 @@
 defmodule Procession.GameSessionTest do
   use ExUnit.Case, async: false
 
+  defmodule LocationContextAssertAdapter do
+    @behaviour Procession.AI
+
+    @impl true
+    def generate(prompt, _opts) do
+      if prompt =~ "Current location context:" and prompt =~ "Old Road Crossroads" do
+        {:ok, "I know this place."}
+      else
+        {:error, :missing_location_context}
+      end
+    end
+  end
+
   alias Procession.GameSession
 
   setup do

@@ -10,9 +10,11 @@ defmodule Procession.AI.Prompt do
     name = Map.get(attrs, :name, "Unknown NPC")
     status = Map.get(attrs, :status, :idle)
     location = Map.get(attrs, :location, "unknown location")
+    location_context = Map.get(attrs, :location_context)
     traits = Map.get(attrs, :traits, %{})
     memories = Map.get(attrs, :memories, [])
-    player_message = Map.get(attrs, :player_message, "")
+    speaker = Map.get(attrs, :speaker, %{id: "player", type: :player, name: "Player"})
+    message = Map.get(attrs, :message, Map.get(attrs, :player_message, ""))
 
     """
     You are generating dialogue for a single-player RPG simulation.
@@ -28,8 +30,16 @@ defmodule Procession.AI.Prompt do
     Relevant memories:
     #{format_memories(memories)}
 
-    Player message:
-    #{player_message}
+    Current location context:
+    #{format_location_context(location_context)}
+
+    Speaker:
+    - Name: #{Map.get(speaker, :name, "Unknown speaker")}
+    - Type: #{Map.get(speaker, :type, :unknown)}
+    - ID: #{Map.get(speaker, :id, "unknown")}
+
+    Message:
+    #{message}
 
     Respond as the NPC in 1-3 sentences.
     """
@@ -58,5 +68,14 @@ defmodule Procession.AI.Prompt do
       "- [#{type}, importance #{importance}] #{content}"
     end)
     |> Enum.join("\n")
+  end
+
+  defp format_location_context(nil), do: "- none"
+
+  defp format_location_context(location) do
+    name = Map.get(location, :name, "Unknown location")
+    description = Map.get(location, :description, "No description available.")
+
+    "- Name: #{name}\n- Description: #{description}"
   end
 end

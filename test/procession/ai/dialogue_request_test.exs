@@ -36,10 +36,48 @@ defmodule Procession.AI.DialogueRequestTest do
              traits: %{role: "innkeeper"}
            }
 
-    assert request.player_message == "What do you know about Tobin?"
+    assert request.message == "What do you know about Tobin?"
+
+    assert request.speaker == %{
+             id: "player",
+             type: :player,
+             name: "Player"
+           }
+
     assert request.relevant_memories == memories
     assert request.location_context == %{name: "Briar Village"}
     assert request.world_context == %{tone: "uneasy frontier"}
+  end
+
+  test "builds dialogue request with an explicit non-player speaker" do
+    state = %Entity{
+      id: "npc_mira",
+      name: "Mira",
+      type: :npc,
+      status: :watching,
+      location: "loc_briar_village",
+      traits: %{role: "innkeeper"}
+    }
+
+    assert {:ok, request} =
+             DialogueRequest.from_entity_state(
+               state,
+               "The road is watched.",
+               [],
+               speaker: %{
+                 id: "npc_tobin",
+                 type: :npc,
+                 name: "Tobin"
+               }
+             )
+
+    assert request.speaker == %{
+             id: "npc_tobin",
+             type: :npc,
+             name: "Tobin"
+           }
+
+    assert request.message == "The road is watched."
   end
 
   test "rejects invalid dialogue request inputs" do

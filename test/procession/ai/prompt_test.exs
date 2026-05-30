@@ -20,7 +20,8 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "Location: blacksmith_shop"
     assert prompt =~ "- bravery: 7"
     assert prompt =~ "[dialogue, importance 3] The blacksmith lost his hammer."
-    assert prompt =~ "Player message:"
+    assert prompt =~ "Speaker:"
+    assert prompt =~ "Message:"
     assert prompt =~ "Can you help me?"
     assert prompt =~ "Respond as the NPC in 1-3 sentences."
   end
@@ -36,5 +37,37 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "Location: unknown location"
     assert prompt =~ "Traits:\n- none"
     assert prompt =~ "Relevant memories:\n- none"
+  end
+
+  test "npc_response includes location context when provided" do
+    prompt =
+      Procession.AI.Prompt.npc_response(%{
+        name: "Mira",
+        location_context: %{
+          name: "Briar Village",
+          description: "A tense frontier settlement."
+        },
+        player_message: "What is happening here?"
+      })
+
+    assert prompt =~ "Current location context:"
+    assert prompt =~ "Name: Briar Village"
+    assert prompt =~ "Description: A tense frontier settlement."
+  end
+
+  test "npc_response includes explicit speaker context" do
+    prompt =
+      Procession.AI.Prompt.npc_response(%{
+        name: "Mira",
+        speaker: %{id: "npc_tobin", type: :npc, name: "Tobin"},
+        message: "The road is watched."
+      })
+
+    assert prompt =~ "Speaker:"
+    assert prompt =~ "Name: Tobin"
+    assert prompt =~ "Type: npc"
+    assert prompt =~ "ID: npc_tobin"
+    assert prompt =~ "Message:"
+    assert prompt =~ "The road is watched."
   end
 end

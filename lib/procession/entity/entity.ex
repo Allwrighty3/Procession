@@ -299,7 +299,7 @@ defmodule Procession.Entity do
              state,
              player_message,
              memories,
-             Keyword.take(opts, [:location_context, :world_context])
+             Keyword.take(opts, [:speaker, :location_context, :world_context])
            ) do
       prompt =
         Procession.AI.Prompt.npc_response(%{
@@ -308,7 +308,9 @@ defmodule Procession.Entity do
           location: request.npc.location,
           traits: request.npc.traits,
           memories: request.relevant_memories,
-          player_message: request.player_message
+          speaker: request.speaker,
+          message: request.message,
+          location_context: request.location_context
         })
 
       ai_opts =
@@ -316,6 +318,7 @@ defmodule Procession.Entity do
         |> Keyword.drop([
           :recent_count,
           :minimum_importance,
+          :speaker,
           :location_context,
           :world_context
         ])

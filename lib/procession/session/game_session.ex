@@ -379,6 +379,22 @@ defmodule Procession.GameSession do
     end
   end
 
+  defp current_location_context(state) do
+    with {:ok, location_id} <- player_location_from_state(state),
+         true <- location_id in state.active_entities,
+         true <- EntitySupervisor.exists?(location_id),
+         location_state <- Entity.get_state(location_id) do
+      %{
+        id: location_state.id,
+        name: location_state.name,
+        description: Map.get(location_state.metadata, :description),
+        exits: Map.get(location_state.metadata, :exits, [])
+      }
+    else
+      _ -> nil
+    end
+  end
+
   @impl true
   def init(opts) do
     session_id = Keyword.get_lazy(opts, :session_id, fn -> Id.generate("session") end)
@@ -507,7 +523,11 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call({:talk_to, entity_id, message, opts}, _from, state) do
     if entity_id in state.active_entities do
-      {:reply, Game.talk_to(entity_id, message, opts), state}
+      dialogue_opts =
+        opts
+        |> Keyword.merge(location_context: current_location_context(state))
+
+      {:reply, Game.talk_to(entity_id, message, dialogue_opts), state}
     else
       {:reply, {:error, :entity_not_in_session}, state}
     end
