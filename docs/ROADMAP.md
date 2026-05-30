@@ -1034,28 +1034,28 @@ This phase should keep the first player model small and deterministic.
 
 #### Player memory preparation
 
-* [ ] Decide whether player actions should create memories immediately.
-* [ ] First version may avoid automatic player memory.
+* [x] Decide whether player actions should create memories immediately.
+* [x] First version may avoid automatic player memory.
 * [ ] Add a basic player memory example only if useful.
-* [ ] Defer richer journaling or quest logs.
-* [ ] Document the decision.
+* [x] Defer richer journaling or quest logs.
+* [x] Document the decision.
 
 #### Documentation and IEx demos
 
-* [ ] Add examples for creating a session with a player.
-* [ ] Add examples for checking player location.
-* [ ] Add examples for `look` using player location context.
-* [ ] Add examples for listing local entities.
-* [ ] Document that player inventory, quests, and stats are deferred.
+* [x] Add examples for creating a session with a player.
+* [x] Add examples for checking player location.
+* [x] Add examples for `look` using player location context.
+* [x] Add examples for listing local entities.
+* [x] Document that player inventory, quests, and stats are deferred.
 
 #### Deferred from Phase 10
 
-* [ ] Defer inventory.
-* [ ] Defer stats and character creation.
-* [ ] Defer combat.
-* [ ] Defer quests.
-* [ ] Defer player persistence.
-* [ ] Defer complex movement rules.
+* [x] Defer inventory.
+* [x] Defer stats and character creation.
+* [x] Defer combat.
+* [x] Defer quests.
+* [x] Defer player persistence.
+* [x] Defer complex movement rules.
 
 ---
 
@@ -1511,16 +1511,16 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 10 is complete when:
 
-* [ ] The player is represented explicitly in session state.
-* [ ] The player has a stable ID, location, status, and basic entity state.
-* [ ] The session owns the player entity.
-* [ ] The player is cleaned up with the rest of the session.
-* [ ] The session can report the player's current location.
-* [ ] `look` can operate relative to the player's current location.
-* [ ] The session can list local entities at the player's location.
-* [ ] Tests cover player creation, player ownership, player location, and location-relative look.
-* [ ] Documentation explains player entity behavior and current limitations.
-* [ ] Inventory, quests, combat, and player persistence remain deferred.
+* [x] The player is represented explicitly in session state.
+* [x] The player has a stable ID, location, status, and basic entity state.
+* [x] The session owns the player entity.
+* [x] The player is cleaned up with the rest of the session.
+* [x] The session can report the player's current location.
+* [x] `look` can operate relative to the player's current location.
+* [x] The session can list local entities at the player's location.
+* [x] Tests cover player creation, player ownership, player location, and location-relative look.
+* [x] Documentation explains player entity behavior and current limitations.
+* [x] Inventory, quests, combat, and player persistence remain deferred.
 
 ### Phase 11 is complete when:
 

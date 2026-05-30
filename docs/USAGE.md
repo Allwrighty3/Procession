@@ -1045,3 +1045,197 @@ Procession.GameSession.perform(session, :tick)
 ```
 
 `GameSession.tick/1` currently delegates to `Procession.Game.tick_world/0`. It is session-routed, but not yet scoped to only session-owned entities.
+
+## Player Entity and Location Context
+
+Phase 10 introduces the player as explicit session state.
+
+The first player model is intentionally small and deterministic. The player is a normal `Procession.Entity` process owned by the session. This gives the player an ID, location, status, metadata, and access to the existing entity memory system without adding inventory, quests, stats, combat, persistence, or command parsing yet.
+
+Start a session and create a deterministic game:
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link(session_id: "session_demo")
+
+{:ok, summary} =
+  Procession.GameSession.new_game(session, "a quiet frontier town")
+```
+
+The session summary now includes the player:
+
+```elixir
+summary.player_id
+# "player_main"
+
+summary.active_entities
+# [
+#   "player_main",
+#   "loc_crossroads",
+#   "loc_briar_village",
+#   "loc_silent_mine",
+#   "npc_mira",
+#   "npc_tobin",
+#   "npc_elin",
+#   "faction_roadwardens"
+# ]
+```
+
+The player is session-owned:
+
+```elixir
+Procession.GameSession.player(session)
+# "player_main"
+
+Procession.GameSession.owns_entity?(session, "player_main")
+# true
+```
+
+The player is also a normal live entity:
+
+```elixir
+Procession.GameSession.look(session, "player_main")
+```
+
+Expected shape:
+
+```elixir
+{:ok,
+ %{
+   id: "player_main",
+   name: "Player",
+   type: :player,
+   location: "loc_crossroads",
+   status: :idle,
+   traits: %{},
+   relationships: [],
+   description: nil,
+   memory_summary: %{short: 0, medium: 0, long: 0}
+ }}
+```
+
+### Player location
+
+The session can report the player's current location:
+
+```elixir
+Procession.GameSession.player_location(session)
+# {:ok, "loc_crossroads"}
+```
+
+Before a game is created, there is no player yet:
+
+```elixir
+{:ok, empty_session} = Procession.GameSession.start_link()
+
+Procession.GameSession.player(empty_session)
+# nil
+
+Procession.GameSession.player_location(empty_session)
+# {:error, :player_not_found}
+```
+
+If the player entity has been stopped unexpectedly, location lookup returns an entity error instead of crashing:
+
+```elixir
+Procession.EntitySupervisor.stop_entity("player_main")
+
+Procession.GameSession.player_location(session)
+# {:error, :entity_not_found}
+```
+
+### Location-relative look
+
+`Procession.GameSession.look/1` looks at the player's current location.
+
+```elixir
+{:ok, location_summary} = Procession.GameSession.look(session)
+
+location_summary.id
+# "loc_crossroads"
+
+location_summary.type
+# :location
+```
+
+Location-relative look also includes session-owned entities at the player's current location:
+
+```elixir
+location_summary.local_entities
+# ["npc_tobin"]
+```
+
+Use `look/2` when inspecting a specific session-owned entity:
+
+```elixir
+Procession.GameSession.look(session, "npc_mira")
+```
+
+The generic action helper also supports location-relative look:
+
+```elixir
+Procession.GameSession.perform(session, :look)
+```
+
+Use `entity_id` to look at a specific target through the action helper:
+
+```elixir
+Procession.GameSession.perform(session, :look, entity_id: "npc_mira")
+```
+
+### Local entity discovery
+
+The session can list live, session-owned entities at the player's current location:
+
+```elixir
+Procession.GameSession.local_entities(session)
+# {:ok, ["npc_tobin"]}
+```
+
+The player is not included in the local entity list. Entities in other locations are excluded. Live global entities that are not owned by the session are also excluded.
+
+This keeps local discovery scoped to the active session instead of every process currently registered in the VM.
+
+### Dialogue capability boundary
+
+The gameplay boundary now treats dialogue response as a capability.
+
+NPCs can generate dialogue responses:
+
+```elixir
+Procession.GameSession.talk_to(
+  session,
+  "npc_mira",
+  "What do you know about the old road?",
+  adapter: Procession.AI.FakeAdapter
+)
+```
+
+Non-NPC entities are not treated as dialogue responders:
+
+```elixir
+Procession.GameSession.talk_to(
+  session,
+  "player_main",
+  "Hello, me.",
+  adapter: Procession.AI.FakeAdapter
+)
+# {:error, :entity_not_talkable}
+
+Procession.GameSession.talk_to(
+  session,
+  "loc_crossroads",
+  "Nice weather.",
+  adapter: Procession.AI.FakeAdapter
+)
+# {:error, :entity_not_talkable}
+```
+
+This does not mean players or locations can never receive messages. It only means `talk_to/4` is for asking a target entity to generate a dialogue response, and the first supported dialogue responders are NPCs.
+
+### Player memory decision
+
+The player has access to the existing entity memory system because the player is a normal entity process.
+
+Phase 10 does not automatically create player memories from player actions yet. Automatic journaling should wait until command parsing, travel, and player-facing event formatting are clearer.
+
+Richer player memory, journaling, quest logs, inventory, stats, combat, save/load, and character creation are intentionally deferred.
