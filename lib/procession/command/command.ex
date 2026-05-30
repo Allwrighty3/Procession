@@ -32,6 +32,26 @@ defmodule Procession.Command do
   defp parse("wait"), do: {:ok, :wait}
   defp parse("look at"), do: {:error, :missing_target}
   defp parse("events for"), do: {:error, :missing_target}
+  defp parse("go to"), do: {:error, :missing_target}
+  defp parse("travel to"), do: {:error, :missing_target}
+
+  defp parse("go to " <> destination) do
+    parse_travel_destination(destination)
+  end
+
+  defp parse("travel to " <> destination) do
+    parse_travel_destination(destination)
+  end
+
+  defp parse_travel_destination(destination) do
+    destination = String.trim(destination)
+
+    if destination == "" do
+      {:error, :missing_target}
+    else
+      {:ok, {:travel_to, destination}}
+    end
+  end
 
   defp parse("look at " <> target) do
     target = String.trim(target)
@@ -149,6 +169,14 @@ defmodule Procession.Command do
     end
   end
 
+  defp execute({:ok, {:travel_to, destination}}, session) do
+    with {:ok, destination_id} <- resolve_location(session, destination) do
+      session
+      |> GameSession.perform(:travel, destination_id: destination_id)
+      |> wrap_result(:travel_to, %{destination: destination, destination_id: destination_id})
+    end
+  end
+
   defp execute({:error, reason}, _session), do: {:error, reason}
 
   defp resolve_entity(session, target) do
@@ -160,6 +188,63 @@ defmodule Procession.Command do
 
       true ->
         resolve_entity_by_name(owned_entities, target)
+    end
+  end
+
+  defp resolve_location(session, destination) do
+    owned_entities = GameSession.active_entities(session)
+
+    cond do
+      destination in owned_entities and location?(destination) ->
+        {:ok, destination}
+
+      destination in owned_entities ->
+        {:error, :unknown_destination}
+
+      true ->
+        resolve_location_by_name(owned_entities, destination)
+    end
+  end
+
+  defp resolve_location_by_name(entity_ids, destination_name) do
+    matches =
+      entity_ids
+      |> Enum.filter(fn entity_id ->
+        location_name_matches?(entity_id, destination_name)
+      end)
+
+    case matches do
+      [] -> {:error, :entity_not_found}
+      [entity_id] -> {:ok, entity_id}
+      matches -> {:error, {:ambiguous_entity, matches}}
+    end
+  end
+
+  defp location_name_matches?(entity_id, destination_name) do
+    if EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Entity.get_state(entity_id)
+        entity.type == :location and entity.name == destination_name
+      catch
+        :exit, _reason ->
+          false
+      end
+    else
+      false
+    end
+  end
+
+  defp location?(entity_id) do
+    if EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Entity.get_state(entity_id)
+        entity.type == :location
+      catch
+        :exit, _reason ->
+          false
+      end
+    else
+      false
     end
   end
 

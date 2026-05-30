@@ -359,4 +359,70 @@ defmodule Procession.CommandTest do
       assert {:error, :entity_not_found} = Command.run(session, "events for Nobody")
     end
   end
+
+  describe "travel commands" do
+    test "go to moves the player to a reachable location by name" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, result} = Procession.Command.run(session, "go to Briar Village")
+
+      assert result.command == :travel_to
+      assert result.destination == "Briar Village"
+      assert result.destination_id == "loc_briar_village"
+
+      assert result.result == %{
+               from: "loc_crossroads",
+               to: "loc_briar_village",
+               via: "village road"
+             }
+
+      assert Procession.GameSession.player_location(session) == {:ok, "loc_briar_village"}
+    end
+
+    test "travel to moves the player to a reachable location by id" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, result} = Procession.Command.run(session, "travel to loc_silent_mine")
+
+      assert result.command == :travel_to
+      assert result.destination == "loc_silent_mine"
+      assert result.destination_id == "loc_silent_mine"
+
+      assert result.result == %{
+               from: "loc_crossroads",
+               to: "loc_silent_mine",
+               via: "mine road"
+             }
+
+      assert Procession.GameSession.player_location(session) == {:ok, "loc_silent_mine"}
+    end
+
+    test "travel command rejects missing destination" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.Command.run(session, "go to") == {:error, :missing_target}
+      assert Procession.Command.run(session, "travel to") == {:error, :missing_target}
+    end
+
+    test "travel command rejects unreachable destinations" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, _result} = Procession.Command.run(session, "go to Briar Village")
+
+      assert Procession.Command.run(session, "go to Silent Mine") ==
+               {:error, :destination_unreachable}
+    end
+
+    test "travel command rejects non-location entity names" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.Command.run(session, "go to Tobin") ==
+               {:error, :entity_not_found}
+    end
+  end
 end
