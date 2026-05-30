@@ -26,20 +26,30 @@ defmodule Procession.Generator do
            name: "Old Road Crossroads",
            type: :location,
            description:
-             "A muddy crossroads where merchants, pilgrims, and trouble all seem to pass through."
+             "A muddy crossroads where merchants, pilgrims, and trouble all seem to pass through.",
+           exits: [
+             %{to: "loc_briar_village", label: "village road"},
+             %{to: "loc_silent_mine", label: "mine road"}
+           ]
          },
          %{
            id: "loc_briar_village",
            name: "Briar Village",
            type: :location,
            description:
-             "A tired village of timber homes, suspicious windows, and stubborn survivors."
+             "A tired village of timber homes, suspicious windows, and stubborn survivors.",
+           exits: [
+             %{to: "loc_crossroads", label: "old road"}
+           ]
          },
          %{
            id: "loc_silent_mine",
            name: "Silent Mine",
            type: :location,
-           description: "An abandoned mine where the locals insist the echoes answer back."
+           description: "An abandoned mine where the locals insist the echoes answer back.",
+           exits: [
+             %{to: "loc_crossroads", label: "mine road"}
+           ]
          }
        ],
        npcs: [
@@ -163,6 +173,7 @@ defmodule Procession.Generator do
     with :ok <- require_top_level_fields(blueprint),
          :ok <- require_unique_entity_ids(blueprint),
          :ok <- require_known_npc_locations(blueprint),
+         :ok <- require_known_location_exits(blueprint),
          :ok <- require_known_relationship_entities(blueprint),
          :ok <- require_valid_starter_memories(blueprint),
          :ok <- require_valid_npc_behaviors(blueprint) do
@@ -282,8 +293,11 @@ defmodule Procession.Generator do
     spawn_entities(locations, fn location ->
       attrs =
         location
-        |> Map.drop([:id])
-        |> Map.put(:metadata, %{description: Map.get(location, :description)})
+        |> Map.drop([:id, :exits])
+        |> Map.put(:metadata, %{
+          description: Map.get(location, :description),
+          exits: Map.get(location, :exits, [])
+        })
 
       Procession.EntitySupervisor.start_location(location.id, attrs)
     end)
@@ -367,6 +381,42 @@ defmodule Procession.Generator do
     case Enum.find_value(blueprint.npcs, &invalid_npc_behavior/1) do
       nil -> :ok
       {npc, behavior, reason} -> {:error, {:invalid_behavior, npc.id, behavior, reason}}
+    end
+  end
+
+  defp require_known_location_exits(blueprint) do
+    location_ids = Enum.map(blueprint.locations, & &1.id)
+
+    case Enum.find_value(blueprint.locations, fn location ->
+           exits = Map.get(location, :exits, [])
+
+           cond do
+             not is_list(exits) ->
+               {location, exits, :exits_must_be_list}
+
+             true ->
+               Enum.find_value(exits, fn exit ->
+                 cond do
+                   not is_map(exit) ->
+                     {location, exit, :exit_must_be_map}
+
+                   Map.get(exit, :to) not in location_ids ->
+                     {location, exit, :unknown_exit_destination}
+
+                   Map.get(exit, :label) in [nil, ""] ->
+                     {location, exit, :missing_exit_label}
+
+                   true ->
+                     nil
+                 end
+               end)
+           end
+         end) do
+      nil ->
+        :ok
+
+      {location, exit, reason} ->
+        {:error, {:invalid_location_exit, location.id, exit, reason}}
     end
   end
 

@@ -22,18 +22,28 @@ defmodule Procession.Game do
       try do
         state = Entity.get_state(entity_id)
 
-        {:ok,
-         %{
-           id: state.id,
-           name: state.name,
-           type: state.type,
-           location: state.location,
-           status: state.status,
-           traits: state.traits,
-           relationships: Map.get(state.metadata, :relationships, []),
-           description: Map.get(state.metadata, :description),
-           memory_summary: Entity.memory_summary(entity_id)
-         }}
+        summary = %{
+          id: state.id,
+          name: state.name,
+          type: state.type,
+          location: state.location,
+          status: state.status,
+          traits: state.traits,
+          relationships: Map.get(state.metadata, :relationships, []),
+          description: Map.get(state.metadata, :description),
+          memory_summary: Entity.memory_summary(entity_id)
+        }
+
+        summary =
+          case state.type do
+            :location ->
+              Map.put(summary, :exits, Map.get(state.metadata, :exits, []))
+
+            _ ->
+              summary
+          end
+
+        {:ok, summary}
       catch
         :exit, _reason ->
           {:error, :entity_not_found}

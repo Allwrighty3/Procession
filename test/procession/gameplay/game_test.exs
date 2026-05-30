@@ -175,6 +175,17 @@ defmodule Procession.GameTest do
     test "look returns a predictable error for a missing entity" do
       assert Procession.Game.look("npc_missing") == {:error, :entity_not_found}
     end
+
+    test "look includes location exits" do
+      assert {:ok, _summary} = Procession.Game.new_game("anything")
+
+      assert {:ok, summary} = Procession.Game.look("loc_crossroads")
+
+      assert summary.exits == [
+               %{to: "loc_briar_village", label: "village road"},
+               %{to: "loc_silent_mine", label: "mine road"}
+             ]
+    end
   end
 
   describe "ask_about/2" do
