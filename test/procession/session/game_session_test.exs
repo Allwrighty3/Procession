@@ -572,6 +572,26 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "player entity" do
+    test "creates a player entity when starting a new game" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert summary.player_id == "player_main"
+      assert "player_main" in summary.active_entities
+      assert Procession.EntitySupervisor.exists?("player_main")
+    end
+
+    test "session owns the player entity" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert GameSession.owns_entity?(session, "player_main")
+    end
+  end
+
   defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
 
   defp eventually_all_entities_stopped?(_entity_ids, 0), do: false

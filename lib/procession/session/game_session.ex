@@ -13,6 +13,7 @@ defmodule Procession.GameSession do
   alias Procession.EntitySupervisor
 
   defstruct [
+    :player_id,
     :session_id,
     :world,
     :active_scope,
@@ -24,6 +25,7 @@ defmodule Procession.GameSession do
   @type status :: :new | :active | :cleaned_up
 
   @type t :: %__MODULE__{
+          player_id: String.t() | nil,
           session_id: String.t(),
           world: map() | nil,
           active_entities: [String.t()],
@@ -184,6 +186,7 @@ defmodule Procession.GameSession do
 
   defp build_summary(state) do
     %{
+      player_id: state.player_id,
       session_id: state.session_id,
       status: state.status,
       world: state.world,
@@ -203,6 +206,12 @@ defmodule Procession.GameSession do
       {:ok, value} -> {:ok, value}
       :error -> {:error, error_reason}
     end
+  end
+
+  defp first_location_id(game_summary) do
+    game_summary
+    |> Map.get(:locations, [])
+    |> List.first()
   end
 
   @impl true
@@ -225,16 +234,34 @@ defmodule Procession.GameSession do
   def handle_call({:new_game, prompt}, _from, state) do
     case Game.new_game(prompt) do
       {:ok, game_summary} ->
-        active_entities = extract_entity_ids(game_summary)
+        player_id = "player_main"
 
-        new_state = %{
-          state
-          | world: game_summary,
-            active_entities: active_entities,
-            status: :active
-        }
+        case EntitySupervisor.start_player(player_id, %{
+               name: "Player",
+               location: first_location_id(game_summary),
+               status: :idle,
+               metadata: %{session_id: state.session_id}
+             }) do
+          {:ok, _pid} ->
+            active_entities =
+              game_summary
+              |> extract_entity_ids()
+              |> then(fn entity_ids -> [player_id | entity_ids] end)
+              |> Enum.uniq()
 
-        {:reply, {:ok, build_summary(new_state)}, new_state}
+            new_state = %{
+              state
+              | world: game_summary,
+                player_id: player_id,
+                active_entities: active_entities,
+                status: :active
+            }
+
+            {:reply, {:ok, build_summary(new_state)}, new_state}
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}

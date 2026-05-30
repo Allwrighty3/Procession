@@ -29,6 +29,10 @@ defmodule Procession.EntitySupervisor do
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
+  def start_player(id, attrs \\ %{}) do
+    start_entity(id, Map.put(attrs, :type, :player))
+  end
+
   def start_npc(id, attrs \\ %{}) do
     start_entity(id, Map.put(attrs, :type, :npc))
   end
