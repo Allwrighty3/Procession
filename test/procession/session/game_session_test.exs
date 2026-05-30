@@ -476,6 +476,102 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "perform/3" do
+    test "performs a look action through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      assert {:ok, look_summary} = GameSession.perform(session, :look, entity_id: entity_id)
+
+      assert look_summary.id == entity_id
+    end
+
+    test "performs an ask_about action through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      npc_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok, memories} =
+               GameSession.perform(session, :ask_about, entity_id: npc_id, topic: "road")
+
+      assert is_list(memories)
+    end
+
+    test "performs a talk_to action through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      npc_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok, response} =
+               GameSession.perform(
+                 session,
+                 :talk_to,
+                 entity_id: npc_id,
+                 message: "Hello.",
+                 adapter: Procession.AI.FakeAdapter
+               )
+
+      assert is_binary(response)
+    end
+
+    test "performs a recent_events action through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      entity_id = hd(summary.active_entities)
+
+      assert {:ok, events} = GameSession.perform(session, :recent_events, entity_id: entity_id)
+
+      assert is_list(events)
+    end
+
+    test "performs a tick action through the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, tick_summary} = GameSession.perform(session, :tick)
+
+      assert is_integer(tick_summary.entities_ticked)
+      assert is_list(tick_summary.actions)
+    end
+
+    test "returns invalid_action for unsupported actions" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :invalid_action} = GameSession.perform(session, :dance_badly)
+    end
+
+    test "returns invalid_action for invalid action values" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :invalid_action} = GameSession.perform(session, "look")
+    end
+
+    test "returns missing_target when entity_id is required but missing" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = GameSession.perform(session, :look)
+    end
+
+    test "returns missing_topic for ask_about without a topic" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_topic} =
+               GameSession.perform(session, :ask_about, entity_id: "npc_mira")
+    end
+
+    test "returns missing_message for talk_to without a message" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_message} =
+               GameSession.perform(session, :talk_to, entity_id: "npc_mira")
+    end
+  end
+
   defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
 
   defp eventually_all_entities_stopped?(_entity_ids, 0), do: false

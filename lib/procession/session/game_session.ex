@@ -134,6 +134,46 @@ defmodule Procession.GameSession do
     GenServer.call(session, :tick)
   end
 
+  @doc """
+  Performs a session-aware gameplay action.
+
+  This is not text command parsing. Actions are atoms and arguments are keyword options.
+  """
+  def perform(session, action, opts \\ []) when is_atom(action) and is_list(opts) do
+    case action do
+      :look ->
+        with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target) do
+          look(session, entity_id)
+        end
+
+      :ask_about ->
+        with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target),
+             {:ok, topic} <- fetch_required_opt(opts, :topic, :missing_topic) do
+          ask_about(session, entity_id, topic)
+        end
+
+      :talk_to ->
+        with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target),
+             {:ok, message} <- fetch_required_opt(opts, :message, :missing_message) do
+          ai_opts = Keyword.drop(opts, [:entity_id, :message])
+          talk_to(session, entity_id, message, ai_opts)
+        end
+
+      :recent_events ->
+        with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target) do
+          recent_events(session, entity_id)
+        end
+
+      :tick ->
+        tick(session)
+
+      _ ->
+        {:error, :invalid_action}
+    end
+  end
+
+  def perform(_session, _action, _opts), do: {:error, :invalid_action}
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -157,6 +197,13 @@ defmodule Procession.GameSession do
 
   defp world_name(nil), do: nil
   defp world_name(world), do: Map.get(world, :name)
+
+  defp fetch_required_opt(opts, key, error_reason) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, error_reason}
+    end
+  end
 
   @impl true
   def init(opts) do
