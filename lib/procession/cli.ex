@@ -43,17 +43,31 @@ defmodule Procession.CLI do
     end
   end
 
-  defp handle_input("", session), do: loop(session)
+  defp handle_input(input, session) do
+    case String.downcase(input) do
+      "" ->
+        loop(session)
 
-  defp handle_input("help", session) do
-    IO.puts(@help_text)
-    loop(session)
+      "help" ->
+        print_help()
+        loop(session)
+
+      "quit" ->
+        quit(session)
+
+      "exit" ->
+        quit(session)
+
+      _ ->
+        run_game_command(input, session)
+    end
   end
 
-  defp handle_input("quit", session), do: quit(session)
-  defp handle_input("exit", session), do: quit(session)
+  defp print_help do
+    IO.puts(@help_text)
+  end
 
-  defp handle_input(command_text, session) do
+  defp run_game_command(command_text, session) do
     session
     |> Command.run(command_text)
     |> Display.format()

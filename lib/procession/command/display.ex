@@ -41,7 +41,8 @@ defmodule Procession.Command.Display do
     |> String.trim()
   end
 
-  def format({:ok, %{command: :ask_about, target: target, topic: topic, result: memories}}) do
+  def format({:ok, %{command: :ask_about, topic: topic, result: memories} = command}) do
+    target = display_target(command)
     header = "#{target} remembers about #{topic}:"
 
     body =
@@ -100,7 +101,8 @@ defmodule Procession.Command.Display do
     |> String.trim()
   end
 
-  def format({:ok, %{command: :recent_events, target: target, result: events}}) do
+  def format({:ok, %{command: :recent_events, result: events} = command}) do
+    target = display_target(command)
     header = "Recent events for #{target}:"
 
     body =
@@ -118,7 +120,8 @@ defmodule Procession.Command.Display do
     |> Enum.join("\n")
   end
 
-  def format({:ok, %{command: :talk_to, target: target, result: response}}) do
+  def format({:ok, %{command: :talk_to, result: response} = command}) do
+    target = display_target(command)
     "#{target} says: #{response}"
   end
 
@@ -166,4 +169,8 @@ defmodule Procession.Command.Display do
   defp format_failed_action(action) do
     "- #{inspect(action)}"
   end
+
+  defp display_target(%{entity_name: entity_name}) when is_binary(entity_name), do: entity_name
+  defp display_target(%{target: target}), do: target
+  defp display_target(_command), do: "Unknown"
 end

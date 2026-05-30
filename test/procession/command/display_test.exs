@@ -72,4 +72,33 @@ defmodule Procession.Command.DisplayTest do
 
     assert text =~ "Tobin says:"
   end
+
+  test "formats talk responses with canonical entity name when available" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :talk_to,
+           target: "tobin",
+           entity_name: "Tobin",
+           result: "Hello."
+         }}
+      )
+
+    assert text == "Tobin says: Hello."
+  end
+
+  test "formats talk responses with target when canonical entity name is unavailable" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :talk_to,
+           target: "tobin",
+           result: "Hello."
+         }}
+      )
+
+    assert text == "tobin says: Hello."
+  end
 end

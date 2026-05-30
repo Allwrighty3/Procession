@@ -500,4 +500,35 @@ defmodule Procession.CommandTest do
              end)
     end
   end
+
+  test "resolves entity names case-insensitively" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+
+    assert {:ok, result} = Command.run(demo.session, "talk to tobin: Hello")
+
+    assert result.command == :talk_to
+    assert result.target == "tobin"
+    assert result.entity_id == "npc_tobin"
+  end
+
+  test "resolves location names case-insensitively" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+
+    assert {:ok, result} = Command.run(demo.session, "go to briar village")
+
+    assert result.command == :travel_to
+    assert result.destination == "briar village"
+    assert result.destination_id == "loc_briar_village"
+  end
+
+  test "resolved entity commands include canonical entity name" do
+    assert {:ok, demo} = Procession.GameSession.start_demo()
+
+    assert {:ok, result} = Command.run(demo.session, "talk to tobin: hello")
+
+    assert result.command == :talk_to
+    assert result.target == "tobin"
+    assert result.entity_id == "npc_tobin"
+    assert result.entity_name == "Tobin"
+  end
 end

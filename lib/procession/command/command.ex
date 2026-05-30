@@ -141,7 +141,11 @@ defmodule Procession.Command do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:look, entity_id: entity_id)
-      |> wrap_result(:look_at, %{target: target, entity_id: entity_id})
+      |> wrap_result(:look_at, %{
+        target: target,
+        entity_id: entity_id,
+        entity_name: entity_display_name(entity_id)
+      })
     end
   end
 
@@ -149,7 +153,12 @@ defmodule Procession.Command do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:ask_about, entity_id: entity_id, topic: topic)
-      |> wrap_result(:ask_about, %{target: target, entity_id: entity_id, topic: topic})
+      |> wrap_result(:ask_about, %{
+        target: target,
+        entity_id: entity_id,
+        entity_name: entity_display_name(entity_id),
+        topic: topic
+      })
     end
   end
 
@@ -157,7 +166,12 @@ defmodule Procession.Command do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:talk_to, entity_id: entity_id, message: message)
-      |> wrap_result(:talk_to, %{target: target, entity_id: entity_id, message: message})
+      |> wrap_result(:talk_to, %{
+        target: target,
+        entity_id: entity_id,
+        entity_name: entity_display_name(entity_id),
+        message: message
+      })
     end
   end
 
@@ -165,7 +179,11 @@ defmodule Procession.Command do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       session
       |> GameSession.perform(:recent_events, entity_id: entity_id)
-      |> wrap_result(:recent_events, %{target: target, entity_id: entity_id})
+      |> wrap_result(:recent_events, %{
+        target: target,
+        entity_id: entity_id,
+        entity_name: entity_display_name(entity_id)
+      })
     end
   end
 
@@ -224,7 +242,7 @@ defmodule Procession.Command do
     if EntitySupervisor.exists?(entity_id) do
       try do
         entity = Entity.get_state(entity_id)
-        entity.type == :location and entity.name == destination_name
+        entity.type == :location and names_match?(entity.name, destination_name)
       catch
         :exit, _reason ->
           false
@@ -266,7 +284,7 @@ defmodule Procession.Command do
     if EntitySupervisor.exists?(entity_id) do
       try do
         entity = Entity.get_state(entity_id)
-        entity.name == target_name
+        names_match?(entity.name, target_name)
       catch
         :exit, _reason ->
           false
@@ -275,6 +293,26 @@ defmodule Procession.Command do
       false
     end
   end
+
+  defp entity_display_name(entity_id) do
+    if EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Entity.get_state(entity_id)
+        Map.get(entity, :name, entity_id)
+      catch
+        :exit, _reason ->
+          entity_id
+      end
+    else
+      entity_id
+    end
+  end
+
+  defp names_match?(name, input) when is_binary(name) and is_binary(input) do
+    String.downcase(name) == String.downcase(input)
+  end
+
+  defp names_match?(_name, _input), do: false
 
   defp wrap_result({:ok, result}, command) do
     {:ok, %{command: command, result: result}}

@@ -27,6 +27,27 @@ defmodule Procession.CLITest do
     assert output =~ "Status: cleaned_up"
   end
 
+  test "play handles CLI control commands case-insensitively" do
+    output =
+      capture_io("HELP\nQUIT\n", fn ->
+        assert :ok = CLI.play()
+      end)
+
+    assert output =~ "Commands:"
+    assert output =~ "Demo cleaned up."
+    assert output =~ "Status: cleaned_up"
+  end
+
+  test "play does not normalize game command text" do
+    output =
+      capture_io("LOOK\nquit\n", fn ->
+        assert :ok = CLI.play()
+      end)
+
+    assert output =~ "Error: :unknown_command"
+    assert output =~ "Demo cleaned up."
+  end
+
   test "play sends commands through the command/display pipeline" do
     output =
       capture_io("look\nquit\n", fn ->

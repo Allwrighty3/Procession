@@ -1326,31 +1326,31 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 #### CLI entry point
 
-* [ ] Decide the simplest CLI entry point.
+* [x] Decide the simplest CLI entry point.
 
   * Example: custom Mix task `mix procession.play`
-* [ ] Add a Mix task for starting the playable demo.
+* [x] Add a Mix task for starting the playable demo.
 
   * Example: `Mix.Tasks.Procession.Play`
-* [ ] Start or reuse a game session.
-* [ ] Create the deterministic starter world.
-* [ ] Create the player entity.
-* [ ] Print a short intro.
-* [ ] Accept typed commands from stdin.
-* [ ] Add tests for CLI setup where practical.
-* [ ] Keep command parsing delegated to `Procession.Command`.
+* [x] Start or reuse a game session.
+* [x] Create the deterministic starter world.
+* [x] Create the player entity.
+* [x] Print a short intro.
+* [x] Accept typed commands from stdin.
+* [x] Add tests for CLI setup where practical.
+* [x] Keep command parsing delegated to `Procession.Command`.
 
 #### CLI command loop
 
-* [ ] Read player input line by line.
-* [ ] Send commands to the deterministic command parser.
-* [ ] Print command results in a readable format.
-* [ ] Support `help`.
-* [ ] Support `quit`.
-* [ ] Keep the loop local and synchronous.
-* [ ] Do not require Phoenix.
-* [ ] Do not require Ollama.
-* [ ] Do not require a database.
+* [x] Read player input line by line.
+* [x] Send commands to the deterministic command parser.
+* [x] Print command results in a readable format.
+* [x] Support `help`.
+* [x] Support `quit`.
+* [x] Keep the loop local and synchronous.
+* [x] Do not require Phoenix.
+* [x] Do not require Ollama.
+* [x] Do not require a database.
 
 #### Simple output formatting
 
@@ -1364,8 +1364,8 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 #### Safety and cleanup
 
 * [ ] Stop interval ticking when quitting if it was started.
-* [ ] Clean up session-owned entities on quit.
-* [ ] Handle invalid commands without crashing the loop.
+* [x] Clean up session-owned entities on quit.
+* [x] Handle invalid commands without crashing the loop.
 * [ ] Handle Ctrl+C as gracefully as practical.
 * [ ] Document cleanup behavior.
 
