@@ -525,7 +525,7 @@ defmodule Procession.GameSession do
     if entity_id in state.active_entities do
       dialogue_opts =
         opts
-        |> Keyword.merge(location_context: current_location_context(state))
+        |> Keyword.put_new(:location_context, current_location_context(state))
 
       {:reply, Game.talk_to(entity_id, message, dialogue_opts), state}
     else
