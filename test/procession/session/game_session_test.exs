@@ -708,6 +708,60 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "travel/2" do
+    test "moves the player to a reachable location" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.GameSession.player_location(session) == {:ok, "loc_crossroads"}
+
+      assert {:ok, travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+
+      assert travel_summary == %{
+               from: "loc_crossroads",
+               to: "loc_briar_village",
+               via: "village road"
+             }
+
+      assert Procession.GameSession.player_location(session) == {:ok, "loc_briar_village"}
+    end
+
+    test "rejects unreachable destinations" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, _summary} = Procession.GameSession.travel(session, "loc_briar_village")
+
+      assert Procession.GameSession.travel(session, "loc_silent_mine") ==
+               {:error, :destination_unreachable}
+
+      assert Procession.GameSession.player_location(session) == {:ok, "loc_briar_village"}
+    end
+
+    test "rejects unknown destinations" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.GameSession.travel(session, "loc_nowhere") ==
+               {:error, :unknown_destination}
+    end
+
+    test "rejects non-location destinations" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert Procession.GameSession.travel(session, "npc_tobin") ==
+               {:error, :unknown_destination}
+    end
+
+    test "requires a player entity" do
+      assert {:ok, session} = Procession.GameSession.start_link()
+
+      assert Procession.GameSession.travel(session, "loc_briar_village") ==
+               {:error, :player_not_found}
+    end
+  end
+
   describe "local_entities/1" do
     test "returns player_not_found before a game is created" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")

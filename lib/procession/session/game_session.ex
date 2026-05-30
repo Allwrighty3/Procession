@@ -175,6 +175,12 @@ defmodule Procession.GameSession do
           recent_events(session, entity_id)
         end
 
+      :travel ->
+        with {:ok, destination_id} <-
+               fetch_required_opt(opts, :destination_id, :missing_destination) do
+          travel(session, destination_id)
+        end
+
       :tick ->
         tick(session)
 
@@ -198,6 +204,17 @@ defmodule Procession.GameSession do
   def player_location(session) do
     GenServer.call(session, :player_location)
   end
+
+  @doc """
+  Moves the player to a reachable session-owned location.
+
+  The destination must be one of the current location's exits.
+  """
+  def travel(session, destination_id) when is_binary(destination_id) do
+    GenServer.call(session, {:travel, destination_id})
+  end
+
+  def travel(_session, _destination_id), do: {:error, :invalid_destination}
 
   @doc """
   Returns session-owned entities at the player's current location.
@@ -288,6 +305,36 @@ defmodule Procession.GameSession do
         end)
 
       {:ok, local_entities}
+    end
+  end
+
+  defp reachable_exit_from_state(state, from_location_id, destination_id) do
+    with true <- destination_id in state.active_entities,
+         true <- EntitySupervisor.exists?(from_location_id),
+         true <- EntitySupervisor.exists?(destination_id) do
+      try do
+        from_location = Entity.get_state(from_location_id)
+        destination = Entity.get_state(destination_id)
+
+        cond do
+          destination.type != :location ->
+            {:error, :unknown_destination}
+
+          true ->
+            exits = Map.get(from_location.metadata, :exits, [])
+
+            case Enum.find(exits, fn exit -> Map.get(exit, :to) == destination_id end) do
+              nil -> {:error, :destination_unreachable}
+              exit -> {:ok, exit}
+            end
+        end
+      catch
+        :exit, _reason ->
+          {:error, :entity_not_found}
+      end
+    else
+      false -> {:error, :unknown_destination}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -430,6 +477,27 @@ defmodule Procession.GameSession do
       {:reply, Game.recent_events(entity_id), state}
     else
       {:reply, {:error, :entity_not_in_session}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:travel, destination_id}, _from, state) do
+    with {:ok, player_location} <- player_location_from_state(state),
+         {:ok, exit} <- reachable_exit_from_state(state, player_location, destination_id),
+         :ok <- Entity.move_to(state.player_id, destination_id) do
+      travel_summary = %{
+        from: player_location,
+        to: destination_id,
+        via: Map.get(exit, :label)
+      }
+
+      {:reply, {:ok, travel_summary}, state}
+    else
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+
+      error ->
+        {:reply, error, state}
     end
   end
 
