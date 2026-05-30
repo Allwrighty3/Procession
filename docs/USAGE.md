@@ -1574,3 +1574,170 @@ The following systems are intentionally deferred:
 
 NPCs can still be moved at the raw entity level through `Procession.Entity.move_to/2`, but autonomous NPC movement should later be added through validated behavior metadata rather than through the player travel API.
 
+## Phase 14: Tiny Local CLI Loop
+
+Phase 14 adds a small local terminal play loop for the deterministic vertical slice.
+
+The CLI is intentionally thin. It reads terminal input, routes gameplay commands through `Procession.Command`, formats results through `Procession.Command.Display`, and cleans up the demo session when quitting.
+
+It does not own gameplay rules, command parsing, travel rules, ticking behavior, memory behavior, AI behavior, world generation, or simulation state.
+
+### Run the CLI prototype
+
+From the repo root:
+
+```bash
+mix procession.play
+````
+
+The CLI starts the deterministic demo session, prints a short intro, shows the starting location, and waits for typed commands.
+
+Example startup shape:
+
+```text
+Procession local demo started.
+
+Type `help` for commands.
+Type `quit` to exit.
+
+Old Road Crossroads
+
+...
+Exits: village road -> loc_briar_village
+Local entities: npc_tobin
+>
+```
+
+### Supported CLI commands
+
+The CLI supports the same deterministic player-facing commands used by the IEx demo:
+
+```text
+look
+where
+look at Tobin
+ask Tobin about road
+talk to Tobin: Any news from the road?
+wait
+go to Briar Village
+ask Mira about mine
+events for Mira
+help
+commands
+quit
+exit
+```
+
+`where` is a CLI shortcut that re-runs the existing `look` command through the normal command/display pipeline.
+
+`help` and `commands` both print the command list.
+
+`quit` and `exit` clean up the demo session and stop session-owned live entities.
+
+### Example CLI playthrough
+
+```text
+look at Tobin
+ask Tobin about road
+talk to Tobin: Hello
+wait
+go to Briar Village
+where
+ask Mira about mine
+events for Mira
+quit
+```
+
+This exercises the main Phase 14 playable path:
+
+* NPC inspection
+* memory query
+* deterministic fake dialogue
+* manual world ticking
+* travel
+* location reorientation
+* recent event inspection
+* cleanup
+
+### CLI command handling
+
+CLI control commands are case-insensitive:
+
+```text
+HELP
+COMMANDS
+WHERE
+QUIT
+EXIT
+```
+
+Gameplay command text is not globally normalized by the CLI. For example, `look` is a gameplay command, while `LOOK` is not automatically rewritten by the CLI.
+
+Entity and location name resolution is case-insensitive for supported gameplay commands:
+
+```text
+talk to tobin: hello
+go to briar village
+ask mira about mine
+```
+
+Display output uses canonical entity and location names after resolution:
+
+```text
+Tobin says: ...
+You travel to Briar Village.
+```
+
+### Readable errors
+
+Common command errors are formatted for local play instead of exposing raw atoms directly.
+
+Examples:
+
+```text
+Error: I don't know what you mean. Try `help`.
+Error: Missing message. Try: talk to Tobin: Hello.
+Error: I couldn't find that target.
+Error: You can't get there from here.
+```
+
+Raw fallback formatting still exists for unrecognized errors so new error shapes remain visible during development.
+
+### Cleanup behavior
+
+When the player quits with `quit`, `exit`, or EOF, the CLI calls `Procession.GameSession.cleanup/1`.
+
+Cleanup stops session-owned live entities and prints a short cleanup summary:
+
+```text
+Demo cleaned up.
+Stopped entities: ...
+Missing entities: ...
+Status: cleaned_up
+```
+
+Cleanup is session-owned. It does not clear unrelated global entities that do not belong to the active demo session.
+
+The current CLI does not start interval ticking. It uses explicit `wait` commands for manual ticking, so there is no CLI-owned interval timer to stop on quit yet.
+
+### Current CLI prototype limits
+
+The Phase 14 CLI is a local prototype.
+
+It intentionally defers:
+
+* Phoenix LiveView
+* save/load
+* multiple concurrent CLI sessions
+* rich UI
+* combat
+* quest tracking
+* inventory
+* AI command interpretation
+* natural-language command parsing
+* command history
+* persistent player state
+
+The simulation core remains Elixir/OTP-first. The CLI is only a local terminal wrapper over the existing session, command, display, and cleanup APIs.
+
+Phoenix LiveView is still deferred. A future UI should remain a client of the Elixir simulation kernel rather than replacing gameplay state or rules.

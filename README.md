@@ -214,14 +214,11 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 ## Development Direction
 
-Procession now has a playable deterministic IEx vertical slice. Current development should preserve that working loop while making it easier to play, inspect, and extend.
-
-Recommended next phase direction:
+Recommended current development direction:
 
 - Keep Elixir/OTP as the authoritative simulation kernel.
 - Preserve the separation between inert blueprints and live entity processes.
-- Treat the Phase 13 IEx demo as the current baseline playable experience.
-- Build Phase 14 as a tiny local CLI loop over the existing `Procession.Demo`, `Procession.Command`, and `Procession.GameSession` APIs.
+- Treat the Phase 14 local CLI as the current baseline playable experience.
 - Keep the CLI thin: it should read input, send commands to the existing session boundary, print formatted output, and clean up on exit.
 - Do not move gameplay rules, command parsing, travel rules, ticking, or memory behavior into the CLI.
 - Keep command parsing deterministic until the gameplay surface is stable.
