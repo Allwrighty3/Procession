@@ -41,6 +41,39 @@ defmodule Procession.Command do
     end
   end
 
+  defp parse("ask " <> rest) when is_binary(rest) do
+    case String.split(rest, " about", parts: 2) do
+      [target, ""] ->
+        target = String.trim(target)
+
+        if target == "" do
+          {:error, :missing_target}
+        else
+          {:error, :missing_topic}
+        end
+
+      _ ->
+        parse_ask_with_topic(rest)
+    end
+  end
+
+  defp parse_ask_with_topic(rest) do
+    case String.split(rest, " about ", parts: 2) do
+      [target, topic] ->
+        target = String.trim(target)
+        topic = String.trim(topic)
+
+        cond do
+          target == "" -> {:error, :missing_target}
+          topic == "" -> {:error, :missing_topic}
+          true -> {:ok, {:ask_about, target, topic}}
+        end
+
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
+
   defp parse(_command), do: {:error, :unknown_command}
 
   defp execute({:ok, :look}, session) do
@@ -57,6 +90,15 @@ defmodule Procession.Command do
     with {:ok, entity_id} <- resolve_entity(session, target),
          {:ok, result} <- GameSession.perform(session, :look, entity_id: entity_id) do
       {:ok, %{command: :look_at, target: target, entity_id: entity_id, result: result}}
+    end
+  end
+
+  defp execute({:ok, {:ask_about, target, topic}}, session) do
+    with {:ok, entity_id} <- resolve_entity(session, target),
+         {:ok, result} <-
+           GameSession.perform(session, :ask_about, entity_id: entity_id, topic: topic) do
+      {:ok,
+       %{command: :ask_about, target: target, entity_id: entity_id, topic: topic, result: result}}
     end
   end
 

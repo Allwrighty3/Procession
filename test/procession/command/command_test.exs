@@ -166,5 +166,68 @@ defmodule Procession.CommandTest do
 
       assert Enum.sort(matches) == ["npc_duplicate_one", "npc_duplicate_two"]
     end
+
+    test "runs ask about against an exact session-owned entity name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+      target_state = Procession.Entity.get_state(target_id)
+
+      assert {:ok,
+              %{
+                command: :ask_about,
+                entity_id: ^target_id,
+                topic: "road",
+                result: memories
+              }} = Command.run(session, "ask #{target_state.name} about road")
+
+      assert is_list(memories)
+    end
+
+    test "runs ask about against an exact session-owned entity id" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok,
+              %{
+                command: :ask_about,
+                entity_id: ^target_id,
+                topic: "road",
+                result: memories
+              }} = Command.run(session, "ask #{target_id} about road")
+
+      assert is_list(memories)
+    end
+
+    test "returns missing_target for malformed ask about command" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = Command.run(session, "ask  about road")
+    end
+
+    test "returns missing_topic for ask about with no topic" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:error, :missing_topic} = Command.run(session, "ask #{target_id} about ")
+    end
+
+    test "returns invalid_command for ask without about separator" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :invalid_command} = Command.run(session, "ask Mira road")
+    end
+
+    test "returns entity_not_found for ask about with an unknown target" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_found} = Command.run(session, "ask Nobody about road")
+    end
   end
 end
