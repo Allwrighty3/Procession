@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–12 and is ready for the next roadmap phase.
+Procession has completed Phases 1–13 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
@@ -65,6 +65,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 * `lib/procession/ai/fake_adapter.ex`
 
   * Deterministic fake AI adapter for tests and local demos.
+  * Provides readable deterministic dialogue for Phase 13 demo play without requiring Ollama.
 
 * `lib/procession/ai/ollama_adapter.ex`
 
@@ -103,12 +104,13 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
   * Session-owned gameplay boundary.
   * Tracks session ID, player ID, generated world summary, active entities, active scope, status, and last tick summary.
-  * Supports session-aware `look`, `ask_about`, `talk_to`, `recent_events`, `tick`, `travel`, `player`, `player_location`, `local_entities`, ownership checks, and cleanup.
+  * Supports session-aware `look`, `ask_about`, `talk_to`, `recent_events`, `tick`, `travel`, `player`, `player_location`, `local_entities`, ownership checks, cleanup, and Phase 13 demo startup.
+  * `start_demo/1` packages the deterministic starter world, session, player entity, active scope, and suggested demo commands into a playable setup.
   * `tick/1` is scoped to session-owned active entities.
   * `travel/2` moves the player only through reachable location exits.
   * `active_scope` currently stores `"scope_starter_area"` as plain data for future active-scope work.
 
-### Command parsing
+### Command parsing and demo play
 
 * `lib/procession/command/command.ex`
 
@@ -124,9 +126,22 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
     * `events for <entity>`
     * `go to <location>`
     * `travel to <location>`
+
   * Resolves exact entity IDs first and exact entity names second.
   * Limits resolution to session-owned entities.
   * Keeps command parsing deterministic and AI-free.
+
+* `lib/procession/command/display.ex`
+
+  * Formats command results into readable text for IEx demos.
+  * Keeps display formatting separate from gameplay state and command execution.
+  * Supports readable output for look, look-at, ask-about, talk-to, wait, travel, recent-events, and errors.
+
+* `lib/procession/demo.ex`
+
+  * IEx-friendly helper boundary for the Phase 13 playable vertical slice.
+  * Starts quiet demo sessions, runs commands with readable output, exposes raw command results for debugging, returns formatted text when needed, and cleans up demo sessions.
+  * Delegates setup to `GameSession`, command execution to `Command`, and display formatting to `Command.Display`.
 
 ### World generation
 
@@ -151,12 +166,17 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
 * `README.md`
 
-  * Project overview, current status, phase roadmap summary, and development direction.
+  * Project overview, current status, phase roadmap summary, repository map, and development direction.
 
-* `USAGE.md`
+* `docs/USAGE.md`
 
   * IEx examples and practical usage notes.
   * Includes examples for entity processes, memory, AI boundaries, world generation, session gameplay, deterministic commands, travel, exits, active scope, and scoped ticking.
+
+* `docs/DEMO.md`
+
+  * Phase 13 playable IEx demo guide.
+  * Documents the full 5-minute vertical slice: quiet startup, look, NPC inspection, asking, talking, waiting, travel, recent events, cleanup, raw command inspection, deterministic behavior, optional AI, and current demo limits.
 
 * `docs/ROADMAP.md`
 
@@ -187,17 +207,25 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `test/procession/gameplay/game_test.exs` - Gameplay boundary, playable world setup, player actions, dialogue responder restrictions, memory queries, recent event inspection, and entity-driven world tick tests.
 - `test/procession/gameplay/behavior_test.exs` - Behavior schema validation and execution tests.
 - `test/procession/gameplay/world_clock_test.exs` - Manual clock, supervised clock, interval ticking, restart behavior, and failure-isolation tests.
-- `test/procession/session/game_session_test.exs` - Session runtime boundary, session ownership, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware actions, cleanup, and tick delegation tests.
-- `test/procession/command/command_test.exs` - Deterministic command parsing tests for supported commands, invalid input, unknown commands, malformed command text, entity ID/name resolution, ambiguous and unknown targets, command result shapes, and session-aware delegation.
+- `test/procession/session/game_session_test.exs` - Session runtime boundary, session ownership, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware actions, cleanup, scoped ticking, travel, active scope, and vertical slice setup tests.
+- `test/procession/command/command_test.exs` - Deterministic command parsing tests for supported commands, invalid input, unknown commands, malformed command text, entity ID/name resolution, ambiguous and unknown targets, command result shapes, session-aware delegation, travel commands, and the Phase 13 multi-command vertical slice.
+- `test/procession/command/display_test.exs` - Display formatting tests for readable command output, including look, ask, talk, wait, travel, recent events, and errors.
+- `test/procession/demo_test.exs` - Phase 13 demo helper tests for quiet startup, readable command running, raw command access, formatted text output, recent events, cleanup, and invalid demo sessions.
 
 ## Development Direction
 
-Next development should build on the active-scope foundation without flattening the world model.
+Procession now has a playable deterministic IEx vertical slice. Current development should preserve that working loop while making it easier to play, inspect, and extend.
 
 Recommended next phase direction:
 
 - Keep Elixir/OTP as the authoritative simulation kernel.
 - Preserve the separation between inert blueprints and live entity processes.
-- Expand active scope carefully before introducing large-world lazy spawning.
-- Consider NPC movement later through validated behavior metadata, not through player/session travel APIs.
+- Treat the Phase 13 IEx demo as the current baseline playable experience.
+- Build Phase 14 as a tiny local CLI loop over the existing `Procession.Demo`, `Procession.Command`, and `Procession.GameSession` APIs.
+- Keep the CLI thin: it should read input, send commands to the existing session boundary, print formatted output, and clean up on exit.
+- Do not move gameplay rules, command parsing, travel rules, ticking, or memory behavior into the CLI.
 - Keep command parsing deterministic until the gameplay surface is stable.
+- Continue expanding active scope carefully before introducing large-world lazy spawning.
+- Preserve the future path toward cascading world generation without flattening the world into one always-live global map.
+- Consider NPC movement later through validated behavior metadata, not through player/session travel APIs.
+- Keep AI-generated data untrusted until validated.

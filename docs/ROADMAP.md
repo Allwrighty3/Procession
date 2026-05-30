@@ -1243,78 +1243,78 @@ The goal is to make Procession playable for 5-10 minutes through deterministic c
 
 #### Vertical slice setup
 
-* [ ] Add a helper for starting the first playable prototype.
+* [x] Add a helper for starting the first playable prototype.
 
   * Example: `Procession.GameSession.start_demo/1`
   * Or keep setup as documented IEx commands if a helper is premature.
-* [ ] Create a deterministic game session.
-* [ ] Create a player entity.
-* [ ] Spawn the starter world.
-* [ ] Track active session entities.
-* [ ] Ensure player starts at a valid location.
-* [ ] Return a useful startup summary.
-* [ ] Add tests for vertical slice setup.
+* [x] Create a deterministic game session.
+* [x] Create a player entity.
+* [x] Spawn the starter world.
+* [x] Track active session entities.
+* [x] Ensure player starts at a valid location.
+* [x] Return a useful startup summary.
+* [x] Add tests for vertical slice setup.
 
 #### Minimum playable command loop
 
-* [ ] Ensure the player can run `look`.
-* [ ] Ensure the player can run `look at <npc>`.
-* [ ] Ensure the player can run `ask <npc> about <topic>`.
-* [ ] Ensure the player can run `talk to <npc>: <message>`.
-* [ ] Ensure the player can run `wait`.
-* [ ] Ensure the player can inspect recent events.
-* [ ] Ensure the player can travel between starter locations.
-* [ ] Add tests for a multi-command play sequence.
+* [x] Ensure the player can run `look`.
+* [x] Ensure the player can run `look at <npc>`.
+* [x] Ensure the player can run `ask <npc> about <topic>`.
+* [x] Ensure the player can run `talk to <npc>: <message>`.
+* [x] Ensure the player can run `wait`.
+* [x] Ensure the player can inspect recent events.
+* [x] Ensure the player can travel between starter locations.
+* [x] Add tests for a multi-command play sequence.
 
 #### World reactivity
 
-* [ ] Ensure `wait` triggers world ticking.
-* [ ] Ensure NPC behavior can create visible events or memories.
-* [ ] Ensure failed NPC behavior remains visible as structured data.
-* [ ] Ensure the clock is not required for manual play.
-* [ ] Optionally allow interval ticking during the demo.
-* [ ] Add tests proving playerless behavior affects later player inspection.
+* [x] Ensure `wait` triggers world ticking.
+* [x] Ensure NPC behavior can create visible events or memories.
+* [x] Ensure failed NPC behavior remains visible as structured data.
+* [x] Ensure the clock is not required for manual play.
+* [x] Optionally allow interval ticking during the demo.
+* [x] Add tests proving playerless behavior affects later player inspection.
 
 #### Demo content expectations
 
-* [ ] Keep demo content deterministic.
-* [ ] Use the current starter world unless a small content update is needed.
-* [ ] Ensure at least one NPC has useful memory to ask about.
-* [ ] Ensure at least one NPC behavior creates a visible change.
-* [ ] Ensure at least two locations are reachable.
-* [ ] Avoid adding a quest system yet.
-* [ ] Avoid adding inventory yet.
-* [ ] Avoid adding combat yet.
+* [x] Keep demo content deterministic.
+* [x] Use the current starter world unless a small content update is needed.
+* [x] Ensure at least one NPC has useful memory to ask about.
+* [x] Ensure at least one NPC behavior creates a visible change.
+* [x] Ensure at least two locations are reachable.
+* [x] Avoid adding a quest system yet.
+* [x] Avoid adding inventory yet.
+* [x] Avoid adding combat yet.
 
 #### Result shaping
 
-* [ ] Decide whether command results should remain raw data or include simple display text.
-* [ ] If display text is added, keep it separate from core gameplay state.
-* [ ] Add small formatting helpers only if needed for playability.
-* [ ] Do not let formatting own gameplay logic.
-* [ ] Add tests for any display formatting helpers.
+* [x] Decide whether command results should remain raw data or include simple display text.
+* [x] If display text is added, keep it separate from core gameplay state.
+* [x] Add small formatting helpers only if needed for playability.
+* [x] Do not let formatting own gameplay logic.
+* [x] Add tests for any display formatting helpers.
 
 #### Documentation and demo script
 
-* [ ] Add a documented 5-minute IEx demo script.
-* [ ] Include setup commands.
-* [ ] Include at least one `look`.
-* [ ] Include at least one NPC interaction.
-* [ ] Include at least one `wait`.
-* [ ] Include at least one travel command.
-* [ ] Include cleanup instructions.
-* [ ] Document what is deterministic and what is optional AI.
+* [x] Add a documented 5-minute IEx demo script.
+* [x] Include setup commands.
+* [x] Include at least one `look`.
+* [x] Include at least one NPC interaction.
+* [x] Include at least one `wait`.
+* [x] Include at least one travel command.
+* [x] Include cleanup instructions.
+* [x] Document what is deterministic and what is optional AI.
 
 #### Deferred from Phase 13
 
-* [ ] Defer full CLI.
-* [ ] Defer Phoenix LiveView.
-* [ ] Defer inventory.
-* [ ] Defer quests.
-* [ ] Defer combat.
-* [ ] Defer save/load.
-* [ ] Defer large-world expansion.
-* [ ] Defer AI command parsing.
+* [x] Defer full CLI.
+* [x] Defer Phoenix LiveView.
+* [x] Defer inventory.
+* [x] Defer quests.
+* [x] Defer combat.
+* [x] Defer save/load.
+* [x] Defer large-world expansion.
+* [x] Defer AI command parsing.
 
 ---
 
@@ -1550,16 +1550,16 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 13 is complete when:
 
-* [ ] A deterministic playable vertical slice can be started.
-* [ ] The vertical slice creates a session, generated starter world, and player entity.
-* [ ] The player can inspect the current location.
-* [ ] The player can inspect and interact with NPCs.
-* [ ] The player can ask NPCs about known topics.
-* [ ] The player can wait and observe world tick consequences.
-* [ ] The player can travel between starter locations.
-* [ ] A short multi-command play sequence works in tests.
-* [ ] Documentation includes a 5-minute IEx demo script.
-* [ ] CLI, Phoenix LiveView, persistence, inventory, quests, combat, and large-world expansion remain deferred.
+* [x] A deterministic playable vertical slice can be started.
+* [x] The vertical slice creates a session, generated starter world, and player entity.
+* [x] The player can inspect the current location.
+* [x] The player can inspect and interact with NPCs.
+* [x] The player can ask NPCs about known topics.
+* [x] The player can wait and observe world tick consequences.
+* [x] The player can travel between starter locations.
+* [x] A short multi-command play sequence works in tests.
+* [x] Documentation includes a 5-minute IEx demo script.
+* [x] CLI, Phoenix LiveView, persistence, inventory, quests, combat, and large-world expansion remain deferred.
 
 ### Phase 14 is complete when:
 
