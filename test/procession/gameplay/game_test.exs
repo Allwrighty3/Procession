@@ -1,6 +1,8 @@
 defmodule Procession.GameTest do
   use ExUnit.Case
 
+  alias Procession.Game
+
   setup do
     on_exit(fn ->
       Enum.each(Procession.EntitySupervisor.list_entities(), fn {id, _pid} ->
@@ -208,7 +210,7 @@ defmodule Procession.GameTest do
     end
   end
 
-  describe "talk_to/1" do
+  describe "talk_to/3" do
     test "talk_to requests diablogue through the entity AI boundary" do
       assert {:ok, _game} = Procession.Game.new_game("anything")
 
@@ -246,6 +248,24 @@ defmodule Procession.GameTest do
       assert Procession.Game.talk_to("npc_mira", nil) == {:error, :invalid_message}
       assert Procession.Game.talk_to("npc_mira", :hello) == {:error, :invalid_message}
       assert Procession.Game.talk_to("npc_mira", 123) == {:error, :invalid_message}
+    end
+
+    test "rejects dialogue with a location" do
+      {:ok, summary} = Game.new_game("a quiet frontier town")
+
+      location_id = hd(summary.locations)
+
+      assert {:error, :entity_not_talkable} =
+               Game.talk_to(location_id, "Hello?", adapter: Procession.AI.FakeAdapter)
+    end
+
+    test "rejects dialogue with a faction" do
+      {:ok, summary} = Game.new_game("a quiet frontier town")
+
+      faction_id = hd(summary.factions)
+
+      assert {:error, :entity_not_talkable} =
+               Game.talk_to(faction_id, "Hello?", adapter: Procession.AI.FakeAdapter)
     end
   end
 

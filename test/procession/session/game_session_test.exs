@@ -408,6 +408,19 @@ defmodule Procession.GameSessionTest do
       assert {:error, :entity_not_found} =
                GameSession.talk_to(session, npc_id, "Hello?", adapter: Procession.AI.FakeAdapter)
     end
+
+    test "rejects dialogue with the player entity" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_talkable} =
+               GameSession.talk_to(
+                 session,
+                 summary.player_id,
+                 "Hello, me.",
+                 adapter: Procession.AI.FakeAdapter
+               )
+    end
   end
 
   describe "recent_events/2" do

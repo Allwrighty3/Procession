@@ -73,10 +73,16 @@ defmodule Procession.Game do
   This delegates to the existing entity AI response boundary and returns generated
   dialogue as data. It does not mutate NPC state from the generated response.
   """
-  def talk_to(npc_id, player_message, opts \\ []) when is_binary(player_message) do
-    if EntitySupervisor.exists?(npc_id) do
+  def talk_to(target_id, message, opts \\ []) when is_binary(message) do
+    if EntitySupervisor.exists?(target_id) do
       try do
-        Entity.generate_response(npc_id, player_message, opts)
+        state = Entity.get_state(target_id)
+
+        if talkable?(state) do
+          Entity.generate_response(target_id, message, opts)
+        else
+          {:error, :entity_not_talkable}
+        end
       catch
         :exit, _reason ->
           {:error, :entity_not_found}
@@ -86,7 +92,7 @@ defmodule Procession.Game do
     end
   end
 
-  def talk_to(_npc_id, _player_message, _opts) do
+  def talk_to(_target_id, _message, _opts) do
     {:error, :invalid_message}
   end
 
@@ -237,4 +243,7 @@ defmodule Procession.Game do
   defp normalize_tick_exit_reason({{:noproc, _}, _details}), do: :entity_not_found
   defp normalize_tick_exit_reason({:noproc, _details}), do: :entity_not_found
   defp normalize_tick_exit_reason(reason), do: reason
+
+  defp talkable?(%{type: :npc}), do: true
+  defp talkable?(_state), do: false
 end
