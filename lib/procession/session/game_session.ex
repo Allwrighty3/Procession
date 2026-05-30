@@ -10,6 +10,7 @@ defmodule Procession.GameSession do
 
   alias Procession.Id
   alias Procession.Game
+  alias Procession.EntitySupervisor
 
   defstruct [
     :session_id,
@@ -66,6 +67,13 @@ defmodule Procession.GameSession do
 
   def owns_entity?(_session, _entity_id), do: false
 
+  @doc """
+  Stops all live entities owned by this session and marks the session as cleaned up.
+  """
+  def cleanup(session) do
+    GenServer.call(session, :cleanup)
+  end
+
   defp extract_entity_ids(game_summary) do
     game_summary
     |> Map.take([:locations, :npcs, :factions])
@@ -118,5 +126,29 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call({:owns_entity?, entity_id}, _from, state) do
     {:reply, entity_id in state.active_entities, state}
+  end
+
+  @impl true
+  def handle_call(:cleanup, _from, state) do
+    cleanup_summary =
+      Enum.reduce(state.active_entities, %{stopped: [], missing: []}, fn entity_id, acc ->
+        case EntitySupervisor.stop_entity(entity_id) do
+          :ok ->
+            %{acc | stopped: [entity_id | acc.stopped]}
+
+          {:error, :not_found} ->
+            %{acc | missing: [entity_id | acc.missing]}
+        end
+      end)
+
+    cleanup_summary = %{
+      stopped: Enum.reverse(cleanup_summary.stopped),
+      missing: Enum.reverse(cleanup_summary.missing),
+      status: :cleaned_up
+    }
+
+    new_state = %{state | status: :cleaned_up}
+
+    {:reply, cleanup_summary, new_state}
   end
 end

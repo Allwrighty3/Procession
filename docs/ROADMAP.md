@@ -800,22 +800,22 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Session cleanup
 
-* [ ] Add a cleanup API.
+* [x] Add a cleanup API.
 
   * Example: `Procession.GameSession.cleanup(session)`
-* [ ] Stop all active entities owned by the session.
-* [ ] Mark the session as cleaned up.
-* [ ] Clear or retain owned entity IDs intentionally.
+* [x] Stop all active entities owned by the session.
+* [x] Mark the session as cleaned up.
+* [x] Clear or retain owned entity IDs intentionally.
 
   * Recommended first version: retain IDs for inspection, but mark session as cleaned up.
-* [ ] Make cleanup safe to call more than once.
-* [ ] Return a cleanup summary as plain data.
+* [x] Make cleanup safe to call more than once.
+* [x] Return a cleanup summary as plain data.
 
   * Example: `%{stopped: [...], missing: [...], status: :cleaned_up}`
-* [ ] Add tests proving cleanup stops session-owned entities.
-* [ ] Add tests proving cleanup does not crash if an owned entity is already stopped.
-* [ ] Add tests proving cleanup is idempotent.
-* [ ] Add tests proving the session process remains alive after cleanup.
+* [x] Add tests proving cleanup stops session-owned entities.
+* [x] Add tests proving cleanup does not crash if an owned entity is already stopped.
+* [x] Add tests proving cleanup is idempotent.
+* [x] Add tests proving the session process remains alive after cleanup.
 
 #### Session and clock relationship
 

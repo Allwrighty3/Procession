@@ -136,4 +136,81 @@ defmodule Procession.GameSessionTest do
       refute GameSession.owns_entity?(session, 123)
     end
   end
+
+  describe "cleanup/1" do
+    test "stops session-owned entities" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert Enum.all?(summary.active_entities, fn entity_id ->
+               Procession.EntitySupervisor.exists?(entity_id)
+             end)
+
+      cleanup_summary = GameSession.cleanup(session)
+
+      assert cleanup_summary.status == :cleaned_up
+      assert Enum.sort(cleanup_summary.stopped) == Enum.sort(summary.active_entities)
+      assert cleanup_summary.missing == []
+
+      refute Enum.any?(summary.active_entities, fn entity_id ->
+               Procession.EntitySupervisor.exists?(entity_id)
+             end)
+    end
+
+    test "marks the session as cleaned up" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      GameSession.cleanup(session)
+
+      session_summary = GameSession.summary(session)
+
+      assert session_summary.status
+    end
+
+    test "retains owned entity ids after cleanup for inspection" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+      GameSession.cleanup(session)
+
+      assert GameSession.active_entities(session) == summary.active_entities
+    end
+
+    test "is safe to call more than once" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      first_cleanup = GameSession.cleanup(session)
+      second_cleanup = GameSession.cleanup(session)
+
+      assert Enum.sort(first_cleanup.stopped) == Enum.sort(summary.active_entities)
+      assert second_cleanup.status == :cleaned_up
+    end
+
+    test "does not crash if an owned entity is already stopped" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      [already_stopped | _rest] = summary.active_entities
+      :ok = Procession.EntitySupervisor.stop_entity(already_stopped)
+
+      cleanup_summary = GameSession.cleanup(session)
+
+      assert already_stopped in cleanup_summary.missing
+      assert cleanup_summary.status == :cleaned_up
+    end
+
+    test "session process remains alive after cleanup" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      GameSession.cleanup(session)
+
+      assert Process.alive?(session)
+    end
+  end
 end
