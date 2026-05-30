@@ -25,6 +25,9 @@ defmodule Procession.CLITest do
     assert output =~ "quit"
     assert output =~ "Demo cleaned up."
     assert output =~ "Status: cleaned_up"
+    assert output =~ "Old Road Crossroads"
+    assert output =~ "Exits:"
+    assert output =~ "Local entities:"
   end
 
   test "play handles CLI control commands case-insensitively" do

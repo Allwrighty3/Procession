@@ -27,6 +27,7 @@ defmodule Procession.CLI do
   def play(prompt \\ "a quiet frontier town") do
     with {:ok, demo} <- GameSession.start_demo(prompt) do
       print_intro()
+      print_starting_location(demo.session)
       loop(demo.session)
     end
   end
@@ -83,6 +84,13 @@ defmodule Procession.CLI do
     Type `help` for commands.
     Type `quit` to exit.
     """)
+  end
+
+  defp print_starting_location(session) do
+    session
+    |> Command.run("look")
+    |> Display.format()
+    |> IO.puts()
   end
 
   defp quit(session) do
