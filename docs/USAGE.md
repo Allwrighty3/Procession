@@ -1239,3 +1239,115 @@ The player has access to the existing entity memory system because the player is
 Phase 10 does not automatically create player memories from player actions yet. Automatic journaling should wait until command parsing, travel, and player-facing event formatting are clearer.
 
 Richer player memory, journaling, quest logs, inventory, stats, combat, save/load, and character creation are intentionally deferred.
+
+## Deterministic Command Parser
+
+`Procession.Command` provides a small deterministic text command boundary.
+
+The command parser translates simple player command strings into existing session-aware gameplay APIs. It does not own gameplay logic, does not call AI, and does not provide a CLI loop yet.
+
+### Start a command-ready session
+
+```elixir
+{:ok, session} = Procession.GameSession.start_link(session_id: "session_command_demo")
+{:ok, summary} = Procession.GameSession.new_game(session, "a quiet frontier town")
+```
+
+### Look around
+
+```elixir
+Procession.Command.run(session, "look")
+```
+
+This looks at the player's current location.
+
+### Look at a specific entity
+
+Use an exact entity ID:
+
+```elixir
+Procession.Command.run(session, "look at npc_mira")
+```
+
+Or use an exact entity name:
+
+```elixir
+Procession.Command.run(session, "look at Mira")
+```
+
+Entity IDs are matched first. Entity names are matched second. Name lookup is limited to session-owned entities.
+
+Unknown targets return:
+
+```elixir
+{:error, :entity_not_found}
+```
+
+Ambiguous names return:
+
+```elixir
+{:error, {:ambiguous_entity, matches}}
+```
+
+### Ask an NPC about a topic
+
+```elixir
+Procession.Command.run(session, "ask Mira about road")
+```
+
+This delegates to the session-aware memory query flow.
+
+### Talk to an NPC
+
+```elixir
+Procession.Command.run(session, "talk to Mira: Hello there")
+```
+
+This delegates to the session-aware dialogue flow. Non-NPC entities are not valid dialogue responders.
+
+### Wait
+
+```elixir
+Procession.Command.run(session, "wait")
+```
+
+This coordinates one session/world tick.
+
+### Inspect recent events
+
+```elixir
+Procession.Command.run(session, "events for Mira")
+```
+
+This returns recent autonomous events for a session-owned entity.
+
+### Tiny command-based play loop
+
+```elixir
+commands = [
+  "look",
+  "look at Mira",
+  "ask Mira about road",
+  "talk to Mira: Hello there",
+  "wait",
+  "events for Mira"
+]
+
+Enum.map(commands, fn command ->
+  {command, Procession.Command.run(session, command)}
+end)
+```
+
+### Command parser limits
+
+The Phase 11 command parser is intentionally small and deterministic.
+
+Deferred:
+
+* fuzzy command parsing
+* natural language AI command parsing
+* aliases and shortcuts
+* command history
+* full CLI loop
+* Phoenix LiveView
+

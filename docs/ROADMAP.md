@@ -1089,7 +1089,7 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 * [x] Support `look`.
 
   * Looks at the player's current location.
-* [ ] Support `look at <target>`.
+* [x] Support `look at <target>`.
 
   * Looks at a session-owned entity by name or ID.
 * [x] Support `ask <npc> about <topic>`.
@@ -1097,11 +1097,11 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 * [x] Support `wait`.
 
   * Coordinates one session/world tick.
-* [ ] Support `events for <entity>`.
+* [x] Support `events for <entity>`.
 
   * Shows recent events for a session-owned entity.
-* [ ] Add tests for each supported command.
-* [ ] Add tests for missing targets or malformed command text.
+* [x] Add tests for each supported command.
+* [x] Add tests for missing targets or malformed command text.
 
 #### Entity name resolution
 
@@ -1126,25 +1126,25 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 * [x] Use consistent result shapes.
 
   * Example: `{:ok, %{command: :look, result: summary}}`
-* [ ] Add tests for command result shapes.
-* [ ] Defer rich text rendering.
+* [x] Add tests for command result shapes.
+* [x] Defer rich text rendering.
 
 #### Documentation and IEx demos
 
-* [ ] Add IEx examples for command parsing.
-* [ ] Show a tiny command-based play loop.
-* [ ] Document supported commands.
-* [ ] Document that command parsing is deterministic and local.
-* [ ] Document that AI command interpretation is deferred.
+* [x] Add IEx examples for command parsing.
+* [x] Show a tiny command-based play loop.
+* [x] Document supported commands.
+* [x] Document that command parsing is deterministic and local.
+* [x] Document that AI command interpretation is deferred.
 
 #### Deferred from Phase 11
 
-* [ ] Defer fuzzy command parsing.
-* [ ] Defer natural language AI command parsing.
-* [ ] Defer CLI loop.
-* [ ] Defer Phoenix LiveView.
-* [ ] Defer command history.
-* [ ] Defer aliases and shortcuts unless trivial.
+* [x] Defer fuzzy command parsing.
+* [x] Defer natural language AI command parsing.
+* [x] Defer CLI loop.
+* [x] Defer Phoenix LiveView.
+* [x] Defer command history.
+* [x] Defer aliases and shortcuts unless trivial.
 
 ---
 
@@ -1524,16 +1524,16 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 
 ### Phase 11 is complete when:
 
-* [ ] A deterministic command boundary exists.
-* [ ] Text commands are parsed without AI.
-* [ ] Commands delegate to session-aware gameplay APIs.
-* [ ] Supported commands include look, look at, ask about, talk to, wait, and recent events.
-* [ ] Entity lookup works by ID and simple name matching within a session.
-* [ ] Unknown, malformed, and ambiguous commands return predictable errors.
-* [ ] Command results are returned as consistent plain data.
-* [ ] Tests cover supported commands and common failure cases.
-* [ ] Documentation includes a command-based IEx play loop.
-* [ ] Fuzzy parsing, AI command interpretation, CLI, and UI remain deferred.
+* [x] A deterministic command boundary exists.
+* [x] Text commands are parsed without AI.
+* [x] Commands delegate to session-aware gameplay APIs.
+* [x] Supported commands include look, look at, ask about, talk to, wait, and recent events.
+* [x] Entity lookup works by ID and simple name matching within a session.
+* [x] Unknown, malformed, and ambiguous commands return predictable errors.
+* [x] Command results are returned as consistent plain data.
+* [x] Tests cover supported commands and common failure cases.
+* [x] Documentation includes a command-based IEx play loop.
+* [x] Fuzzy parsing, AI command interpretation, CLI, and UI remain deferred.
 
 ### Phase 12 is complete when:
 
