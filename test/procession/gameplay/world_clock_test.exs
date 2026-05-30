@@ -25,7 +25,7 @@ defmodule Procession.WorldClockTest do
     assert {:ok, summary} = Procession.WorldClock.tick(clock)
 
     assert summary.clock_tick == 1
-    assert summary.entities_ticked >= 1
+    assert summary.entities_ticked == 1
     assert is_list(summary.actions)
     assert is_list(summary.successful_actions)
     assert is_list(summary.failed_actions)
