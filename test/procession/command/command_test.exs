@@ -426,6 +426,17 @@ defmodule Procession.CommandTest do
     end
   end
 
+  test "resolved travel commands include canonical destination name" do
+    assert {:ok, demo} = GameSession.start_demo()
+
+    assert {:ok, result} = Command.run(demo.session, "go to briar village")
+
+    assert result.command == :travel_to
+    assert result.destination == "briar village"
+    assert result.destination_id == "loc_briar_village"
+    assert result.destination_name == "Briar Village"
+  end
+
   describe "Phase 13 vertical slice" do
     test "runs a playable multi-command demo sequence" do
       assert {:ok, demo} = Procession.GameSession.start_demo()

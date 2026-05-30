@@ -58,6 +58,46 @@ defmodule Procession.Command.DisplayTest do
     assert text =~ "Via: village road"
   end
 
+  test "formats travel with canonical destination name when available" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :travel_to,
+           destination: "briar village",
+           destination_name: "Briar Village",
+           result: %{
+             from: "loc_crossroads",
+             to: "loc_briar_village",
+             via: "east"
+           }
+         }}
+      )
+
+    assert text =~ "You travel to Briar Village."
+    assert text =~ "From: loc_crossroads"
+    assert text =~ "To: loc_briar_village"
+    assert text =~ "Via: east"
+  end
+
+  test "formats travel with typed destination when canonical destination name is unavailable" do
+    text =
+      Display.format(
+        {:ok,
+         %{
+           command: :travel_to,
+           destination: "briar village",
+           result: %{
+             from: "loc_crossroads",
+             to: "loc_briar_village",
+             via: "east"
+           }
+         }}
+      )
+
+    assert text =~ "You travel to briar village."
+  end
+
   test "formats command errors as readable text" do
     text = Display.format({:error, :unknown_command})
 

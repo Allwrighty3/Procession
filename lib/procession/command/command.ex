@@ -191,7 +191,11 @@ defmodule Procession.Command do
     with {:ok, destination_id} <- resolve_location(session, destination) do
       session
       |> GameSession.perform(:travel, destination_id: destination_id)
-      |> wrap_result(:travel_to, %{destination: destination, destination_id: destination_id})
+      |> wrap_result(:travel_to, %{
+        destination: destination,
+        destination_id: destination_id,
+        destination_name: entity_display_name(destination_id)
+      })
     end
   end
 

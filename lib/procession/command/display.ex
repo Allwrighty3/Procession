@@ -91,7 +91,9 @@ defmodule Procession.Command.Display do
     |> String.trim()
   end
 
-  def format({:ok, %{command: :travel_to, destination: destination, result: result}}) do
+  def format({:ok, %{command: :travel_to, result: result} = command}) do
+    destination = display_destination(command)
+
     """
     You travel to #{destination}.
     From: #{result.from}
@@ -173,4 +175,12 @@ defmodule Procession.Command.Display do
   defp display_target(%{entity_name: entity_name}) when is_binary(entity_name), do: entity_name
   defp display_target(%{target: target}), do: target
   defp display_target(_command), do: "Unknown"
+
+  defp display_destination(%{destination_name: destination_name})
+       when is_binary(destination_name) do
+    destination_name
+  end
+
+  defp display_destination(%{destination: destination}), do: destination
+  defp display_destination(_command), do: "Unknown"
 end
