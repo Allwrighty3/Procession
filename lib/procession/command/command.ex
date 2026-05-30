@@ -29,6 +29,7 @@ defmodule Procession.Command do
 
   defp parse(""), do: {:error, :invalid_command}
   defp parse("look"), do: {:ok, :look}
+  defp parse("wait"), do: {:ok, :wait}
   defp parse("look at"), do: {:error, :missing_target}
 
   defp parse("look at " <> target) do
@@ -97,6 +98,16 @@ defmodule Procession.Command do
     case GameSession.perform(session, :look) do
       {:ok, result} ->
         {:ok, %{command: :look, result: result}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute({:ok, :wait}, session) do
+    case GameSession.perform(session, :tick) do
+      {:ok, result} ->
+        {:ok, %{command: :wait, result: result}}
 
       {:error, reason} ->
         {:error, reason}

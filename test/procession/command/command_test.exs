@@ -292,5 +292,25 @@ defmodule Procession.CommandTest do
 
       assert {:error, :entity_not_found} = Command.run(session, "talk to Nobody: Hello")
     end
+
+    test "runs wait as a session tick" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, %{command: :wait, result: result}} = Command.run(session, "wait")
+
+      assert is_integer(result.entities_ticked)
+      assert is_list(result.actions)
+      assert is_list(result.failed_actions)
+    end
+
+    test "trims wait command input" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, %{command: :wait, result: result}} = Command.run(session, "  wait  ")
+
+      assert is_integer(result.entities_ticked)
+    end
   end
 end
