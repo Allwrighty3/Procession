@@ -1755,3 +1755,43 @@ Entities have simple first-pass capability rules:
 - Non-NPC entities are skipped during autonomous world ticks.
 
 These rules are intentionally simple for now. Later phases may replace or extend them with richer validated capability metadata.
+
+## Optional Ollama-backed NPC dialogue
+
+The default gameplay and test paths use `Procession.AI.FakeAdapter`, so Procession can run without Ollama installed or running.
+
+AI-backed dialogue is available as an explicit opt-in path. This keeps normal tests, deterministic demos, and the CLI from depending on a local LLM.
+
+To manually try AI-backed NPC dialogue, start a demo session in IEx:
+
+```elixir
+{:ok, demo} = Procession.GameSession.start_demo("a quiet frontier town")
+session = demo.session
+```
+
+Then call `talk_to/4` with the Ollama adapter explicitly:
+
+```elixir
+Procession.GameSession.talk_to(
+  session,
+  "npc_mira",
+  "What do you know about Tobin?",
+  adapter: Procession.AI.Ollama
+)
+```
+
+You can also pass adapter options such as a model name:
+
+```elixir
+Procession.GameSession.talk_to(
+  session,
+  "npc_mira",
+  "What do you know about the road?",
+  adapter: Procession.AI.Ollama,
+  model: "llama3.2"
+)
+```
+
+AI dialogue is expression only. It returns generated text, but it does not directly mutate NPC memory, behavior metadata, status, location, world state, or quests.
+
+Elixir remains authoritative over game state. AI may propose dialogue, but validated Elixir systems decide what affects the simulation.
