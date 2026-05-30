@@ -1109,7 +1109,7 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 * [x] Match exact entity IDs first.
 * [x] Match entity names second.
 * [x] Limit lookup to session-owned entities.
-* [ ] Return predictable errors for ambiguous names.
+* [x] Return predictable errors for ambiguous names.
 
   * Example: `{:error, {:ambiguous_entity, matches}}`
 * [x] Return predictable errors for unknown names.
@@ -1117,7 +1117,7 @@ The parser should translate strings into existing session-aware gameplay APIs. I
   * Example: `{:error, :entity_not_found}`
 * [x] Add tests for ID lookup.
 * [x] Add tests for name lookup.
-* [ ] Add tests for unknown and ambiguous names.
+* [x] Add tests for unknown and ambiguous names.
 
 #### Command result formatting
 

@@ -126,5 +126,45 @@ defmodule Procession.CommandTest do
 
       assert {:error, :entity_not_found} = Command.run(session, "look at Definitely Not A Person")
     end
+
+    test "returns ambiguous_entity for duplicate entity names" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      {:ok, _pid} =
+        Procession.EntitySupervisor.start_npc("npc_duplicate_one", %{
+          name: "Duplicate Scout",
+          location: "loc_crossroads",
+          status: :idle
+        })
+
+      {:ok, _pid} =
+        Procession.EntitySupervisor.start_npc("npc_duplicate_two", %{
+          name: "Duplicate Scout",
+          location: "loc_crossroads",
+          status: :idle
+        })
+
+      Procession.Entity.set_metadata("npc_duplicate_one", :session_id, "session_test")
+      Procession.Entity.set_metadata("npc_duplicate_two", :session_id, "session_test")
+
+      current_entities = GameSession.active_entities(session)
+
+      # The command resolver only searches session-owned entities, so these
+      # manually-started duplicates need to be added to the session for this test.
+      :sys.replace_state(session, fn state ->
+        %{
+          state
+          | active_entities:
+              ["npc_duplicate_one", "npc_duplicate_two" | current_entities]
+              |> Enum.uniq()
+        }
+      end)
+
+      assert {:error, {:ambiguous_entity, matches}} =
+               Command.run(session, "look at Duplicate Scout")
+
+      assert Enum.sort(matches) == ["npc_duplicate_one", "npc_duplicate_two"]
+    end
   end
 end
