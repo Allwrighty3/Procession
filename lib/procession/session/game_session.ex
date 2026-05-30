@@ -152,8 +152,9 @@ defmodule Procession.GameSession do
   def perform(session, action, opts \\ []) when is_atom(action) and is_list(opts) do
     case action do
       :look ->
-        with {:ok, entity_id} <- fetch_required_opt(opts, :entity_id, :missing_target) do
-          look(session, entity_id)
+        case Keyword.fetch(opts, :entity_id) do
+          {:ok, entity_id} -> look(session, entity_id)
+          :error -> look(session)
         end
 
       :ask_about ->

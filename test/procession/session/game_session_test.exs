@@ -564,10 +564,20 @@ defmodule Procession.GameSessionTest do
       assert {:error, :invalid_action} = GameSession.perform(session, "look")
     end
 
-    test "returns missing_target when entity_id is required but missing" do
+    test "performs a location-relative look action without an entity id" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, location_summary} = GameSession.perform(session, :look)
+
+      assert location_summary.type == :location
+      assert Map.has_key?(location_summary, :local_entities)
+    end
+
+    test "returns player_not_found for location-relative look before game creation" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
 
-      assert {:error, :missing_target} = GameSession.perform(session, :look)
+      assert {:error, :player_not_found} = GameSession.perform(session, :look)
     end
 
     test "returns missing_topic for ask_about without a topic" do
