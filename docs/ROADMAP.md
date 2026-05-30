@@ -535,9 +535,9 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
   - Example: `%{trigger: :world_tick, action: :send_message, ...}`
 - [x] Keep behavior schemas as plain maps for now.
 - [x] Avoid macros, DSLs, or custom structs until the schema settles.
-- [ ] Document that behavior metadata is generated data, not executable code.
-- [ ] Keep behavior schema logic independent from specific NPC names.
-- [ ] Keep deterministic behavior fixtures available for stable tests.
+- [x] Document that behavior metadata is generated data, not executable code.
+- [x] Keep behavior schema logic independent from specific NPC names.
+- [x] Keep deterministic behavior fixtures available for stable tests.
 
 #### Behavior validation
 
@@ -716,14 +716,14 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 
 #### Deferred from Phase 7
 
-- [ ] Defer persistence.
-- [ ] Defer Phoenix LiveView.
-- [ ] Defer complex calendars/time systems.
-- [ ] Defer faction-scale simulation.
-- [ ] Defer quest progression.
-- [ ] Defer combat/conflict systems.
-- [ ] Defer AI-driven autonomous planning.
-- [ ] Defer multi-world or multi-session support unless unavoidable.
+- [x] Defer persistence.
+- [x] Defer Phoenix LiveView.
+- [x] Defer complex calendars/time systems.
+- [x] Defer faction-scale simulation.
+- [x] Defer quest progression.
+- [x] Defer combat/conflict systems.
+- [x] Defer AI-driven autonomous planning.
+- [x] Defer multi-world or multi-session support unless unavoidable.
 
 ---
 
@@ -840,14 +840,14 @@ This phase should not add persistence, command parsing, Phoenix LiveView, comple
 
 #### Deferred from Phase 8
 
-* [ ] Defer command parsing.
-* [ ] Defer player entity creation.
-* [ ] Defer location travel.
-* [ ] Defer scoped ticking.
-* [ ] Defer persistence.
-* [ ] Defer Phoenix LiveView.
-* [ ] Defer lazy world expansion.
-* [ ] Defer multi-session persistence or save/load behavior.
+* [x] Defer command parsing.
+* [x] Defer player entity creation.
+* [x] Defer location travel.
+* [x] Defer scoped ticking.
+* [x] Defer persistence.
+* [x] Defer Phoenix LiveView.
+* [x] Defer lazy world expansion.
+* [x] Defer multi-session persistence or save/load behavior.
 
 ---
 
@@ -934,12 +934,12 @@ This phase should keep the existing `Procession.Game` APIs working. Session-awar
 
 #### Deferred from Phase 9
 
-* [ ] Defer command parsing.
-* [ ] Defer player entity.
-* [ ] Defer location-relative commands.
-* [ ] Defer scoped ticking unless it becomes trivial.
-* [ ] Defer UI.
-* [ ] Defer persistence.
+* [x] Defer command parsing.
+* [x] Defer player entity.
+* [x] Defer location-relative commands.
+* [x] Defer scoped ticking unless it becomes trivial.
+* [x] Defer UI.
+* [x] Defer persistence.
 
 ---
 
