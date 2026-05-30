@@ -137,7 +137,7 @@ defmodule Procession.GameSession do
   @doc """
   Ticks the world through this session.
 
-  The first Phase 9 version delegates to `Procession.Game.tick_world/0`.
+  The first Phase 9 version delegates to `Procession.Game.tick_all_live_entities/0`.
   It is not yet scoped to session-owned entities.
   """
   def tick(session) do

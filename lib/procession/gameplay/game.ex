@@ -138,7 +138,7 @@ defmodule Procession.Game do
   and each entity decides what to do from its own state and metadata.
   """
 
-  def tick_world do
+  def tick_all_live_entities do
     entity_ids =
       EntitySupervisor.list_entities()
       |> Enum.map(fn {id, _pid} -> id end)

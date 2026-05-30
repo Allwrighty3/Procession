@@ -500,7 +500,7 @@ Procession.Game.perform(:talk_to,
 
 Phase 5 also proves the first playerless entity-driven behavior loop.
 
-`Procession.Game.tick_world/0` does not own story logic. It coordinates a tick by asking live entities to act from their own state and metadata.
+`Procession.Game.tick_all_live_entities/0` does not own story logic. It coordinates a tick by asking live entities to act from their own state and metadata.
 
 Before the tick, Mira has no recent autonomous world events:
 
@@ -512,7 +512,7 @@ Procession.Game.recent_events("npc_mira")
 Manually tick the world:
 
 ```elixir
-Procession.Game.tick_world()
+Procession.Game.tick_all_live_entities()
 ```
 
 The tick summary is plain data:
@@ -557,7 +557,7 @@ AI is not required for the deterministic gameplay loop or manual world tick. Opt
 
 Phase 7 adds a manually controlled world clock process.
 
-The clock does not replace `Procession.Game.tick_world/0`. Manual ticking through `Procession.Game.tick_world/0` remains available. The clock simply provides a small GenServer boundary that can coordinate ticks, remember the latest tick summary, and track how many ticks it has coordinated.
+The clock does not replace `Procession.Game.tick_all_live_entities/0`. Manual ticking through `Procession.Game.tick_all_live_entities/0` remains available. The clock simply provides a small GenServer boundary that can coordinate ticks, remember the latest tick summary, and track how many ticks it has coordinated.
 
 Start a deterministic playable world:
 
@@ -622,7 +622,7 @@ Manual clock ticks still use entity-owned behavior metadata. The clock does not 
 
 Manual ticks and clock ticks are different entry points into the same world tick behavior:
 
-* `Procession.Game.tick_world/0` directly coordinates one manual world tick.
+* `Procession.Game.tick_all_live_entities/0` directly coordinates one manual world tick.
 * `Procession.WorldClock.tick(clock)` asks a clock process to coordinate one world tick and remember the result.
 * Neither API starts an automatic background loop.
 * Scheduled interval ticking is optional and disabled by default.
@@ -1044,7 +1044,7 @@ Procession.GameSession.perform(session, :recent_events, entity_id: npc_id)
 Procession.GameSession.perform(session, :tick)
 ```
 
-`GameSession.tick/1` currently delegates to `Procession.Game.tick_world/0`. It is session-routed, but not yet scoped to only session-owned entities.
+`GameSession.tick/1` currently delegates to `Procession.Game.tick_all_live_entities/0`. It is session-routed, but not yet scoped to only session-owned entities.
 
 ## Player Entity and Location Context
 

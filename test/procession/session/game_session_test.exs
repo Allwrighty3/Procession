@@ -862,40 +862,40 @@ defmodule Procession.GameSessionTest do
 
   describe "location-relative gameplay after travel" do
     test "look returns the player's new location after travel" do
-      assert {:ok, session} = Procession.GameSession.start_link()
-      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+      assert {:ok, session} = GameSession.start_link()
+      assert {:ok, _summary} = GameSession.new_game(session, "anything")
 
-      assert {:ok, before_travel} = Procession.GameSession.look(session)
+      assert {:ok, before_travel} = GameSession.look(session)
       assert before_travel.id == "loc_crossroads"
 
-      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+      assert {:ok, _travel_summary} = GameSession.travel(session, "loc_briar_village")
 
-      assert {:ok, after_travel} = Procession.GameSession.look(session)
+      assert {:ok, after_travel} = GameSession.look(session)
       assert after_travel.id == "loc_briar_village"
       assert after_travel.name == "Briar Village"
     end
 
     test "local_entities updates after travel" do
-      assert {:ok, session} = Procession.GameSession.start_link()
-      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+      assert {:ok, session} = GameSession.start_link()
+      assert {:ok, _summary} = GameSession.new_game(session, "anything")
 
-      assert Procession.GameSession.local_entities(session) == {:ok, ["npc_tobin"]}
+      assert GameSession.local_entities(session) == {:ok, ["npc_tobin"]}
 
-      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+      assert {:ok, _travel_summary} = GameSession.travel(session, "loc_briar_village")
 
-      assert Procession.GameSession.local_entities(session) == {:ok, ["npc_mira"]}
+      assert GameSession.local_entities(session) == {:ok, ["npc_mira"]}
     end
 
     test "look local_entities updates after travel" do
-      assert {:ok, session} = Procession.GameSession.start_link()
-      assert {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+      assert {:ok, session} = GameSession.start_link()
+      assert {:ok, _summary} = GameSession.new_game(session, "anything")
 
-      assert {:ok, before_travel} = Procession.GameSession.look(session)
+      assert {:ok, before_travel} = GameSession.look(session)
       assert before_travel.local_entities == ["npc_tobin"]
 
-      assert {:ok, _travel_summary} = Procession.GameSession.travel(session, "loc_briar_village")
+      assert {:ok, _travel_summary} = GameSession.travel(session, "loc_briar_village")
 
-      assert {:ok, after_travel} = Procession.GameSession.look(session)
+      assert {:ok, after_travel} = GameSession.look(session)
       assert after_travel.local_entities == ["npc_mira"]
       refute "npc_tobin" in after_travel.local_entities
       refute "npc_elin" in after_travel.local_entities

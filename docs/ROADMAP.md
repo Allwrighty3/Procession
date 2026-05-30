@@ -469,7 +469,7 @@ The intended model is:
 - The world generator creates entities.
 - Generated entities may include behavior metadata.
 - Entities own their possible behaviors.
-- `Procession.Game.tick_world/0` coordinates a world tick.
+- `Procession.Game.tick_all_live_entities/0` coordinates a world tick.
 - Each tick asks live entities whether they act.
 - Entities inspect their own state and metadata before acting.
 - Playerless actions happen through normal entity messaging.
@@ -492,13 +492,13 @@ Long-term, behavior metadata should be generated as part of the world blueprint.
   - Example: `:send_message`
 - [x] Use existing `Entity.send_to/3` for NPC-to-NPC actions.
 - [x] Make playerless actions create memories through normal message delivery.
-- [x] Keep `Procession.Game.tick_world/0` as a coordinator, not the source of behavior.
-- [x] Make `Game.tick_world/0` discover live entities instead of assuming specific IDs.
+- [x] Keep `Procession.Game.tick_all_live_entities/0` as a coordinator, not the source of behavior.
+- [x] Make `Game.tick_all_live_entities/0` discover live entities instead of assuming specific IDs.
 - [x] Return a summary of entity-driven actions from each tick.
 - [x] Keep the first version manually triggered from IEx.
 - [x] Defer timers, schedulers, background loops, complex NPC goals, and AI-driven autonomy.
 - [x] Add tests proving an entity can act from behavior metadata without direct player action.
-- [x] Add tests proving `Game.tick_world/0` coordinates entity ticks rather than selecting hardcoded events.
+- [x] Add tests proving `Game.tick_all_live_entities/0` coordinates entity ticks rather than selecting hardcoded events.
 
 #### Future refinements
 
@@ -622,7 +622,7 @@ AI-generated worlds will eventually produce behavior metadata, but that metadata
 
 Phase 7 introduces a controlled world simulation cadence.
 
-The goal is to move from manually calling `Procession.Game.tick_world/0` toward a simple, testable simulation loop without turning the project into a runaway background-agent circus.
+The goal is to move from manually calling `Procession.Game.tick_all_live_entities/0` toward a simple, testable simulation loop without turning the project into a runaway background-agent circus.
 
 Scheduling should coordinate existing entity ticks; it should not replace entity-owned behavior.
 
@@ -631,7 +631,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Add a dedicated world clock module.
   - Example: `Procession.WorldClock`
 - [x] Keep the clock separate from `Procession.Game`.
-- [x] Keep `Procession.Game.tick_world/0` usable as a direct manual tick.
+- [x] Keep `Procession.Game.tick_all_live_entities/0` usable as a direct manual tick.
 - [x] Make the clock call the existing gameplay/world tick boundary.
 - [x] Do not duplicate entity tick logic inside the clock.
 - [x] Do not move behavior execution into the clock.
@@ -649,7 +649,7 @@ Scheduling should coordinate existing entity ticks; it should not replace entity
 - [x] Track the total number of ticks coordinated by the clock.
 - [x] Add tests for starting the clock.
 - [x] Add tests for manually triggering a clock tick.
-- [x] Add tests proving the clock delegates to `Game.tick_world/0`.
+- [x] Add tests proving the clock delegates to `Game.tick_all_live_entities/0`.
 - [x] Add tests proving tick summaries are stored and inspectable.
 
 #### Supervision
@@ -882,7 +882,7 @@ This phase should keep the existing `Procession.Game` APIs working. Session-awar
 * [x] Add a session tick API.
 
   * Example: `Procession.GameSession.tick(session)`
-* [x] First version may delegate to `Procession.Game.tick_world/0`.
+* [x] First version may delegate to `Procession.Game.tick_all_live_entities/0`.
 * [x] Document that session tick is not yet scoped to session-owned entities unless implemented.
 * [x] Return the tick summary as plain data.
 * [x] Store the latest tick summary in session state if useful.
@@ -1477,7 +1477,7 @@ The goal is to make the vertical slice playable without manually calling IEx fun
 - [x] Manual ticking still works without the clock.
 - [x] A supervised clock can coordinate world ticks.
 - [x] The clock can be started and stopped predictably.
-- [x] Scheduled ticks use the existing `Game.tick_world/0` / `Entity.tick/1` flow.
+- [x] Scheduled ticks use the existing `Game.tick_all_live_entities/0` / `Entity.tick/1` flow.
 - [x] Tick summaries are inspectable.
 - [x] Clock tests are deterministic and do not require Ollama.
 - [x] Entity tick failures are isolated from the clock process.

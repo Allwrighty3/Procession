@@ -57,7 +57,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 - `lib/procession/gameplay/world_clock.ex` - Supervised world clock process for manually coordinated ticks and optional interval ticking.
 - `lib/procession/session/game_session.ex` - Runtime game session boundary for session-owned entities, explicit player entity state, player location lookup, location-relative look, local entity discovery, session-aware gameplay helpers, cleanup, and last tick summary storage.
 - `lib/procession/command/command.ex` - Deterministic text command boundary for `look`, `look at`, `ask about`, `talk to`, `wait`, and recent-event inspection commands; resolves session-owned entity IDs/names and delegates to existing session-aware gameplay APIs without owning gameplay logic.
-- `Procession.Game.tick_world/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
+- `Procession.Game.tick_all_live_entities/0` coordinates entity ticks; autonomous behavior remains owned by entity state and metadata.
 - `Procession.WorldClock` delegates to the existing world tick flow and does not own story logic.
 - `Procession.GameSession` owns active live entity IDs for one play session, including `player_main`, but does not yet provide persistence, travel, inventory, quests, or session-scoped ticking.
 

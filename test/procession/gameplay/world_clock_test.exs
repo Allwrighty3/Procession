@@ -34,7 +34,7 @@ defmodule Procession.WorldClockTest do
     assert Procession.WorldClock.last_tick(clock) == summary
   end
 
-  test "manual clock ticks preserve Game.tick_world behavior" do
+  test "manual clock ticks preserve Game.tick_all_live_entities behavior" do
     assert {:ok, _game} = Procession.Game.new_game("anything")
     assert {:ok, clock} = Procession.WorldClock.start_link(name: nil)
 

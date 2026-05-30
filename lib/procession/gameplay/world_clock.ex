@@ -7,9 +7,9 @@ defmodule Procession.WorldClock do
 
   Manually controlled world simulation clock.
 
-  The clock coordinates world ticks by delegating to `Procession.Game.tick_world/0`.
+  The clock coordinates world ticks by delegating to `Procession.Game.tick_all_live_entities/0`.
   It does not own entity behavior, execute behavior metadata directly, or replace
-  manual calls to `Procession.Game.tick_world/0`
+  manual calls to `Procession.Game.tick_all_live_entities/0`
   """
 
   defstruct tick_count: 0,
@@ -53,7 +53,7 @@ defmodule Procession.WorldClock do
   end
 
   defp run_tick(state) do
-    case Procession.Game.tick_world() do
+    case Procession.Game.tick_all_live_entities() do
       {:ok, summary} ->
         tick_summary =
           summary
