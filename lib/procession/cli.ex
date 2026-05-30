@@ -54,6 +54,10 @@ defmodule Procession.CLI do
         print_help()
         loop(session)
 
+      "commands" ->
+        print_help()
+        loop(session)
+
       "where" ->
         print_current_location(session)
         loop(session)
