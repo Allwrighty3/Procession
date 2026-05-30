@@ -11,6 +11,7 @@ defmodule Procession.GameSession do
   alias Procession.Id
   alias Procession.Game
   alias Procession.EntitySupervisor
+  alias Procession.Entity
 
   defstruct [
     :player_id,
@@ -181,6 +182,13 @@ defmodule Procession.GameSession do
   """
   def player(session) do
     GenServer.call(session, :player)
+  end
+
+  @doc """
+  Returns the current player location for this session.
+  """
+  def player_location(session) do
+    GenServer.call(session, :player_location)
   end
 
   defp extract_entity_ids(game_summary) do
@@ -360,5 +368,26 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call(:player, _from, state) do
     {:reply, state.player_id, state}
+  end
+
+  @impl true
+  def handle_call(:player_location, _from, %{player_id: nil} = state) do
+    {:reply, {:error, :player_not_found}, state}
+  end
+
+  @impl true
+  def handle_call(:player_location, _from, state) do
+    if EntitySupervisor.exists?(state.player_id) do
+      try do
+        player_state = Entity.get_state(state.player_id)
+
+        {:reply, {:ok, player_state.location}, state}
+      catch
+        :exit, _reason ->
+          {:reply, {:error, :entity_not_found}, state}
+      end
+    else
+      {:reply, {:error, :entity_not_found}, state}
+    end
   end
 end

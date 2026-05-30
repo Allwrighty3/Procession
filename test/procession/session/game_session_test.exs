@@ -622,6 +622,34 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  describe "player_location/1" do
+    test "returns player_not_found before a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :player_not_found} = GameSession.player_location(session)
+    end
+
+    test "returns the player's current location after a game is created" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, location_id} = GameSession.player_location(session)
+      assert location_id in summary.world.locations
+      assert String.starts_with?(location_id, "loc_")
+    end
+
+    test "returns entity_not_found when the player entity is no longer live" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      :ok = Procession.EntitySupervisor.stop_entity(summary.player_id)
+
+      assert {:error, :entity_not_found} = GameSession.player_location(session)
+    end
+  end
+
   defp eventually_all_entities_stopped?(entity_ids, attempts \\ 10)
 
   defp eventually_all_entities_stopped?(_entity_ids, 0), do: false
