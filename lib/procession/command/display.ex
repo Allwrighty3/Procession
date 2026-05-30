@@ -151,16 +151,28 @@ defmodule Procession.Command.Display do
     "Error: I couldn't find that target."
   end
 
+  def format({:error, {:ambiguous_entity, matches}}) do
+    "Error: That name is ambiguous. Matching IDs: #{Enum.join(matches, ", ")}"
+  end
+
+  def format({:error, :entity_not_talkable}) do
+    "You cannot talk to that."
+  end
+
+  def format({:error, :entity_not_askable}) do
+    "You cannot ask that about anything."
+  end
+
+  def format({:error, :entity_not_a_location}) do
+    "That is not a place you can travel to."
+  end
+
   def format({:error, :unknown_destination}) do
-    "Error: I don't know that destination."
+    "You cannot travel there."
   end
 
   def format({:error, :destination_unreachable}) do
-    "Error: You can't get there from here."
-  end
-
-  def format({:error, {:ambiguous_entity, matches}}) do
-    "Error: That name is ambiguous. Matching IDs: #{Enum.join(matches, ", ")}"
+    "You cannot reach that place from here."
   end
 
   def format({:error, reason}) do

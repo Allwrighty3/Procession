@@ -124,10 +124,10 @@ defmodule Procession.Command.DisplayTest do
              "Error: I couldn't find that target."
 
     assert Display.format({:error, :unknown_destination}) ==
-             "Error: I don't know that destination."
+             "You cannot travel there."
 
     assert Display.format({:error, :destination_unreachable}) ==
-             "Error: You can't get there from here."
+             "You cannot reach that place from here."
   end
 
   test "formats ambiguous entity errors readably" do
@@ -176,5 +176,20 @@ defmodule Procession.Command.DisplayTest do
       )
 
     assert text == "tobin says: Hello."
+  end
+
+  test "formats unsupported talk target errors" do
+    assert Display.format({:error, :entity_not_talkable}) ==
+             "You cannot talk to that."
+  end
+
+  test "formats unsupported ask target errors" do
+    assert Display.format({:error, :entity_not_askable}) ==
+             "You cannot ask that about anything."
+  end
+
+  test "formats unreachable travel errors" do
+    assert Display.format({:error, :destination_unreachable}) ==
+             "You cannot reach that place from here."
   end
 end
