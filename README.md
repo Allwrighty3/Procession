@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–13 and is ready for the next roadmap phase.
+Procession has completed Phases 1–14 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
