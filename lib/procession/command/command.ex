@@ -9,6 +9,7 @@ defmodule Procession.Command do
   alias Procession.GameSession
   alias Procession.Entity
   alias Procession.EntitySupervisor
+  alias Procession.EntityCapabilities
 
   @doc """
   Runs a deterministic player command against a game session.
@@ -246,7 +247,7 @@ defmodule Procession.Command do
     if EntitySupervisor.exists?(entity_id) do
       try do
         entity = Entity.get_state(entity_id)
-        entity.type == :location and names_match?(entity.name, destination_name)
+        EntityCapabilities.location?(entity) and names_match?(entity.name, destination_name)
       catch
         :exit, _reason ->
           false
@@ -260,7 +261,7 @@ defmodule Procession.Command do
     if EntitySupervisor.exists?(entity_id) do
       try do
         entity = Entity.get_state(entity_id)
-        entity.type == :location
+        EntityCapabilities.location?(entity)
       catch
         :exit, _reason ->
           false

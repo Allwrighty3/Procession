@@ -9,6 +9,7 @@ defmodule Procession.Game do
 
   alias Procession.Entity
   alias Procession.EntitySupervisor
+  alias Procession.EntityCapabilities
   alias Procession.Generator
 
   @doc """
@@ -90,11 +91,12 @@ defmodule Procession.Game do
       try do
         state = Entity.get_state(target_id)
 
-        if talkable?(state) do
+        if EntityCapabilities.talkable?(state) do
           Entity.generate_response(target_id, message, opts)
         else
           {:error, :entity_not_talkable}
         end
+
       catch
         :exit, _reason ->
           {:error, :entity_not_found}
@@ -276,7 +278,4 @@ defmodule Procession.Game do
   defp normalize_tick_exit_reason({{:noproc, _}, _details}), do: :entity_not_found
   defp normalize_tick_exit_reason({:noproc, _details}), do: :entity_not_found
   defp normalize_tick_exit_reason(reason), do: reason
-
-  defp talkable?(%{type: :npc}), do: true
-  defp talkable?(_state), do: false
 end
