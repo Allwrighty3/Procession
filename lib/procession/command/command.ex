@@ -74,6 +74,23 @@ defmodule Procession.Command do
     end
   end
 
+  defp parse("talk to " <> rest) do
+    case String.split(rest, ":", parts: 2) do
+      [target, message] ->
+        target = String.trim(target)
+        message = String.trim(message)
+
+        cond do
+          target == "" -> {:error, :missing_target}
+          message == "" -> {:error, :missing_message}
+          true -> {:ok, {:talk_to, target, message}}
+        end
+
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
+
   defp parse(_command), do: {:error, :unknown_command}
 
   defp execute({:ok, :look}, session) do
@@ -99,6 +116,21 @@ defmodule Procession.Command do
            GameSession.perform(session, :ask_about, entity_id: entity_id, topic: topic) do
       {:ok,
        %{command: :ask_about, target: target, entity_id: entity_id, topic: topic, result: result}}
+    end
+  end
+
+  defp execute({:ok, {:talk_to, target, message}}, session) do
+    with {:ok, entity_id} <- resolve_entity(session, target),
+         {:ok, result} <-
+           GameSession.perform(session, :talk_to, entity_id: entity_id, message: message) do
+      {:ok,
+       %{
+         command: :talk_to,
+         target: target,
+         entity_id: entity_id,
+         message: message,
+         result: result
+       }}
     end
   end
 

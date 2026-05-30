@@ -1092,8 +1092,8 @@ The parser should translate strings into existing session-aware gameplay APIs. I
 * [ ] Support `look at <target>`.
 
   * Looks at a session-owned entity by name or ID.
-* [ ] Support `ask <npc> about <topic>`.
-* [ ] Support `talk to <npc>: <message>`.
+* [x] Support `ask <npc> about <topic>`.
+* [x] Support `talk to <npc>: <message>`.
 * [ ] Support `wait`.
 
   * Coordinates one session/world tick.

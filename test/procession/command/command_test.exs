@@ -229,5 +229,68 @@ defmodule Procession.CommandTest do
 
       assert {:error, :entity_not_found} = Command.run(session, "ask Nobody about road")
     end
+
+    test "runs talk to against an exact session-owned entity name" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+      target_state = Procession.Entity.get_state(target_id)
+
+      assert {:ok,
+              %{
+                command: :talk_to,
+                entity_id: ^target_id,
+                message: "Hello there",
+                result: response
+              }} = Command.run(session, "talk to #{target_state.name}: Hello there")
+
+      assert is_binary(response)
+    end
+
+    test "runs talk to against an exact session-owned entity id" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:ok,
+              %{
+                command: :talk_to,
+                entity_id: ^target_id,
+                message: "Hello there",
+                result: response
+              }} = Command.run(session, "talk to #{target_id}: Hello there")
+
+      assert is_binary(response)
+    end
+
+    test "returns missing_target for malformed talk to command" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = Command.run(session, "talk to : Hello")
+    end
+
+    test "returns missing_message for talk to with no message" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      target_id = Enum.find(summary.active_entities, &String.starts_with?(&1, "npc_"))
+
+      assert {:error, :missing_message} = Command.run(session, "talk to #{target_id}: ")
+    end
+
+    test "returns invalid_command for talk to without colon separator" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :invalid_command} = Command.run(session, "talk to Mira Hello")
+    end
+
+    test "returns entity_not_found for talk to with an unknown target" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_found} = Command.run(session, "talk to Nobody: Hello")
+    end
   end
 end
