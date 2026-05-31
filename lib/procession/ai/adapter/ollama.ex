@@ -34,7 +34,7 @@ defmodule Procession.AI.Ollama do
       body
     }
 
-    http_options = [timeout: timeout, recv_timeout: timeout]
+    http_options = [timeout: timeout]
 
     case http_client.(:post, request, http_options, []) do
       {:ok, {{_, status, _}, _headers, response_body}} when status in 200..299 ->

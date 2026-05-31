@@ -31,15 +31,13 @@ defmodule Procession.AI.OllamaTest do
         "done" => true
       })
 
-    assert {:error, {:ollama_invalid_response, decoded}} =
-             Ollama.decode_response_body(body)
+    assert {:error, {:ollama_invalid_response, decoded}} = Ollama.decode_response_body(body)
 
     assert decoded["model"] == "llama3.2:1b"
   end
 
   test "rejects invalid response JSON" do
-    assert {:error, {:ollama_invalid_json, _reason}} =
-             Ollama.decode_response_body("not json")
+    assert {:error, {:ollama_invalid_json, _reason}} = Ollama.decode_response_body("not json")
   end
 
   test "generate returns text from a successful Ollama response" do
@@ -53,7 +51,6 @@ defmodule Procession.AI.OllamaTest do
       assert decoded["prompt"] == "Say hello."
       assert decoded["stream"] == false
       assert http_opts[:timeout] == 60_000
-      assert http_opts[:recv_timeout] == 60_000
       assert opts == []
 
       {:ok,
