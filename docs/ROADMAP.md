@@ -227,12 +227,12 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Add uncertainty-instead-of-invention examples.
   - [x] Add concise playable voice examples.
 
-- [ ] **Primary task: Keep the corpus non-authoritative**
-  - [ ] Do not treat training examples as world truth.
-  - [ ] Do not import generated model outputs into entity memory.
-  - [ ] Do not create behavior metadata from training examples.
-  - [ ] Keep generated/exported files separate from runtime state.
-  - [ ] Document that examples teach bounded behavior, not authoritative lore.
+- [x] **Primary task: Keep the corpus non-authoritative**
+  - [x] Do not treat training examples as world truth.
+  - [x] Do not import generated model outputs into entity memory.
+  - [x] Do not create behavior metadata from training examples.
+  - [x] Keep generated/exported files separate from runtime state.
+  - [x] Document that examples teach bounded behavior, not authoritative lore.
 
 ### Gate 5: Training export and local tooling
 
