@@ -25,6 +25,7 @@ defmodule Procession.AI.NPCInteraction.Validator do
       []
       |> validate_not_blank(response)
       |> validate_identity_claim(context, response)
+      # |> validate_uncertainty_then_invention(response)
 
     case errors do
       [] -> {:ok, response}
@@ -76,6 +77,59 @@ defmodule Procession.AI.NPCInteraction.Validator do
       end
     end)
   end
+
+  # defp validate_uncertainty_then_invention(errors, response) do
+  #   normalized = String.downcase(response)
+
+  #   if expresses_uncertainty?(normalized) and invents_after_uncertainty?(normalized) do
+  #     [
+  #       %{
+  #         code: :uncertainty_then_invention,
+  #         message:
+  #           "NPC response expresses uncertainty and then appears to invent unsupported lore."
+  #       }
+  #       | errors
+  #     ]
+  #   else
+  #     errors
+  #   end
+  # end
+
+  # defp expresses_uncertainty?(response) do
+  #   uncertainty_patterns = [
+  #     "i don't know",
+  #     "i do not know",
+  #     "i haven't heard",
+  #     "i have not heard",
+  #     "i'm not sure",
+  #     "i am not sure",
+  #     "i can't say",
+  #     "i cannot say",
+  #     "not that i know"
+  #   ]
+
+  #   Enum.any?(uncertainty_patterns, &String.contains?(response, &1))
+  # end
+
+  # defp invents_after_uncertainty?(response) do
+  #   invention_markers = [
+  #     " but ",
+  #     " however ",
+  #     " perhaps ",
+  #     " maybe ",
+  #     " likely ",
+  #     " probably ",
+  #     " i suspect ",
+  #     " i imagine ",
+  #     " she may be ",
+  #     " he may be ",
+  #     " they may be ",
+  #     " could be ",
+  #     " must be "
+  #   ]
+
+  #   Enum.any?(invention_markers, &String.contains?(response, &1))
+  # end
 
   defp other_active_npc_names(context, target_name) do
     context

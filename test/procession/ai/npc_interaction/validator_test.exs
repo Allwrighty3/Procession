@@ -134,4 +134,19 @@ defmodule Procession.AI.NPCInteraction.ValidatorTest do
 
     assert Enum.any?(errors, &(&1.code == :target_identity_violation))
   end
+
+  test "allows uncertainty followed by grounded known context" do
+    response = "I don't know her well, but Mira is listed as the innkeeper in Briar Village."
+
+    assert Validator.validate_response(context(), response) == {:ok, response}
+  end
+
+  # @tag :skip
+  # test "eventually rejects uncertainty followed by unsupported invented lore" do
+  #   response = "I don't know who Elandra is, but she is probably an old road warden from the forgotten kingdom."
+
+  #   assert {:error, errors} = Validator.validate_response(context(), response)
+
+  #   assert Enum.any?(errors, &(&1.code == :uncertainty_then_invention))
+  # end
 end
