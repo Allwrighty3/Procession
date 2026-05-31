@@ -6,7 +6,7 @@ defmodule Procession.AI.NPCInteraction.EvalCaseLoaderTest do
   test "loads default NPC interaction eval cases" do
     assert {:ok, cases} = EvalCaseLoader.load_default()
 
-    assert length(cases) == 5
+    assert length(cases) == 10
 
     assert Enum.all?(cases, fn eval_case ->
              is_binary(eval_case["id"]) and

@@ -178,15 +178,15 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Include `expected_unknown`.
   - [x] Include `notes`.
 
-- [ ] **Primary task: Add starter eval cases**
-  - [ ] Add `priv/evals/npc_interaction_cases.jsonl`.
-  - [ ] Add at least 10 starter NPC interaction eval cases.
-  - [ ] Include known-entity questions.
-  - [ ] Include unknown-entity questions.
-  - [ ] Include identity-preservation cases.
-  - [ ] Include uncertainty cases.
-  - [ ] Include field-boundary cases.
-  - [ ] Include question-preservation cases.
+- [x] **Primary task: Add starter eval cases**
+  - [x] Add `priv/evals/npc_interaction_cases.jsonl`.
+  - [x] Add at least 10 starter NPC interaction eval cases.
+  - [x] Include known-entity questions.
+  - [x] Include unknown-entity questions.
+  - [x] Include identity-preservation cases.
+  - [x] Include uncertainty cases.
+  - [x] Include field-boundary cases.
+  - [x] Include question-preservation cases.
 
 - [ ] **Primary task: Build deterministic eval scoring**
   - [ ] Add a deterministic eval runner that can score static responses without Ollama.
