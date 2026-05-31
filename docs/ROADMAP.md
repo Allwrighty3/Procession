@@ -116,14 +116,14 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 
 ### Gate 1: Skill boundary and ownership
 
-- [ ] **Primary task: Add the NPC interaction skill boundary**
-  - [ ] Add `Procession.AI.NPCInteraction`.
-  - [ ] Route grounded NPC dialogue generation through `NPCInteraction`.
-  - [ ] Keep `Entity` responsible for behavior execution.
-  - [ ] Prevent `Entity` from directly owning prompt/model details.
-  - [ ] Keep `Procession.Dialogue.Context` responsible for authoritative context construction.
-  - [ ] Keep `Procession.AI.Prompt` responsible for prompt text construction.
-  - [ ] Keep `Procession.AI` responsible for adapter dispatch.
+- [x] **Primary task: Add the NPC interaction skill boundary**
+  - [x] Add `Procession.AI.NPCInteraction`.
+  - [x] Route grounded NPC dialogue generation through `NPCInteraction`.
+  - [x] Keep `Entity` responsible for behavior execution.
+  - [x] Prevent `Entity` from directly owning prompt/model details.
+  - [x] Keep `Procession.Dialogue.Context` responsible for authoritative context construction.
+  - [x] Keep `Procession.AI.Prompt` responsible for prompt text construction.
+  - [x] Keep `Procession.AI` responsible for adapter dispatch.
 
 - [ ] **Primary task: Preserve current play and test behavior**
   - [ ] Preserve fake-adapter-safe tests.
