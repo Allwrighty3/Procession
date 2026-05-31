@@ -167,16 +167,16 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 
 ### Gate 3: Eval harness and baseline scoring
 
-- [ ] **Primary task: Define the eval case format**
-  - [ ] Add a small eval case data shape.
-  - [ ] Include `id`.
-  - [ ] Include `target_id`.
-  - [ ] Include `message`.
-  - [ ] Include `must_include`.
-  - [ ] Include `must_include_any`.
-  - [ ] Include `must_not_include`.
-  - [ ] Include `expected_unknown`.
-  - [ ] Include `notes`.
+- [x] **Primary task: Define the eval case format**
+  - [x] Add a small eval case data shape.
+  - [x] Include `id`.
+  - [x] Include `target_id`.
+  - [x] Include `message`.
+  - [x] Include `must_include`.
+  - [x] Include `must_include_any`.
+  - [x] Include `must_not_include`.
+  - [x] Include `expected_unknown`.
+  - [x] Include `notes`.
 
 - [ ] **Primary task: Add starter eval cases**
   - [ ] Add `priv/evals/npc_interaction_cases.jsonl`.
