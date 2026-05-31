@@ -236,13 +236,13 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 
 ### Gate 5: Training export and local tooling
 
-- [ ] **Primary task: Add training export support**
+- [x] **Primary task: Add training export support**
   - [x] Add a script or Mix task to export training data.
     - Example: `mix procession.training.npc_interaction.export`
   - [x] Keep exported training data reproducible.
   - [x] Keep exported files separate from runtime code.
   - [x] Add basic tests for export shape if practical.
-  - [ ] Document how to regenerate the training file.
+  - [x] Document how to regenerate the training file.
 
 - [ ] **Primary task: Choose local training tooling**
   - [ ] Research practical local LoRA or adapter-style fine-tuning options.
