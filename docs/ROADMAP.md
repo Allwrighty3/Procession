@@ -197,7 +197,7 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Ensure default tests do not require Ollama.
 
 - [ ] **Primary task: Establish the base model baseline**
-  - [ ] Add a manual Ollama eval runner if simple.
+  - [x] Add a manual Ollama eval runner if simple.
   - [ ] Run the base model against the starter eval set.
   - [ ] Record base model results.
   - [ ] Document common base model failures.
