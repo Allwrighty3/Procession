@@ -83,6 +83,12 @@ The intended loop is:
 
 AI is therefore core to the experience, but not sovereign over the state.
 
+### Do not replace Laboon with an iceberg
+
+Do not make convenient early substitutions that preserve a surface role while destroying future payoff.
+
+In Procession, a placeholder should preserve the real architectural meaning of the thing it represents. Prefer a small truthful version over a substitute that works for the current demo but breaks later systems.
+
 ### General simulation rules
 
 - Elixir remains authoritative over simulation state.
