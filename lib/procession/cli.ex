@@ -17,6 +17,7 @@ defmodule Procession.CLI do
   - look at Tobin
   - ask Tobin about road
   - talk to Tobin: Any news from the road?
+  - grounded talk to Tobin: Who is Mira?
   - wait
   - go to Briar Village
   - ask Mira about mine
@@ -32,6 +33,20 @@ defmodule Procession.CLI do
       print_current_location(demo.session)
       loop(demo.session, opts)
     end
+  end
+
+  @doc """
+  Starts the local demo with the Ollama adapter enabled.
+
+  This keeps the normal demo fake-adapter safe while giving Phase 17 a visible,
+  human-testable AI path.
+  """
+  def play_ai(prompt \\ "a quiet frontier town", opts \\ []) do
+    ai_opts =
+      opts
+      |> Keyword.put_new(:adapter, Procession.AI.Ollama)
+
+    play(prompt, ai_opts)
   end
 
   defp loop(session, opts) do

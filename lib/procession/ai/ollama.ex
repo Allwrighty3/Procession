@@ -10,7 +10,7 @@ defmodule Procession.AI.Ollama do
   @behaviour Procession.AI
 
   @default_url 'http://localhost:11434/api/generate'
-  @default_model "llama3.2"
+  @default_model "llama3.2:1b"
 
   @impl true
   def generate(prompt, opts \\ [])
