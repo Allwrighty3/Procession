@@ -21,6 +21,7 @@ The detailed historical phase checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_AR
 - [x] Phase 13: First Playable Vertical Slice
 - [x] Phase 14: Tiny Local CLI Loop
 - [x] Phase 15: Capability Boundaries & Playability Polish
+- [x] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
 
 Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
@@ -30,11 +31,10 @@ Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
 ### Current Focus
 
-- [ ] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
+- [ ] Phase 17: Dialogue Context & Grounded AI Responses
 
 ### Near-Term
 
-- [ ] Phase 17: Dialogue Context & Grounded AI Responses
 - [ ] Phase 18: Starter Area Content Depth & World Reactivity
 - [ ] Phase 19: Rumor / Thread Prototype
 
