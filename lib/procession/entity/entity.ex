@@ -295,8 +295,7 @@ defmodule Procession.Entity do
   def handle_call({:generate_response, player_message, opts}, _from, state) do
     case Keyword.get(opts, :dialogue_context) do
       context when is_map(context) ->
-        prompt = Procession.AI.Prompt.grounded_npc_response(context)
-        result = Procession.AI.generate(prompt, ai_adapter_opts(opts))
+        result = Procession.AI.NPCInteraction.generate_response(context, opts)
 
         {:reply, result, state}
 
