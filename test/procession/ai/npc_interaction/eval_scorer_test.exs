@@ -142,6 +142,35 @@ defmodule Procession.AI.NPCInteraction.EvalScorerTest do
     assert Enum.any?(summary.results, &(&1.id == "case_fail" and not &1.passed))
   end
 
+  test "scores field-bleed failures through forbidden text" do
+    case =
+      eval_case(%{
+        "id" => "field_boundary_player_not_innkeeper",
+        "message" => "What do you know about Mira?",
+        "must_include" => [],
+        "must_include_any" => ["Mira"],
+        "must_not_include" => [
+          "you are the innkeeper",
+          "you're the innkeeper",
+          "Player is the innkeeper",
+          "the player is the innkeeper"
+        ]
+      })
+
+    result =
+      EvalScorer.score(
+        case,
+        "Mira is the innkeeper, and you are the innkeeper as well."
+      )
+
+    refute result.passed
+
+    assert Enum.any?(result.failures, fn failure ->
+             failure.code == :forbidden_text_present and
+               failure.text == "you are the innkeeper"
+           end)
+  end
+
   test "batch scoring treats missing responses as failures" do
     cases = [
       eval_case(%{

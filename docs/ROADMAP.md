@@ -188,12 +188,12 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Include field-boundary cases.
   - [x] Include question-preservation cases.
 
-- [ ] **Primary task: Build deterministic eval scoring**
+- [x] **Primary task: Build deterministic eval scoring**
   - [x] Add a deterministic eval runner that can score static responses without Ollama.
   - [x] Add tests for loading eval cases.
   - [x] Add tests for scoring pass/fail cases.
   - [x] Add tests for identity failure detection.
-  - [ ] Add tests for field-bleed detection where practical.
+  - [x] Add tests for field-bleed detection where practical.
   - [x] Ensure default tests do not require Ollama.
 
 - [ ] **Primary task: Establish the base model baseline**
