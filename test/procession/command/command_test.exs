@@ -13,6 +13,35 @@ defmodule Procession.CommandTest do
     end
   end
 
+  defmodule GroundedDialogueAdapter do
+    @behaviour Procession.AI
+
+    @impl true
+    def generate(prompt, opts) do
+      cond do
+        Keyword.has_key?(opts, :grounded_context) ->
+          {:error, :leaked_grounded_context_opt}
+
+        Keyword.has_key?(opts, :dialogue_context) ->
+          {:error, :leaked_dialogue_context_opt}
+
+        Keyword.has_key?(opts, :memory_query) ->
+          {:error, :leaked_memory_query_opt}
+
+        prompt =~ "Use only the grounded context below." and
+          prompt =~ "Known active entities:" and
+          prompt =~ "Mira" and
+          prompt =~ "npc_mira" and
+          prompt =~ "Player message:" and
+            prompt =~ "Who is Mira?" ->
+          {:ok, "Grounded command response."}
+
+        true ->
+          {:error, :missing_grounded_command_context}
+      end
+    end
+  end
+
   alias Procession.Command
   alias Procession.GameSession
 
@@ -277,6 +306,27 @@ defmodule Procession.CommandTest do
       assert is_binary(response)
     end
 
+    test "runs grounded talk to through grounded dialogue context" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok,
+              %{
+                command: :grounded_talk_to,
+                entity_id: "npc_tobin",
+                entity_name: "Tobin",
+                message: "Who is Mira?",
+                grounded_context: true,
+                result: "Grounded command response."
+              }} =
+               Command.run(
+                 session,
+                 "grounded talk to Tobin: Who is Mira?",
+                 adapter: __MODULE__.GroundedDialogueAdapter,
+                 model: "cli-test-model"
+               )
+    end
+
     test "returns missing_target for malformed talk to command" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
 
@@ -369,6 +419,62 @@ defmodule Procession.CommandTest do
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
 
       assert {:error, :entity_not_found} = Command.run(session, "events for Nobody")
+    end
+
+    test "returns missing_target for malformed grounded talk to command" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = Command.run(session, "grounded talk to")
+
+      assert {:error, :missing_target} = Command.run(session, "grounded talk to : Hello")
+    end
+
+    test "returns missing_message for grounded talk to with no message" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :missing_message} = Command.run(session, "grounded talk to Tobin: ")
+    end
+
+    test "returns invalid_command for grounded talk to without colon separator" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :invalid_command} =
+               Command.run(session, "grounded talk to Tobin Who is Mira?")
+    end
+
+    test "talk command uses deterministic dialogue path by default" do
+      {:ok, session} = Procession.GameSession.start_link()
+      {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, result} =
+               Procession.Command.run(session, "talk to Mira: What do you know about Tobin?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.entity_name == "Mira"
+      assert result.target == "Mira"
+      assert result.message == "What do you know about Tobin?"
+
+      assert result.result =~
+               "If Tobin is finally admitting trouble, then the mine is worse than I thought."
+    end
+
+    test "talk command can use explicit AI dialogue adapter options" do
+      {:ok, session} = Procession.GameSession.start_link()
+      {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
+
+      assert {:ok, result} =
+               Procession.Command.run(
+                 session,
+                 "talk to Mira: What do you know about Tobin?",
+                 adapter: __MODULE__.ExplicitDialogueAdapter,
+                 model: "cli-test-model"
+               )
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.result == "AI adapter response from command path."
     end
   end
 
@@ -569,39 +675,5 @@ defmodule Procession.CommandTest do
 
     assert result.result.local_entities == ["npc_tobin"]
     assert result.result.local_entity_names == ["Tobin"]
-  end
-
-  test "talk command uses deterministic dialogue path by default" do
-    {:ok, session} = Procession.GameSession.start_link()
-    {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
-
-    assert {:ok, result} =
-             Procession.Command.run(session, "talk to Mira: What do you know about Tobin?")
-
-    assert result.command == :talk_to
-    assert result.entity_id == "npc_mira"
-    assert result.entity_name == "Mira"
-    assert result.target == "Mira"
-    assert result.message == "What do you know about Tobin?"
-
-    assert result.result =~
-             "If Tobin is finally admitting trouble, then the mine is worse than I thought."
-  end
-
-  test "talk command can use explicit AI dialogue adapter options" do
-    {:ok, session} = Procession.GameSession.start_link()
-    {:ok, _summary} = Procession.GameSession.new_game(session, "anything")
-
-    assert {:ok, result} =
-             Procession.Command.run(
-               session,
-               "talk to Mira: What do you know about Tobin?",
-               adapter: __MODULE__.ExplicitDialogueAdapter,
-               model: "cli-test-model"
-             )
-
-    assert result.command == :talk_to
-    assert result.entity_id == "npc_mira"
-    assert result.result == "AI adapter response from command path."
   end
 end

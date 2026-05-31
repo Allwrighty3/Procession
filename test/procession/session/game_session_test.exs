@@ -39,11 +39,12 @@ defmodule Procession.GameSessionTest do
     def generate(prompt, _opts) do
       cond do
         prompt =~ "Use only the grounded context below." and
-            prompt =~ "Do not invent names, relationships, locations, occupations, memories, or events" and
-            prompt =~ "Known active entities:" and
-            prompt =~ "Mira" and
-            prompt =~ "npc_mira" and
-            prompt =~ "role: innkeeper" and
+          prompt =~
+            "Do not invent names, relationships, locations, occupations, memories, or events" and
+          prompt =~ "Known active entities:" and
+          prompt =~ "Mira" and
+          prompt =~ "npc_mira" and
+          prompt =~ "role: innkeeper" and
             prompt =~ "Player message:" ->
           {:ok, "grounded dialogue received"}
 

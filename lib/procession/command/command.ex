@@ -38,6 +38,7 @@ defmodule Procession.Command do
   defp parse("events for"), do: {:error, :missing_target}
   defp parse("go to"), do: {:error, :missing_target}
   defp parse("travel to"), do: {:error, :missing_target}
+  defp parse("grounded talk to"), do: {:error, :missing_target}
 
   defp parse("go to " <> destination) do
     parse_travel_destination(destination)
@@ -73,21 +74,12 @@ defmodule Procession.Command do
     end
   end
 
+  defp parse("grounded talk to " <> rest) do
+    parse_talk_to(rest, :grounded_talk_to)
+  end
+
   defp parse("talk to " <> rest) do
-    case String.split(rest, ":", parts: 2) do
-      [target, message] ->
-        target = String.trim(target)
-        message = String.trim(message)
-
-        cond do
-          target == "" -> {:error, :missing_target}
-          message == "" -> {:error, :missing_message}
-          true -> {:ok, {:talk_to, target, message}}
-        end
-
-      _ ->
-        {:error, :invalid_command}
-    end
+    parse_talk_to(rest, :talk_to)
   end
 
   defp parse("events for " <> target) do
@@ -122,6 +114,23 @@ defmodule Procession.Command do
           target == "" -> {:error, :missing_target}
           topic == "" -> {:error, :missing_topic}
           true -> {:ok, {:ask_about, target, topic}}
+        end
+
+      _ ->
+        {:error, :invalid_command}
+    end
+  end
+
+  defp parse_talk_to(rest, command) do
+    case String.split(rest, ":", parts: 2) do
+      [target, message] ->
+        target = String.trim(target)
+        message = String.trim(message)
+
+        cond do
+          target == "" -> {:error, :missing_target}
+          message == "" -> {:error, :missing_message}
+          true -> {:ok, {command, target, message}}
         end
 
       _ ->
@@ -182,6 +191,28 @@ defmodule Procession.Command do
         entity_id: entity_id,
         entity_name: entity_display_name(entity_id),
         message: message
+      })
+    end
+  end
+
+  defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      dialogue_opts =
+        opts
+        |> Keyword.take([:adapter, :model, :timeout])
+        |> Keyword.put(:grounded_context, true)
+        |> Keyword.put(:memory_query, message)
+
+      perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
+
+      session
+      |> GameSession.perform(:talk_to, perform_opts)
+      |> wrap_result(:grounded_talk_to, %{
+        target: target,
+        entity_id: entity_id,
+        entity_name: entity_display_name(entity_id),
+        message: message,
+        grounded_context: true
       })
     end
   end

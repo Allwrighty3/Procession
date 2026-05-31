@@ -134,7 +134,10 @@ defmodule Procession.AI.PromptTest do
       })
 
     assert prompt =~ "Use only the grounded context below."
-    assert prompt =~ "Do not invent names, relationships, locations, occupations, memories, or events"
+
+    assert prompt =~
+             "Do not invent names, relationships, locations, occupations, memories, or events"
+
     assert prompt =~ "If the answer is not known from the context"
 
     assert prompt =~ "Target NPC:"
