@@ -19,21 +19,23 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoaderTest do
   end
 
   test "ignores blank lines" do
-    path = temp_jsonl("""
-    #{valid_example_json()}
+    path =
+      temp_jsonl("""
+      #{valid_example_json()}
 
-    #{valid_example_json("second_example")}
-    """)
+      #{valid_example_json("second_example")}
+      """)
 
     assert {:ok, examples} = TrainingExampleLoader.load(path)
     assert Enum.map(examples, & &1["id"]) == ["valid_example", "second_example"]
   end
 
   test "returns line number for invalid JSONL" do
-    path = temp_jsonl("""
-    #{valid_example_json()}
-    not json
-    """)
+    path =
+      temp_jsonl("""
+      #{valid_example_json()}
+      not json
+      """)
 
     assert {:error, {:invalid_jsonl_line, 2, _reason}} = TrainingExampleLoader.load(path)
   end
@@ -79,7 +81,12 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoaderTest do
   end
 
   defp temp_jsonl(contents) do
-    path = Path.join(System.tmp_dir!(), "npc_interaction_training_#{System.unique_integer([:positive])}.jsonl")
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "npc_interaction_training_#{System.unique_integer([:positive])}.jsonl"
+      )
+
     File.write!(path, contents)
     path
   end

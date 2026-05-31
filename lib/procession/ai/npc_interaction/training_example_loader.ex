@@ -52,8 +52,8 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoader do
   @spec load(Path.t()) :: load_result()
   def load(path) when is_binary(path) do
     with {:ok, contents} <- File.read(path),
-        {:ok, numbered_examples} <- decode_lines(contents),
-        :ok <- validate_examples(numbered_examples) do
+         {:ok, numbered_examples} <- decode_lines(contents),
+         :ok <- validate_examples(numbered_examples) do
       examples =
         Enum.map(numbered_examples, fn {_line_number, example} ->
           example
@@ -129,8 +129,11 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoader do
   defp validate_entity(entity, field_name) when is_map(entity) do
     require_fields(entity, @required_entity_fields)
     |> case do
-      :ok -> :ok
-      {:error, {:missing_field, missing_field}} -> {:error, {:missing_field, "#{field_name}.#{missing_field}"}}
+      :ok ->
+        :ok
+
+      {:error, {:missing_field, missing_field}} ->
+        {:error, {:missing_field, "#{field_name}.#{missing_field}"}}
     end
   end
 
@@ -144,7 +147,7 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoader do
     end
   end
 
-  defp validate_string(value, field_name) when is_binary(value) and value != "", do: :ok
+  defp validate_string(value, _field_name) when is_binary(value) and value != "", do: :ok
   defp validate_string(_value, field_name), do: {:error, {:invalid_field, field_name}}
 
   defp validate_string_list(value, field_name) when is_list(value) do
