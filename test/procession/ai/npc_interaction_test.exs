@@ -34,8 +34,7 @@ defmodule Procession.AI.NPCInteractionTest do
       message: "Who is Mira?"
     }
 
-    assert {:ok, response} =
-             NPCInteraction.generate_response(context, adapter: EchoAdapter)
+    assert {:ok, response} = NPCInteraction.generate_response(context, adapter: EchoAdapter)
 
     assert response =~ "You are Tobin and only Tobin."
     assert response =~ "Your entity ID is npc_tobin."

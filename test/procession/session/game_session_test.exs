@@ -578,6 +578,20 @@ defmodule Procession.GameSessionTest do
                  memory_query: "mine"
                )
     end
+
+    test "session talk_to with grounded context uses NPC interaction boundary safely" do
+      {:ok, session} = GameSession.start_link()
+      {:ok, _summary} = GameSession.new_game(session, "anything")
+
+      assert {:ok, "grounded dialogue received"} =
+               GameSession.talk_to(
+                 session,
+                 "npc_tobin",
+                 "Who is Mira?",
+                 grounded_context: true,
+                 adapter: __MODULE__.GroundedContextAssertAdapter
+               )
+    end
   end
 
   describe "recent_events/2" do

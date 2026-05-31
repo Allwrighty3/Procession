@@ -125,12 +125,12 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Keep `Procession.AI.Prompt` responsible for prompt text construction.
   - [x] Keep `Procession.AI` responsible for adapter dispatch.
 
-- [ ] **Primary task: Preserve current play and test behavior**
-  - [ ] Preserve fake-adapter-safe tests.
-  - [ ] Preserve the AI-enabled CLI demo path.
-  - [ ] Keep normal deterministic CLI/demo behavior available.
-  - [ ] Ensure default tests do not require Ollama.
-  - [ ] Keep AI output non-authoritative.
+- [x] **Primary task: Preserve current play and test behavior**
+  - [x] Preserve fake-adapter-safe tests.
+  - [x] Preserve the AI-enabled CLI demo path.
+  - [x] Keep normal deterministic CLI/demo behavior available.
+  - [x] Ensure default tests do not require Ollama.
+  - [x] Keep AI output non-authoritative.
 
 - [ ] **Primary task: Prove the boundary works**
   - [ ] Add tests proving grounded dialogue uses the NPC interaction boundary.
