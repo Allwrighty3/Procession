@@ -1,36 +1,42 @@
-defmodule Procession.AI.OllamaAdapter do
+defmodule Procession.AI.Ollama do
   @moduledoc """
-  Manual Ollama-backed AI adapter.
+  Minimal manual Ollama adapter for local text generation.
 
-  This adapter is intended for explicit local/manual use. Default tests should
-  continue using `Procession.AI.FakeAdapter` and must not require Ollama.
+  This adapter calls a locally running Ollama server using Erlang's built-in
+  `:httpc` client. It intentionally supports simple, non-streaming text
+  generation for manual/local AI evaluation.
+
+  Default tests should continue using `Procession.AI.FakeAdapter` and must not
+  require Ollama.
   """
 
   @behaviour Procession.AI
 
-  @default_endpoint 'http://localhost:11434/api/generate'
+  @default_url 'http://localhost:11434/api/generate'
   @default_model "llama3.2:1b"
+  @default_timeout 60_000
 
   @impl true
   def generate(prompt, opts \\ [])
 
   def generate(prompt, opts) when is_binary(prompt) and is_list(opts) do
-    endpoint = Keyword.get(opts, :endpoint, @default_endpoint)
+    url = opts |> Keyword.get(:url, @default_url) |> normalize_url()
     model = Keyword.get(opts, :model, @default_model)
-    timeout = Keyword.get(opts, :timeout, 60_000)
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    http_client = Keyword.get(opts, :http_client, &:httpc.request/4)
 
     body = encode_request_body(prompt, model)
 
     request = {
-      endpoint,
-      [{'Content-Type', 'application/json'}],
+      url,
+      [{'content-type', 'application/json'}],
       'application/json',
       body
     }
 
     http_options = [timeout: timeout, recv_timeout: timeout]
 
-    case :httpc.request(:post, request, http_options, []) do
+    case http_client.(:post, request, http_options, []) do
       {:ok, {{_, status, _}, _headers, response_body}} when status in 200..299 ->
         decode_response_body(response_body)
 
@@ -71,4 +77,7 @@ defmodule Procession.AI.OllamaAdapter do
         {:error, {:ollama_invalid_json, reason}}
     end
   end
+
+  defp normalize_url(url) when is_binary(url), do: String.to_charlist(url)
+  defp normalize_url(url) when is_list(url), do: url
 end
