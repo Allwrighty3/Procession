@@ -205,9 +205,9 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 ### Gate 4: Training data format and corpus
 
 - [ ] **Primary task: Define the training example format**
-  - [ ] Include the same context shape used by `Procession.AI.NPCInteraction`.
-  - [ ] Include target NPC identity.
-  - [ ] Include speaker facts.
+  - [x] Include the same context shape used by `Procession.AI.NPCInteraction`.
+  - [x] Include target NPC identity.
+  - [x] Include speaker facts.
   - [ ] Include location facts.
   - [ ] Include known scene entities.
   - [ ] Include other known NPCs.
