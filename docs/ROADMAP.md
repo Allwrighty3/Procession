@@ -132,11 +132,11 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Ensure default tests do not require Ollama.
   - [x] Keep AI output non-authoritative.
 
-- [ ] **Primary task: Prove the boundary works**
-  - [ ] Add tests proving grounded dialogue uses the NPC interaction boundary.
-  - [ ] Verify grounded dialogue still works through `Procession.Command`.
-  - [ ] Verify grounded dialogue still works through the CLI path.
-  - [ ] Verify existing normal dialogue still works.
+- [x] **Primary task: Prove the boundary works**
+  - [x] Add tests proving grounded dialogue uses the NPC interaction boundary.
+  - [x] Verify grounded dialogue still works through `Procession.Command`.
+  - [x] Verify grounded dialogue still works through the CLI path.
+  - [x] Verify existing normal dialogue still works.
 
 ### Gate 2: Validation and safety checks
 
