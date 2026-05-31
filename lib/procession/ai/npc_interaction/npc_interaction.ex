@@ -7,6 +7,7 @@ defmodule Procession.AI.NPCInteraction do
   """
 
   alias Procession.AI
+  alias Procession.AI.NPCInteraction.Validator
   alias Procession.AI.Prompt
 
   @type context :: map()
@@ -21,9 +22,12 @@ defmodule Procession.AI.NPCInteraction do
   def generate_response(context, opts \\ [])
 
   def generate_response(context, opts) when is_map(context) and is_list(opts) do
-    context
-    |> Prompt.grounded_npc_response()
-    |> AI.generate(ai_adapter_opts(opts))
+    prompt = Prompt.grounded_npc_response(context)
+
+    with {:ok, response} <- AI.generate(prompt, ai_adapter_opts(opts)),
+         {:ok, validated_response} <- Validator.validate_response(context, response) do
+      {:ok, validated_response}
+    end
   end
 
   def generate_response(_context, _opts) do
