@@ -27,16 +27,25 @@ defmodule Mix.Tasks.ProcessionTrainingNpcInteractionExportTest do
 
     assert length(exported_lines) == 25
 
+    decoded_ids =
+      Enum.map(exported_lines, fn line ->
+        line
+        |> Jason.decode!()
+        |> Map.fetch!("id")
+      end)
+
+    assert decoded_ids == Enum.sort(decoded_ids)
+
     first =
       exported_lines
       |> hd()
       |> Jason.decode!()
 
-    assert first["id"] == "npc_identity_tobin_denies_being_mira"
+    assert first["id"] == "npc_concise_voice_tobin_answers_without_lore_dump"
     assert first["task"] == "npc_interaction"
     assert first["input"]["context"]["target"]["id"] == "npc_tobin"
-    assert first["output"]["expected_response"] =~ "Tobin"
+    assert first["output"]["expected_response"] =~ "travelers"
     assert first["metadata"]["non_authoritative"] == true
-    assert "identity_drift" in first["metadata"]["failure_tags"]
+    assert "question_drift" in first["metadata"]["failure_tags"]
   end
 end

@@ -45,6 +45,7 @@ defmodule Mix.Tasks.Procession.Training.NpcInteraction.Export do
 
     output =
       examples
+      |> Enum.sort_by(& &1["id"])
       |> Enum.map(&export_example/1)
       |> Enum.map(&Jason.encode!/1)
       |> Enum.join("\n")

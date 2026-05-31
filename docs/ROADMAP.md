@@ -238,10 +238,10 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 
 - [ ] **Primary task: Add training export support**
   - [x] Add a script or Mix task to export training data.
-    - Example: `mix procession.export_npc_interaction_training`
-  - [ ] Keep exported training data reproducible.
-  - [ ] Keep exported files separate from runtime code.
-  - [ ] Add basic tests for export shape if practical.
+    - Example: `mix procession.training.npc_interaction.export`
+  - [x] Keep exported training data reproducible.
+  - [x] Keep exported files separate from runtime code.
+  - [x] Add basic tests for export shape if practical.
   - [ ] Document how to regenerate the training file.
 
 - [ ] **Primary task: Choose local training tooling**
