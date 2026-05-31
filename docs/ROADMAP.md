@@ -196,11 +196,11 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Add tests for field-bleed detection where practical.
   - [x] Ensure default tests do not require Ollama.
 
-- [ ] **Primary task: Establish the base model baseline**
+- [x] **Primary task: Establish the base model baseline**
   - [x] Add a manual Ollama eval runner if simple.
-  - [ ] Run the base model against the starter eval set.
-  - [ ] Record base model results.
-  - [ ] Document common base model failures.
+  - [x] Run the base model against the starter eval set.
+  - [x] Record base model results.
+  - [x] Document common base model failures.
 
 ### Gate 4: Training data format and corpus
 
