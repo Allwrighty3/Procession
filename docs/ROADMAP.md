@@ -250,6 +250,7 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Do not train a model from scratch.
   - [ ] Confirm whether `llama3.2:1b` is practical as the first experiment target.
   - [x] Document setup steps and system assumptions.
+      - Desktop has AMD Radeon RX 6700 XT with 12 GB dedicated VRAM and ~32 GB system RAM. Training feasibility now depends on AMD ROCm/Linux/tooling support, not VRAM.
 
 - [ ] **Primary task: Keep training outside runtime assumptions**
   - [ ] Do not add training dependencies to the default test path.
