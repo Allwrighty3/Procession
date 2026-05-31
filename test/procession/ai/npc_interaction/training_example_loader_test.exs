@@ -6,7 +6,7 @@ defmodule Procession.AI.NPCInteraction.TrainingExampleLoaderTest do
   test "loads default NPC interaction training examples" do
     assert {:ok, examples} = TrainingExampleLoader.load_default()
 
-    assert length(examples) == 5
+    assert length(examples) == 10
 
     first = hd(examples)
 
