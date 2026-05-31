@@ -12,6 +12,7 @@ defmodule Procession.AI.NPCInteraction.EvalCaseLoaderTest do
              is_binary(eval_case["id"]) and
                is_binary(eval_case["target_id"]) and
                is_binary(eval_case["message"]) and
+               is_list(eval_case["must_include"]) and
                is_list(eval_case["must_include_any"]) and
                is_list(eval_case["must_not_include"]) and
                is_boolean(eval_case["expected_unknown"]) and
