@@ -255,11 +255,11 @@ Further fine-tuning may happen in later phases as Procession gains more characte
     - Backup path: Axolotl ROCm if Unsloth fails or more explicit training config is needed.
     - Windows-native training is not the first attempt.
 
-- [ ] **Primary task: Keep training outside runtime assumptions**
-  - [ ] Do not add training dependencies to the default test path.
-  - [ ] Do not require training tools for normal development.
-  - [ ] Keep model artifacts out of the repo unless intentionally documented.
-  - [ ] Document where local model artifacts live.
+- [x] **Primary task: Keep training outside runtime assumptions**
+  - [x] Do not add training dependencies to the default test path.
+  - [x] Do not require training tools for normal development.
+  - [x] Keep model artifacts out of the repo unless intentionally documented.
+  - [x] Document where local model artifacts live.
 
 ### Gate 6: First local fine-tuning experiment
 
