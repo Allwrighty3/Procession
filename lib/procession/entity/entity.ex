@@ -293,47 +293,45 @@ defmodule Procession.Entity do
 
   @impl true
   def handle_call({:generate_response, player_message, opts}, _from, state) do
-    memories =
-      state
-      |> Procession.Memory.flatten()
-      |> Procession.AI.MemoryContext.select(opts)
+    case Keyword.get(opts, :dialogue_context) do
+      context when is_map(context) ->
+        prompt = Procession.AI.Prompt.grounded_npc_response(context)
+        result = Procession.AI.generate(prompt, ai_adapter_opts(opts))
 
-    with {:ok, request} <-
-           Procession.AI.DialogueRequest.from_entity_state(
-             state,
-             player_message,
-             memories,
-             Keyword.take(opts, [:speaker, :location_context, :world_context])
-           ) do
-      prompt =
-        Procession.AI.Prompt.npc_response(%{
-          name: request.npc.name,
-          status: request.npc.status,
-          location: request.npc.location,
-          traits: request.npc.traits,
-          memories: request.relevant_memories,
-          speaker: request.speaker,
-          message: request.message,
-          location_context: request.location_context
-        })
+        {:reply, result, state}
 
-      ai_opts =
-        opts
-        |> Keyword.drop([
-          :recent_count,
-          :minimum_importance,
-          :speaker,
-          :location_context,
-          :world_context,
-          :timeout
-        ])
+      _ ->
+        memories =
+          state
+          |> Procession.Memory.flatten()
+          |> Procession.AI.MemoryContext.select(opts)
 
-      result = Procession.AI.generate(prompt, ai_opts)
+        with {:ok, request} <-
+               Procession.AI.DialogueRequest.from_entity_state(
+                 state,
+                 player_message,
+                 memories,
+                 Keyword.take(opts, [:speaker, :location_context, :world_context])
+               ) do
+          prompt =
+            Procession.AI.Prompt.npc_response(%{
+              name: request.npc.name,
+              status: request.npc.status,
+              location: request.npc.location,
+              traits: request.npc.traits,
+              memories: request.relevant_memories,
+              speaker: request.speaker,
+              message: request.message,
+              location_context: request.location_context
+            })
 
-      {:reply, result, state}
-    else
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
+          result = Procession.AI.generate(prompt, ai_adapter_opts(opts))
+
+          {:reply, result, state}
+        else
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
     end
   end
 
@@ -352,5 +350,19 @@ defmodule Procession.Entity do
       end)
 
     {:reply, {:ok, %{entity_id: updated_state.id, actions: Enum.reverse(actions)}}, updated_state}
+  end
+
+  defp ai_adapter_opts(opts) do
+    Keyword.drop(opts, [
+      :recent_count,
+      :minimum_importance,
+      :speaker,
+      :location_context,
+      :world_context,
+      :timeout,
+      :dialogue_context,
+      :grounded_context,
+      :memory_query
+    ])
   end
 end

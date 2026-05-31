@@ -12,6 +12,7 @@ defmodule Procession.GameSession do
   alias Procession.Game
   alias Procession.EntitySupervisor
   alias Procession.Entity
+  alias Procession.Dialogue.Context
 
   defstruct [
     :player_id,
@@ -399,6 +400,20 @@ defmodule Procession.GameSession do
     end
   end
 
+  defp dialogue_opts_from_state(state, entity_id, message, opts) do
+    base_opts =
+      opts
+      |> Keyword.put_new(:location_context, current_location_context(state))
+
+    if Keyword.get(opts, :grounded_context, false) do
+      with {:ok, context} <- Context.from_session_state(state, entity_id, message, opts) do
+        {:ok, Keyword.put(base_opts, :dialogue_context, context)}
+      end
+    else
+      {:ok, base_opts}
+    end
+  end
+
   @impl true
   def init(opts) do
     session_id = Keyword.get_lazy(opts, :session_id, fn -> Id.generate("session") end)
@@ -527,11 +542,13 @@ defmodule Procession.GameSession do
   @impl true
   def handle_call({:talk_to, entity_id, message, opts}, _from, state) do
     if entity_id in state.active_entities do
-      dialogue_opts =
-        opts
-        |> Keyword.put_new(:location_context, current_location_context(state))
+      case dialogue_opts_from_state(state, entity_id, message, opts) do
+        {:ok, dialogue_opts} ->
+          {:reply, Game.talk_to(entity_id, message, dialogue_opts), state}
 
-      {:reply, Game.talk_to(entity_id, message, dialogue_opts), state}
+        {:error, reason} ->
+          {:reply, {:error, reason}, state}
+      end
     else
       {:reply, {:error, :entity_not_in_session}, state}
     end

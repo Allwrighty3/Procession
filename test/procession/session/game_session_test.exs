@@ -32,6 +32,27 @@ defmodule Procession.GameSessionTest do
     end
   end
 
+  defmodule GroundedContextAssertAdapter do
+    @behaviour Procession.AI
+
+    @impl true
+    def generate(prompt, _opts) do
+      cond do
+        prompt =~ "Use only the grounded context below." and
+            prompt =~ "Do not invent names, relationships, locations, occupations, memories, or events" and
+            prompt =~ "Known active entities:" and
+            prompt =~ "Mira" and
+            prompt =~ "npc_mira" and
+            prompt =~ "role: innkeeper" and
+            prompt =~ "Player message:" ->
+          {:ok, "grounded dialogue received"}
+
+        true ->
+          {:error, :missing_grounded_dialogue_context}
+      end
+    end
+  end
+
   alias Procession.GameSession
 
   setup do
@@ -535,6 +556,21 @@ defmodule Procession.GameSessionTest do
                  summary.player_id,
                  "Hello, me.",
                  adapter: Procession.AI.FakeAdapter
+               )
+    end
+
+    test "session talk_to can opt into grounded dialogue context" do
+      {:ok, session} = GameSession.start_link()
+      {:ok, _summary} = GameSession.new_game(session, "anything")
+
+      assert {:ok, "grounded dialogue received"} =
+               GameSession.talk_to(
+                 session,
+                 "npc_tobin",
+                 "Who is Mira?",
+                 adapter: __MODULE__.GroundedContextAssertAdapter,
+                 grounded_context: true,
+                 memory_query: "mine"
                )
     end
   end
