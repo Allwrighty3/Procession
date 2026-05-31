@@ -215,17 +215,17 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Include the player message.
   - [x] Include the expected bounded NPC response.
 
-- [ ] **Primary task: Create the first curated training corpus**
-  - [ ] Create 25–50 curated `npc_interaction` examples.
-  - [ ] Add known entity question examples.
-  - [ ] Add unknown entity question examples.
-  - [ ] Add location question examples.
-  - [ ] Add occupation/role question examples.
-  - [ ] Add relationship question examples.
-  - [ ] Add target identity preservation examples.
-  - [ ] Add field-boundary examples.
-  - [ ] Add uncertainty-instead-of-invention examples.
-  - [ ] Add concise playable voice examples.
+- [x] **Primary task: Create the first curated training corpus**
+  - [x] Create 25–50 curated `npc_interaction` examples.
+  - [x] Add known entity question examples.
+  - [x] Add unknown entity question examples.
+  - [x] Add location question examples.
+  - [x] Add occupation/role question examples.
+  - [x] Add relationship question examples.
+  - [x] Add target identity preservation examples.
+  - [x] Add field-boundary examples.
+  - [x] Add uncertainty-instead-of-invention examples.
+  - [x] Add concise playable voice examples.
 
 - [ ] **Primary task: Keep the corpus non-authoritative**
   - [ ] Do not treat training examples as world truth.
