@@ -70,4 +70,121 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "Message:"
     assert prompt =~ "The road is watched."
   end
+
+  test "grounded_npc_response builds a prompt from dialogue context" do
+    prompt =
+      Procession.AI.Prompt.grounded_npc_response(%{
+        target: %{
+          id: "npc_tobin",
+          name: "Tobin",
+          type: :npc,
+          status: :idle,
+          location: "loc_crossroads",
+          traits: %{role: "merchant", temperament: "nervous"}
+        },
+        speaker: %{
+          id: "player_main",
+          name: "Player",
+          type: :player
+        },
+        location: %{
+          id: "loc_crossroads",
+          name: "Old Road Crossroads",
+          type: :location,
+          description: "A muddy crossroads where merchants pass through.",
+          exits: [
+            %{to: "loc_briar_village", label: "village road"},
+            %{to: "loc_silent_mine", label: "mine road"}
+          ]
+        },
+        active_entities: [
+          %{
+            id: "player_main",
+            name: "Player",
+            type: :player,
+            status: :idle,
+            location: "loc_crossroads",
+            traits: %{}
+          },
+          %{
+            id: "npc_tobin",
+            name: "Tobin",
+            type: :npc,
+            status: :idle,
+            location: "loc_crossroads",
+            traits: %{role: "merchant", temperament: "nervous"}
+          },
+          %{
+            id: "npc_mira",
+            name: "Mira",
+            type: :npc,
+            status: :idle,
+            location: "loc_briar_village",
+            traits: %{role: "innkeeper", temperament: "watchful"}
+          }
+        ],
+        target_memories: [
+          %{
+            content: "The old road has been quieter since the mine started echoing again.",
+            type: :observation,
+            importance: 2
+          }
+        ],
+        message: "Who is Mira?"
+      })
+
+    assert prompt =~ "Use only the grounded context below."
+    assert prompt =~ "Do not invent names, relationships, locations, occupations, memories, or events"
+    assert prompt =~ "If the answer is not known from the context"
+
+    assert prompt =~ "Target NPC:"
+    assert prompt =~ "ID: npc_tobin"
+    assert prompt =~ "Name: Tobin"
+    assert prompt =~ "role: merchant"
+    assert prompt =~ "temperament: nervous"
+
+    assert prompt =~ "Speaker:"
+    assert prompt =~ "ID: player_main"
+    assert prompt =~ "Name: Player"
+
+    assert prompt =~ "Current location:"
+    assert prompt =~ "Old Road Crossroads"
+    assert prompt =~ "village road -> loc_briar_village"
+    assert prompt =~ "mine road -> loc_silent_mine"
+
+    assert prompt =~ "Known active entities:"
+    assert prompt =~ "Mira"
+    assert prompt =~ "npc_mira"
+    assert prompt =~ "role: innkeeper"
+    assert prompt =~ "loc_briar_village"
+
+    assert prompt =~ "Relevant target memories:"
+    assert prompt =~ "old road has been quieter"
+
+    assert prompt =~ "Player message:"
+    assert prompt =~ "Who is Mira?"
+    assert prompt =~ "Respond as the target NPC in 1-3 sentences."
+  end
+
+  test "grounded_npc_response handles missing optional context" do
+    prompt =
+      Procession.AI.Prompt.grounded_npc_response(%{
+        target: %{
+          id: "npc_tobin",
+          name: "Tobin",
+          type: :npc,
+          status: :idle,
+          location: "loc_crossroads",
+          traits: %{}
+        },
+        message: "Hello?"
+      })
+
+    assert prompt =~ "Name: Tobin"
+    assert prompt =~ "Target traits:\n- none"
+    assert prompt =~ "Current location:\n- none"
+    assert prompt =~ "Known active entities:\n- none"
+    assert prompt =~ "Relevant target memories:\n- none"
+    assert prompt =~ "Hello?"
+  end
 end
