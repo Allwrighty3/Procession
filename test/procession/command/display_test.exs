@@ -200,6 +200,21 @@ defmodule Procession.Command.DisplayTest do
     assert text == "tobin says: Hello."
   end
 
+  test "formats grounded talk_to results like dialogue" do
+    assert Display.format(
+             {:ok,
+              %{
+                command: :grounded_talk_to,
+                target: "tobin",
+                entity_id: "npc_tobin",
+                entity_name: "Tobin",
+                grounded_context: true,
+                message: "Who is Mira?",
+                result: "Mira is the innkeeper in Briar Village."
+              }}
+           ) == ~s(Tobin says: Mira is the innkeeper in Briar Village.)
+  end
+
   test "formats unsupported talk target errors" do
     assert Display.format({:error, :entity_not_talkable}) ==
              "You cannot talk to that."

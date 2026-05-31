@@ -128,6 +128,11 @@ defmodule Procession.Command.Display do
     "#{target} says: #{response}"
   end
 
+  def format({:ok, %{command: :grounded_talk_to, result: response} = command}) do
+    target = display_target(command)
+    "#{target} says: #{response}"
+  end
+
   def format({:error, :unknown_command}) do
     "Error: I don't know what you mean. Try `help`."
   end

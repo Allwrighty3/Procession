@@ -57,9 +57,17 @@ defmodule Procession.AI.Prompt do
     """
     You are generating dialogue for a single-player RPG simulation.
 
+    Identity rule:
+    You are #{Map.get(target, :name, "Unknown NPC")} and only #{Map.get(target, :name, "Unknown NPC")}.
+    Your entity ID is #{Map.get(target, :id, "unknown")}.
+    Do not claim to be any other entity listed in the context.
+    Known active entities are world facts, not your identity.
+    If the player asks about another entity, describe that entity from the grounded context while continuing to speak as #{Map.get(target, :name, "Unknown NPC")}.
+
+    Grounding rule:
     Use only the grounded context below.
     Do not invent names, relationships, locations, occupations, memories, or events that are not present in the context.
-    If the answer is not known from the context, respond with uncertainty in the NPC's voice.
+    If the answer is not known from the context, respond with uncertainty in #{Map.get(target, :name, "Unknown NPC")}'s voice.
 
     Target NPC:
     - ID: #{Map.get(target, :id, "unknown")}
@@ -79,8 +87,17 @@ defmodule Procession.AI.Prompt do
     Current location:
     #{format_grounded_location(location)}
 
-    Known active entities:
-    #{format_active_entities(active_entities)}
+    Scene entities:
+    #{format_scene_entities(active_entities, Map.get(target, :location))}
+
+    Other known NPCs:
+    #{format_other_npcs(active_entities, Map.get(target, :location))}
+
+    Known locations:
+    #{format_known_locations(active_entities)}
+
+    Known factions:
+    #{format_known_factions(active_entities)}
 
     Relevant target memories:
     #{format_memories(memories)}
@@ -88,7 +105,11 @@ defmodule Procession.AI.Prompt do
     Player message:
     #{message}
 
-    Respond as the target NPC in 1-3 sentences.
+    Respond as #{Map.get(target, :name, "Unknown NPC")} in 1-3 sentences.
+    Only scene entities are physically present with Tobin.
+    Other known NPCs are not at Tobin's location unless their location exactly matches Tobin's location.
+    Do not infer plans, services, relationships, reputation, or current activity unless explicitly listed.
+    Do not start by saying you are another entity.
     """
     |> String.trim()
   end

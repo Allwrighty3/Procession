@@ -166,7 +166,23 @@ defmodule Procession.AI.PromptTest do
 
     assert prompt =~ "Player message:"
     assert prompt =~ "Who is Mira?"
-    assert prompt =~ "Respond as the target NPC in 1-3 sentences."
+
+    assert prompt =~ "Identity rule:"
+    assert prompt =~ "You are Tobin and only Tobin."
+    assert prompt =~ "Your entity ID is npc_tobin."
+    assert prompt =~ "Do not claim to be any other entity listed in the context."
+    assert prompt =~ "Known active entities are world facts, not your identity."
+
+    assert prompt =~
+             "If the player asks about another entity, describe that entity from the grounded context while continuing to speak as Tobin."
+
+    assert prompt =~ "Grounding rule:"
+
+    assert prompt =~
+             "If the answer is not known from the context, respond with uncertainty in Tobin's voice."
+
+    assert prompt =~ "Respond as Tobin in 1-3 sentences."
+    assert prompt =~ "Do not start by saying you are another entity."
   end
 
   test "grounded_npc_response handles missing optional context" do
