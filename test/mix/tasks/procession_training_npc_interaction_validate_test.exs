@@ -11,7 +11,7 @@ defmodule Mix.Tasks.ProcessionTrainingNpcInteractionValidateTest do
         Validate.run([])
       end)
 
-    assert output =~ "Loaded 10 NPC interaction training examples."
+    assert output =~ "Loaded 15 NPC interaction training examples."
     assert output =~ "NPC interaction training corpus is valid."
   end
 end
