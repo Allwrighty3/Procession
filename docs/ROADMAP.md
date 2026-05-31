@@ -245,11 +245,11 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Document how to regenerate the training file.
 
 - [ ] **Primary task: Choose local training tooling**
-  - [ ] Research practical local LoRA or adapter-style fine-tuning options.
-  - [ ] Prefer free/local tooling.
-  - [ ] Do not train a model from scratch.
+  - [x] Research practical local LoRA or adapter-style fine-tuning options.
+  - [x] Prefer free/local tooling.
+  - [x] Do not train a model from scratch.
   - [ ] Confirm whether `llama3.2:1b` is practical as the first experiment target.
-  - [ ] Document setup steps and system assumptions.
+  - [x] Document setup steps and system assumptions.
 
 - [ ] **Primary task: Keep training outside runtime assumptions**
   - [ ] Do not add training dependencies to the default test path.
