@@ -27,16 +27,31 @@ The desktop has enough VRAM for small-model LoRA or QLoRA experiments. The remai
 
 Do not train on the laptop.
 
-Treat the desktop as the likely local training machine, pending confirmation of an AMD-compatible training stack.
+Use the desktop as the likely local training machine.
+
+The chosen first training path is:
+
+```text
+Unsloth AMD on Linux/ROCm
+```
+
+Backup path:
+
+```text
+Axolotl ROCm
+```
+
+The RX 6700 XT has enough VRAM for small-model LoRA or QLoRA experiments. The remaining practical risk is ROCm/software setup, not hardware capacity.
 
 Recommended next path:
 
 1. Keep validation/export/eval tooling in Elixir.
 2. Keep Ollama as the local inference baseline.
-3. Treat the RX 6700 XT desktop as hardware-capable for small-model LoRA or QLoRA experiments.
-4. Research AMD ROCm/Linux compatibility before committing to Unsloth, Axolotl, or another trainer.
-5. Avoid training from scratch.
-6. Avoid adding Python training dependencies to the default project path.
+3. Use the RX 6700 XT desktop for the first local training attempt if Linux/ROCm setup is acceptable.
+4. Try Unsloth AMD first.
+5. Use Axolotl ROCm as the backup if Unsloth fails or if explicit YAML configuration becomes more useful.
+6. Avoid training from scratch.
+7. Avoid adding Python training dependencies to the default project path.
 
 ## Hardware notes
 
@@ -53,14 +68,19 @@ The RX 6700 XT clears the likely VRAM threshold for small-model adapter experime
 
 ## Tooling implication
 
-Because the desktop uses an AMD GPU, the easiest NVIDIA/CUDA-based path may not apply.
+Because the desktop uses an AMD GPU, the first training attempt should not assume the standard NVIDIA/CUDA path.
 
-Likely options:
+Chosen path:
 
-* Linux + ROCm-compatible training tooling
-* a temporary external NVIDIA environment for the first LoRA experiment
-* defer training and continue improving evals, prompting, and corpus quality locally
-* use the desktop primarily for faster local inference if training setup becomes too painful
+- primary: Unsloth AMD on Linux/ROCm
+- backup: Axolotl ROCm
+- serving/eval: Ollama and existing Elixir eval tooling
+
+Windows-native training is not the first attempt.
+
+WSL is not assumed.
+
+The first proof should be a small ROCm/PyTorch GPU smoke test before installing or configuring the full training stack.
 
 ## First experiment target
 
@@ -176,16 +196,16 @@ The RX 6700 XT clears the VRAM threshold. The AMD software stack is now the main
 
 ## Practical next step
 
-For now, focus on:
+The next practical step is a ROCm/PyTorch smoke test on the desktop, not a full training run.
 
-* corpus quality
-* eval coverage
-* prompt/context routing
-* deterministic export shape
-* manual Ollama baseline runs
-* AMD-compatible training research
+The smoke test should prove:
 
-Training itself should wait until the ROCm/Linux/Axolotl/Unsloth path is confirmed.
+- the AMD GPU is visible to the training environment
+- PyTorch can use the GPU through ROCm
+- a tiny GPU tensor operation succeeds
+- the project can keep Python training tooling outside the Elixir runtime path
+
+Only after that should Procession attempt a tiny Unsloth LoRA experiment.
 
 ## Success criteria for future training
 
@@ -203,3 +223,4 @@ Success means:
 * no generated output imported as world truth
 
 Failure is acceptable if it teaches us whether training is worth continuing.
+

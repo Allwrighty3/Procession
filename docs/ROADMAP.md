@@ -244,14 +244,16 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Add basic tests for export shape if practical.
   - [x] Document how to regenerate the training file.
 
-- [ ] **Primary task: Choose local training tooling**
+- [x] **Primary task: Choose local training tooling**
   - [x] Research practical local LoRA or adapter-style fine-tuning options.
   - [x] Prefer free/local tooling.
   - [x] Do not train a model from scratch.
-  - [ ] Confirm whether `llama3.2:1b` is practical as the first experiment target.
+  - [x] Confirm whether `llama3.2:1b` is practical as the first experiment target.
   - [x] Document setup steps and system assumptions.
-    - Desktop has AMD Radeon RX 6700 XT with 12 GB dedicated VRAM and ~32 GB system RAM. Training feasibility now depends on AMD ROCm/Linux/tooling support, not VRAM.
-    - Added ROCm feasibility tracking before committing to Unsloth, Axolotl, or external compute.
+    - Desktop has AMD Radeon RX 6700 XT with 12 GB dedicated VRAM and ~32 GB system RAM.
+    - Primary training path: Unsloth AMD on Linux/ROCm.
+    - Backup path: Axolotl ROCm if Unsloth fails or more explicit training config is needed.
+    - Windows-native training is not the first attempt.
 
 - [ ] **Primary task: Keep training outside runtime assumptions**
   - [ ] Do not add training dependencies to the default test path.
