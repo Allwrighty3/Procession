@@ -237,7 +237,7 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 ### Gate 5: Training export and local tooling
 
 - [ ] **Primary task: Add training export support**
-  - [ ] Add a script or Mix task to export training data.
+  - [x] Add a script or Mix task to export training data.
     - Example: `mix procession.export_npc_interaction_training`
   - [ ] Keep exported training data reproducible.
   - [ ] Keep exported files separate from runtime code.
