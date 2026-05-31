@@ -140,15 +140,15 @@ Further fine-tuning may happen in later phases as Procession gains more characte
 
 ### Gate 2: Validation and safety checks
 
-- [ ] **Primary task: Add the NPC interaction validator**
-  - [ ] Add `Procession.AI.NPCInteraction.Validator`.
-  - [ ] Define a validation function for generated NPC dialogue.
+- [x] **Primary task: Add the NPC interaction validator**
+  - [x] Add `Procession.AI.NPCInteraction.Validator`.
+  - [x] Define a validation function for generated NPC dialogue.
     - Example: `validate_response(context, response)`
-  - [ ] Return inspectable validation results.
+  - [x] Return inspectable validation results.
     - Example: `{:ok, response}`
     - Example: `{:error, validation_errors}`
-  - [ ] Keep validation separate from prompt construction.
-  - [ ] Do not mutate entity state, memory, behavior metadata, or world state during validation.
+  - [x] Keep validation separate from prompt construction.
+  - [x] Do not mutate entity state, memory, behavior metadata, or world state during validation.
 
 - [ ] **Primary task: Detect target identity violations**
   - [ ] Detect when Tobin claims to be Mira.
