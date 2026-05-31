@@ -110,4 +110,69 @@ defmodule Procession.AI.NPCInteraction.EvalScorerTest do
 
     assert result.passed
   end
+
+  test "scores multiple eval cases against provided responses" do
+    cases = [
+      eval_case(%{
+        "id" => "case_pass",
+        "must_include" => ["Mira"],
+        "must_include_any" => [],
+        "must_not_include" => ["I am Mira"]
+      }),
+      eval_case(%{
+        "id" => "case_fail",
+        "must_include" => ["Tobin"],
+        "must_include_any" => [],
+        "must_not_include" => []
+      })
+    ]
+
+    responses = %{
+      "case_pass" => "Mira keeps the inn.",
+      "case_fail" => "Mira keeps the inn."
+    }
+
+    summary = EvalScorer.score_cases(cases, responses)
+
+    assert summary.total == 2
+    assert summary.passed == 1
+    assert summary.failed == 1
+
+    assert Enum.any?(summary.results, &(&1.id == "case_pass" and &1.passed))
+    assert Enum.any?(summary.results, &(&1.id == "case_fail" and not &1.passed))
+  end
+
+  test "batch scoring treats missing responses as failures" do
+    cases = [
+      eval_case(%{
+        "id" => "missing_response_case",
+        "must_include" => ["Mira"],
+        "must_include_any" => [],
+        "must_not_include" => []
+      })
+    ]
+
+    summary = EvalScorer.score_cases(cases, %{})
+
+    assert summary.total == 1
+    assert summary.passed == 0
+    assert summary.failed == 1
+
+    [result] = summary.results
+    assert result.id == "missing_response_case"
+    refute result.passed
+    assert Enum.any?(result.failures, &(&1.code == :missing_required_text))
+  end
+
+  test "batch scoring rejects invalid input" do
+    summary = EvalScorer.score_cases(nil, [])
+
+    assert summary.total == 0
+    assert summary.passed == 0
+    assert summary.failed == 0
+
+    [result] = summary.results
+    refute result.passed
+    assert Enum.any?(result.failures, &(&1.code == :invalid_eval_batch_input))
+  end
 end

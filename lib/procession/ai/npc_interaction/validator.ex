@@ -25,7 +25,8 @@ defmodule Procession.AI.NPCInteraction.Validator do
       []
       |> validate_not_blank(response)
       |> validate_identity_claim(context, response)
-      # |> validate_uncertainty_then_invention(response)
+
+    # |> validate_uncertainty_then_invention(response)
 
     case errors do
       [] -> {:ok, response}

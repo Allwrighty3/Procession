@@ -49,6 +49,64 @@ defmodule Procession.AI.NPCInteraction.EvalScorer do
     }
   end
 
+  @doc """
+  Scores many eval cases against a map of provided responses.
+
+  The response map should use eval case IDs as keys.
+  """
+  @spec score_cases([eval_case()], map()) :: %{
+          total: non_neg_integer(),
+          passed: non_neg_integer(),
+          failed: non_neg_integer(),
+          results: [map()]
+        }
+  def score_cases(cases, responses_by_case_id)
+      when is_list(cases) and is_map(responses_by_case_id) do
+    results =
+      Enum.map(cases, fn eval_case ->
+        case_id = Map.get(eval_case, "id")
+        response = Map.get(responses_by_case_id, case_id, "")
+
+        score_result = score(eval_case, response)
+
+        %{
+          id: case_id,
+          passed: score_result.passed,
+          failures: score_result.failures
+        }
+      end)
+
+    passed = Enum.count(results, & &1.passed)
+    total = length(results)
+
+    %{
+      total: total,
+      passed: passed,
+      failed: total - passed,
+      results: results
+    }
+  end
+
+  def score_cases(_cases, _responses_by_case_id) do
+    %{
+      total: 0,
+      passed: 0,
+      failed: 0,
+      results: [
+        %{
+          id: nil,
+          passed: false,
+          failures: [
+            %{
+              code: :invalid_eval_batch_input,
+              message: "Eval batch scoring requires a list of cases and a response map."
+            }
+          ]
+        }
+      ]
+    }
+  end
+
   defp check_must_include(failures, eval_case, response) do
     eval_case
     |> Map.get("must_include", [])
