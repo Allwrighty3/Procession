@@ -29,9 +29,12 @@ defmodule Procession.CommandTest do
           {:error, :leaked_memory_query_opt}
 
         prompt =~ "Use only the grounded context below." and
-          prompt =~ "Known active entities:" and
+          prompt =~ "Identity rule:" and
+          prompt =~ "Scene entities:" and
+          prompt =~ "Other known NPCs:" and
           prompt =~ "Mira" and
           prompt =~ "npc_mira" and
+          prompt =~ "is at loc_briar_village" and
           prompt =~ "Player message:" and
             prompt =~ "Who is Mira?" ->
           {:ok, "Grounded command response."}

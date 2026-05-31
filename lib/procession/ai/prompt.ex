@@ -61,7 +61,7 @@ defmodule Procession.AI.Prompt do
     You are #{Map.get(target, :name, "Unknown NPC")} and only #{Map.get(target, :name, "Unknown NPC")}.
     Your entity ID is #{Map.get(target, :id, "unknown")}.
     Do not claim to be any other entity listed in the context.
-    Known active entities are world facts, not your identity.
+    Listed entities are world facts, not your identity.
     If the player asks about another entity, describe that entity from the grounded context while continuing to speak as #{Map.get(target, :name, "Unknown NPC")}.
 
     Grounding rule:
@@ -176,21 +176,79 @@ defmodule Procession.AI.Prompt do
     |> Enum.join("\n")
   end
 
-  defp format_active_entities([]), do: "- none"
-
-  defp format_active_entities(entities) do
+  defp format_scene_entities(entities, target_location) do
     entities
-    |> Enum.map(fn entity ->
-      traits = entity |> Map.get(:traits, %{}) |> format_inline_traits()
-
-      "- #{Map.get(entity, :name, "Unknown")} (#{Map.get(entity, :id, "unknown")}, #{Map.get(entity, :type, :unknown)}) at #{Map.get(entity, :location, "unknown location")} status=#{Map.get(entity, :status, :idle)} traits=#{traits}"
+    |> Enum.filter(fn entity ->
+      Map.get(entity, :location) == target_location and
+        Map.get(entity, :type) in [:npc, :player]
     end)
-    |> Enum.join("\n")
+    |> case do
+      [] ->
+        "- none"
+
+      scene_entities ->
+        scene_entities
+        |> Enum.map(fn entity ->
+          "- #{Map.get(entity, :name, "Unknown")} (#{Map.get(entity, :id, "unknown")}, #{Map.get(entity, :type, :unknown)}) at #{Map.get(entity, :location, "unknown location")} status=#{Map.get(entity, :status, :idle)} traits=#{format_traits_inline(Map.get(entity, :traits, %{}))}"
+        end)
+        |> Enum.join("\n")
+    end
   end
 
-  defp format_inline_traits(traits) when map_size(traits) == 0, do: "none"
+  defp format_other_npcs(entities, target_location) do
+    entities
+    |> Enum.filter(fn entity ->
+      Map.get(entity, :type) == :npc and
+        Map.get(entity, :location) != target_location
+    end)
+    |> case do
+      [] ->
+        "- none"
 
-  defp format_inline_traits(traits) do
+      npcs ->
+        npcs
+        |> Enum.map(fn entity ->
+          "- #{Map.get(entity, :name, "Unknown")} (#{Map.get(entity, :id, "unknown")}) is at #{Map.get(entity, :location, "unknown location")} with traits=#{format_traits_inline(Map.get(entity, :traits, %{}))}"
+        end)
+        |> Enum.join("\n")
+    end
+  end
+
+  defp format_known_locations(entities) do
+    entities
+    |> Enum.filter(fn entity -> Map.get(entity, :type) == :location end)
+    |> case do
+      [] ->
+        "- none"
+
+      locations ->
+        locations
+        |> Enum.map(fn entity ->
+          "- #{Map.get(entity, :name, "Unknown location")} (#{Map.get(entity, :id, "unknown")})"
+        end)
+        |> Enum.join("\n")
+    end
+  end
+
+  defp format_known_factions(entities) do
+    entities
+    |> Enum.filter(fn entity -> Map.get(entity, :type) == :faction end)
+    |> case do
+      [] ->
+        "- none"
+
+      factions ->
+        factions
+        |> Enum.map(fn entity ->
+          "- #{Map.get(entity, :name, "Unknown faction")} (#{Map.get(entity, :id, "unknown")})"
+        end)
+        |> Enum.join("\n")
+    end
+  end
+
+  defp format_traits_inline(traits) when traits == %{}, do: "none"
+
+  defp format_traits_inline(traits) do
     traits
     |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
     |> Enum.join(", ")

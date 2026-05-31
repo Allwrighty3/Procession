@@ -155,11 +155,16 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "village road -> loc_briar_village"
     assert prompt =~ "mine road -> loc_silent_mine"
 
-    assert prompt =~ "Known active entities:"
-    assert prompt =~ "Mira"
-    assert prompt =~ "npc_mira"
+    assert prompt =~ "Scene entities:"
+    assert prompt =~ "Player (player_main, player) at loc_crossroads"
+    assert prompt =~ "Tobin (npc_tobin, npc) at loc_crossroads"
+
+    assert prompt =~ "Other known NPCs:"
+    assert prompt =~ "Mira (npc_mira) is at loc_briar_village"
     assert prompt =~ "role: innkeeper"
-    assert prompt =~ "loc_briar_village"
+
+    assert prompt =~ "Known locations:"
+    assert prompt =~ "Known factions:"
 
     assert prompt =~ "Relevant target memories:"
     assert prompt =~ "old road has been quieter"
@@ -171,7 +176,7 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "You are Tobin and only Tobin."
     assert prompt =~ "Your entity ID is npc_tobin."
     assert prompt =~ "Do not claim to be any other entity listed in the context."
-    assert prompt =~ "Known active entities are world facts, not your identity."
+    assert prompt =~ "Listed entities are world facts, not your identity."
 
     assert prompt =~
              "If the player asks about another entity, describe that entity from the grounded context while continuing to speak as Tobin."
@@ -183,6 +188,13 @@ defmodule Procession.AI.PromptTest do
 
     assert prompt =~ "Respond as Tobin in 1-3 sentences."
     assert prompt =~ "Do not start by saying you are another entity."
+    assert prompt =~ "Only scene entities are physically present with Tobin."
+
+    assert prompt =~
+             "Other known NPCs are not at Tobin's location unless their location exactly matches Tobin's location."
+
+    assert prompt =~
+             "Do not infer plans, services, relationships, reputation, or current activity unless explicitly listed."
   end
 
   test "grounded_npc_response handles missing optional context" do
@@ -202,7 +214,10 @@ defmodule Procession.AI.PromptTest do
     assert prompt =~ "Name: Tobin"
     assert prompt =~ "Target traits:\n- none"
     assert prompt =~ "Current location:\n- none"
-    assert prompt =~ "Known active entities:\n- none"
+    assert prompt =~ "Scene entities:\n- none"
+    assert prompt =~ "Other known NPCs:\n- none"
+    assert prompt =~ "Known locations:\n- none"
+    assert prompt =~ "Known factions:\n- none"
     assert prompt =~ "Relevant target memories:\n- none"
     assert prompt =~ "Hello?"
   end

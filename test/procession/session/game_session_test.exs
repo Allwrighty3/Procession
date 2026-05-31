@@ -41,9 +41,13 @@ defmodule Procession.GameSessionTest do
         prompt =~ "Use only the grounded context below." and
           prompt =~
             "Do not invent names, relationships, locations, occupations, memories, or events" and
-          prompt =~ "Known active entities:" and
+          prompt =~ "Identity rule:" and
+          prompt =~ "You are Tobin and only Tobin." and
+          prompt =~ "Scene entities:" and
+          prompt =~ "Other known NPCs:" and
           prompt =~ "Mira" and
           prompt =~ "npc_mira" and
+          prompt =~ "is at loc_briar_village" and
           prompt =~ "role: innkeeper" and
             prompt =~ "Player message:" ->
           {:ok, "grounded dialogue received"}
