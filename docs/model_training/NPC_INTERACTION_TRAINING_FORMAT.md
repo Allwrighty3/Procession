@@ -69,12 +69,159 @@ The context must be built from authoritative Elixir simulation state or intentio
 It should include:
 
 - target NPC identity
-- speaker/player message
+- speaker identity and facts
+- player or NPC message
 - known entities
 - known locations
-- relevant memories or facts
+- known scene entities
+- relevant target memories or facts
 - location context where appropriate
 - world context where appropriate
+
+### Context requirements
+
+The context should explicitly separate facts by source and purpose.
+
+#### Target NPC identity
+
+The target NPC is the entity allowed to answer.
+
+Required fields:
+
+```json
+{
+  "id": "npc_tobin",
+  "name": "Tobin",
+  "role": "merchant"
+}
+```
+
+The expected response must preserve this identity.
+
+#### Speaker facts
+
+The speaker is the entity that produced the message being answered.
+
+The speaker may be the player, but in the long-term simulation the speaker will often be another NPC. NPC-to-NPC interaction should be treated as a first-class training case because Procession is intended to support a living world where entities interact even when the player is not directly involved.
+
+Required fields:
+
+```json
+{
+  "id": "npc_mira",
+  "name": "Mira",
+  "type": "npc"
+}
+```
+
+Player example:
+
+```json
+{
+  "id": "player",
+  "name": "Player",
+  "type": "player"
+}
+```
+
+The model must not copy target NPC facts onto the speaker, and it must not copy speaker facts onto the target NPC.
+
+#### Player or speaker message
+
+The message is the direct input being answered. It may come from the player or from another NPC.
+
+Required field:
+
+```json
+"message": "Who is Mira?"
+```
+
+The expected response should answer this message directly instead of drifting into a related question.
+
+#### Location facts
+
+Known locations should be represented as inert facts.
+
+Example:
+
+```json
+"known_locations": [
+  {
+    "id": "loc_briar_village",
+    "name": "Briar Village"
+  }
+]
+```
+
+The model may refer to these locations only when the context supports it.
+
+#### Known scene entities
+
+Scene entities are entities currently visible or relevant in the local interaction scope.
+
+Example:
+
+```json
+"scene_entities": [
+  {
+    "id": "npc_tobin",
+    "name": "Tobin",
+    "type": "npc"
+  }
+]
+```
+
+Scene presence does not imply current activity beyond what is explicitly stated.
+
+#### Other known NPCs
+
+Other known NPCs should be represented separately from the target NPC.
+
+Example:
+
+```json
+"known_entities": [
+  {
+    "id": "npc_mira",
+    "name": "Mira",
+    "type": "npc",
+    "role": "innkeeper",
+    "location_id": "loc_briar_village"
+  }
+]
+```
+
+The model may describe these NPCs, but must not become them.
+
+#### Relevant target memories
+
+Relevant target memories should be explicit and bounded.
+
+Example:
+
+```json
+"memories": [
+  {
+    "id": "memory_tobin_mira_trade",
+    "summary": "Tobin remembers Mira passing through the crossroads with trade goods.",
+    "source": "target_memory"
+  }
+]
+```
+
+Memories may inform the response, but they are not permission to invent new facts.
+
+#### Expected bounded NPC response
+
+The expected response is the preferred answer for the training example.
+
+It should be:
+
+- grounded in the provided context
+- spoken from the target NPC's perspective
+- concise enough for playable dialogue
+- explicit about uncertainty when needed
+- free of unsupported state changes, locations, relationships, and current activities
 
 Example shape:
 
@@ -87,13 +234,15 @@ Example shape:
   },
   "speaker": {
     "id": "player",
-    "name": "Player"
+    "name": "Player",
+    "type": "player"
   },
   "message": "Are you Mira?",
   "known_entities": [
     {
       "id": "npc_mira",
       "name": "Mira",
+      "type": "npc",
       "role": "innkeeper",
       "location_id": "loc_briar_village"
     }
@@ -102,6 +251,13 @@ Example shape:
     {
       "id": "loc_briar_village",
       "name": "Briar Village"
+    }
+  ],
+  "scene_entities": [
+    {
+      "id": "npc_tobin",
+      "name": "Tobin",
+      "type": "npc"
     }
   ],
   "memories": [],
@@ -188,13 +344,15 @@ Example:
     },
     "speaker": {
       "id": "player",
-      "name": "Player"
+      "name": "Player",
+      "type": "player"
     },
     "message": "Are you Mira?",
     "known_entities": [
       {
         "id": "npc_mira",
         "name": "Mira",
+        "type": "npc",
         "role": "innkeeper",
         "location_id": "loc_briar_village"
       }
@@ -203,6 +361,13 @@ Example:
       {
         "id": "loc_briar_village",
         "name": "Briar Village"
+      }
+    ],
+    "scene_entities": [
+      {
+        "id": "npc_tobin",
+        "name": "Tobin",
+        "type": "npc"
       }
     ],
     "memories": [],
