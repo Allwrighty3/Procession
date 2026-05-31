@@ -111,3 +111,16 @@ Tobin claimed to be Mira after receiving grounded context that included Mira as 
 ```
 
 Phase 18 should treat this as the first `npc_interaction` training and validation target.
+
+### Diagnosis
+
+The remaining failures appear to be context-overload and field-bleed failures rather than purely random hallucination.
+
+Examples:
+
+- Tobin’s `nervous` temperament bled into the player.
+- Mira’s `innkeeper` role led the model to infer services, hospitality, and an active inn.
+- The crossroads description led the model to infer current bustle and travel activity.
+- Known facts were treated as prompts for plausible genre completion instead of strict boundaries.
+
+This supports Phase 18’s direction: `npc_interaction` should become a task-specific AI skill with validation, evals, curated examples, and training focused on preserving field boundaries.

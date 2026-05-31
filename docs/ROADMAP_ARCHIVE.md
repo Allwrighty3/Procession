@@ -1191,3 +1191,130 @@ The goal is to prove that AI improves NPC interaction while Elixir remains autho
 - [x] Defer persistence.
 
 ---
+
+## Phase 17: Dialogue Context & Grounded AI Responses
+
+Phase 17 creates a structured dialogue context system so AI-generated NPC dialogue is grounded in authoritative simulation data instead of ad hoc prompt text.
+
+The goal is to make grounded NPC interaction visible through the playable shell while preserving the rule that AI dialogue is expression, not state authority.
+
+This phase is not complete merely because the prompt contains more context. It is complete when the system can demonstrate, through tests and a real local AI run, how grounded NPC interaction behaves and where its failure modes remain.
+
+### Context boundary
+
+- [x] Add a plain-data dialogue context module.
+  - Example: `Procession.Dialogue.Context`
+- [x] Keep dialogue context construction outside the AI adapter.
+- [x] Build context from authoritative Elixir state only.
+- [x] Keep context data inspectable in tests.
+- [x] Support context construction from both:
+  - a live session process
+  - already-held session state inside `GameSession`
+- [x] Avoid GenServer self-calls when building context inside session callbacks.
+- [x] Do not store AI output as memory in this phase.
+
+### First context slice
+
+- [x] Include target NPC facts.
+  - ID, name, type, status, location, traits.
+- [x] Include speaker facts.
+  - ID, name, type.
+- [x] Include current location facts.
+  - ID, name, description, exits.
+- [x] Include known active entities in the current session/scope.
+  - ID, name, type, status, location, traits.
+- [x] Include relevant target memories.
+- [x] Add tests proving known entity facts appear in context.
+- [x] Add tests proving context construction does not mutate entity memory.
+
+### Prompt grounding
+
+- [x] Update prompt builder to consume dialogue context.
+- [x] Add explicit instruction not to invent facts outside provided context.
+- [x] Add explicit target identity rules.
+  - The target NPC must not claim to be another entity.
+  - Known active entities are world facts, not speaker identity.
+  - If asked about another entity, the target NPC should describe that entity while remaining itself.
+- [x] Add tests proving prompt includes known entity roles and locations.
+- [x] Add tests proving prompt includes uncertainty instructions.
+- [x] Add tests proving prompt includes target identity instructions.
+- [x] Keep prompt construction pure.
+
+### Runtime wiring
+
+- [x] Wire grounded context into live dialogue behind an explicit opt-in flag.
+  - Example: `grounded_context: true`
+- [x] Keep existing dialogue behavior unchanged when grounded context is not requested.
+- [x] Ensure internal options do not leak into AI adapters.
+  - Example: `:dialogue_context`, `:grounded_context`, `:memory_query`
+- [x] Add tests proving the grounded path reaches the AI boundary.
+- [x] Add tests proving normal dialogue still works.
+
+### CLI-visible behavior
+
+- [x] Add a deterministic command for grounded dialogue.
+  - Example: `grounded talk to Tobin: Who is Mira?`
+- [x] Add display formatting for grounded dialogue results.
+  - Do not dump raw command result maps to the player.
+- [x] Add an explicit AI-enabled CLI/demo entry point.
+  - Example: `Procession.CLI.play_ai/2`
+- [x] Keep normal CLI/demo behavior deterministic and fake-adapter safe by default.
+- [x] Verify AI dialogue can answer simple grounded questions through a real local Ollama run.
+  - Example: “Who is Mira?”
+  - Example: “What is Mira’s occupation?”
+  - Example: “Where is Mira?”
+- [x] Document that small local models may still hallucinate or confuse speaker identity.
+- [x] Add a Phase 17 grounded dialogue acceptance note.
+  - Example: `docs/PHASE_17_GROUNDED_DIALOGUE_ACCEPTANCE.md`
+- [x] Record at least one real local Ollama run.
+- [x] Document known grounded dialogue failure modes.
+- [x] Carry unresolved consistency/quality failures into Phase 18.
+
+### Human acceptance script
+
+Run the AI-enabled demo with the local model and manually compare normal dialogue with grounded dialogue.
+
+Recommended script:
+
+- [x] `talk to Tobin: Who is Mira?`
+- [x] `grounded talk to Tobin: Who is Mira?`
+- [x] `grounded talk to Tobin: Where is Mira?`
+- [x] `grounded talk to Tobin: What is Mira's job?`
+- [x] `grounded talk to Mira: Who is Tobin?`
+- [x] `grounded talk to Tobin: Who is Elandra?`
+
+Acceptance notes:
+
+- [x] Tobin should not claim to be Mira.
+- [x] Mira should not claim to be Tobin.
+- [x] Known facts should be used when present.
+- [x] Unknown facts should produce uncertainty instead of invented lore.
+- [x] Any remaining failure modes should be documented for Phase 18.
+
+### Observed post-augment failure pattern
+
+After identity hardening, scoped prompt sections, and grounded dialogue display formatting, the local model showed improved structure but still failed bounded NPC interaction.
+
+Observed failure type:
+
+- Context overload / field bleed.
+  - Tobin’s nervous temperament bled into player behavior.
+  - Mira’s `innkeeper` role led to inferred services, hospitality, and inn activity.
+  - The crossroads description led to inferred bustle and travel activity.
+  - Unknown entity handling sometimes started with uncertainty, then invented unsupported lore.
+
+Conclusion:
+
+Phase 17 successfully made grounded NPC dialogue visible, testable, and diagnosable. Remaining consistency and quality failures belong to Phase 18, where `npc_interaction` becomes a task-specific AI skill with validation, evals, curated training data, and a first local training experiment.
+
+### Deferred from Phase 17
+
+- [x] Defer storing AI dialogue as memory.
+- [x] Defer AI-generated facts becoming world truth.
+- [x] Defer long-term conversation memory.
+- [x] Defer validated rumor/thread mutation.
+- [x] Defer NPC-specific knowledge limits beyond active scope.
+- [x] Defer model training.
+- [x] Defer separate AI skills beyond `npc_interaction`.
+
+---

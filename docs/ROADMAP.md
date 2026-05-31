@@ -22,27 +22,26 @@ The detailed historical phase checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_AR
 - [x] Phase 14: Tiny Local CLI Loop
 - [x] Phase 15: Capability Boundaries & Playability Polish
 - [x] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
+- [x] Phase 17: Dialogue Context & Grounded AI Responses
 
 Detailed historical checklists live in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md).
 
 ---
 
-## Upcoming Phases
-
 ### Current Focus
 
-- [ ] Phase 17: Dialogue Context & Grounded AI Responses
+- [ ] Phase 18: NPC Interaction AI Skill & Training Foundation
 
 ### Near-Term
 
-- [ ] Phase 18: Starter Area Content Depth & World Reactivity
-- [ ] Phase 19: Rumor / Thread Prototype
+- [ ] Phase 19: Starter Area Content Depth & World Reactivity
+- [ ] Phase 20: Rumor / Thread Prototype
 
 ### Larger Simulation Direction
 
-- [ ] Phase 20: Active Scope & Selective Simulation
-- [ ] Phase 21: Cascading World Generation Foundation
-- [ ] Phase 22: AI-Assisted Validated Expansion
+- [ ] Phase 21: Active Scope & Selective Simulation
+- [ ] Phase 22: Cascading World Generation Foundation
+- [ ] Phase 23: AI-Assisted Validated Expansion
 
 ---
 
@@ -99,120 +98,245 @@ AI is therefore core to the experience, but not sovereign over the state.
 
 ---
 
-## Phase 17: Dialogue Context & Grounded AI Responses
+## Phase 18: NPC Interaction AI Skill & Training Foundation
 
-Phase 17 creates a structured dialogue context system so AI-generated NPC dialogue is grounded in authoritative simulation data instead of ad hoc prompt text.
+Phase 18 establishes `npc_interaction` as Procession’s first task-specific AI skill and runs the first local training experiment for that skill.
 
-The goal is to make grounded NPC interaction visible through the playable shell while preserving the rule that AI dialogue is expression, not state authority.
+This is a major foundation phase. It is expected to be larger and deeper than recent roadmap phases because it covers architecture, validation, evals, dataset creation, training, comparison, and an optional integration decision.
 
-This phase is not complete merely because the prompt contains more context. It is complete when the system can demonstrate, through tests and a real local AI run, how grounded NPC interaction behaves and where its failure modes remain.
+The goal is not perfect dialogue. The goal is a reproducible path for creating, evaluating, training, and optionally using a specialized NPC interaction model that performs more consistently than the base general-purpose model.
 
-### Context boundary
+Further fine-tuning may happen in later phases as Procession gains more characters, relationships, memories, factions, world-generation needs, and failure cases.
 
-- [ ] Add a plain-data dialogue context module.
-  - Example: `Procession.Dialogue.Context`
-- [ ] Keep dialogue context construction outside the AI adapter.
-- [ ] Build context from authoritative Elixir state only.
-- [ ] Keep context data inspectable in tests.
-- [ ] Support context construction from both:
-  - a live session process
-  - already-held session state inside `GameSession`
-- [ ] Avoid GenServer self-calls when building context inside session callbacks.
-- [ ] Do not store AI output as memory in this phase.
+### Gate 1: Skill boundary and ownership
 
-### First context slice
+- [ ] **Primary task: Add the NPC interaction skill boundary**
+  - [ ] Add `Procession.AI.NPCInteraction`.
+  - [ ] Route grounded NPC dialogue generation through `NPCInteraction`.
+  - [ ] Keep `Entity` responsible for behavior execution.
+  - [ ] Prevent `Entity` from directly owning prompt/model details.
+  - [ ] Keep `Procession.Dialogue.Context` responsible for authoritative context construction.
+  - [ ] Keep `Procession.AI.Prompt` responsible for prompt text construction.
+  - [ ] Keep `Procession.AI` responsible for adapter dispatch.
 
-- [ ] Include target NPC facts.
-  - ID, name, type, status, location, traits.
-- [ ] Include speaker facts.
-  - ID, name, type.
-- [ ] Include current location facts.
-  - ID, name, description, exits.
-- [ ] Include known active entities in the current session/scope.
-  - ID, name, type, status, location, traits.
-- [ ] Include relevant target memories.
-- [ ] Add tests proving known entity facts appear in context.
-- [ ] Add tests proving context construction does not mutate entity memory.
+- [ ] **Primary task: Preserve current play and test behavior**
+  - [ ] Preserve fake-adapter-safe tests.
+  - [ ] Preserve the AI-enabled CLI demo path.
+  - [ ] Keep normal deterministic CLI/demo behavior available.
+  - [ ] Ensure default tests do not require Ollama.
+  - [ ] Keep AI output non-authoritative.
 
-### Prompt grounding
+- [ ] **Primary task: Prove the boundary works**
+  - [ ] Add tests proving grounded dialogue uses the NPC interaction boundary.
+  - [ ] Verify grounded dialogue still works through `Procession.Command`.
+  - [ ] Verify grounded dialogue still works through the CLI path.
+  - [ ] Verify existing normal dialogue still works.
 
-- [ ] Update prompt builder to consume dialogue context.
-- [ ] Add explicit instruction not to invent facts outside provided context.
-- [ ] Add explicit target identity rules.
-  - The target NPC must not claim to be another entity.
-  - Known active entities are world facts, not speaker identity.
-  - If asked about another entity, the target NPC should describe that entity while remaining itself.
-- [ ] Add tests proving prompt includes known entity roles and locations.
-- [ ] Add tests proving prompt includes uncertainty instructions.
-- [ ] Add tests proving prompt includes target identity instructions.
-- [ ] Keep prompt construction pure.
+### Gate 2: Validation and safety checks
 
-### Runtime wiring
+- [ ] **Primary task: Add the NPC interaction validator**
+  - [ ] Add `Procession.AI.NPCInteraction.Validator`.
+  - [ ] Define a validation function for generated NPC dialogue.
+    - Example: `validate_response(context, response)`
+  - [ ] Return inspectable validation results.
+    - Example: `{:ok, response}`
+    - Example: `{:error, validation_errors}`
+  - [ ] Keep validation separate from prompt construction.
+  - [ ] Do not mutate entity state, memory, behavior metadata, or world state during validation.
 
-- [ ] Wire grounded context into live dialogue behind an explicit opt-in flag.
-  - Example: `grounded_context: true`
-- [ ] Keep existing dialogue behavior unchanged when grounded context is not requested.
-- [ ] Ensure internal options do not leak into AI adapters.
-  - Example: `:dialogue_context`, `:grounded_context`, `:memory_query`
-- [ ] Add tests proving the grounded path reaches the AI boundary.
-- [ ] Add tests proving normal dialogue still works.
+- [ ] **Primary task: Detect target identity violations**
+  - [ ] Detect when Tobin claims to be Mira.
+  - [ ] Detect when Mira claims to be Tobin.
+  - [ ] Detect when the target NPC introduces itself as another known active entity.
+  - [ ] Detect obvious “I am <other entity>” patterns.
+  - [ ] Keep first validation rules simple and explainable.
+  - [ ] Document that validation is a guardrail, not proof of truth.
 
-### CLI-visible behavior
+- [ ] **Primary task: Detect early field-bleed failures**
+  - [ ] Detect responses that assign target traits to the player.
+  - [ ] Detect responses that rewrite the player’s question.
+  - [ ] Detect responses that treat role labels as current activity.
+  - [ ] Detect responses that express uncertainty and then invent lore.
+  - [ ] Add static tests for known Phase 17 failure examples.
 
-- [ ] Add a deterministic command for grounded dialogue.
-  - Example: `grounded talk to Tobin: Who is Mira?`
-- [ ] Add display formatting for grounded dialogue results.
-  - Do not dump raw command result maps to the player.
-- [ ] Add an explicit AI-enabled CLI/demo entry point.
-  - Example: `Procession.CLI.play_ai/2`
-- [ ] Keep normal CLI/demo behavior deterministic and fake-adapter safe by default.
-- [ ] Verify AI dialogue can answer simple grounded questions through a real local Ollama run.
-  - Example: “Who is Mira?”
-  - Example: “What is Mira’s occupation?”
-  - Example: “Where is Mira?”
-- [ ] Document that small local models may still hallucinate or confuse speaker identity.
-- [ ] Add a Phase 17 grounded dialogue acceptance note.
-  - Example: `docs/PHASE_17_GROUNDED_DIALOGUE_ACCEPTANCE.md`
-- [ ] Record at least one real local Ollama run.
-- [ ] Document known grounded dialogue failure modes.
-- [ ] Carry unresolved consistency/quality failures into Phase 18.
+### Gate 3: Eval harness and baseline scoring
 
-### Human acceptance script
+- [ ] **Primary task: Define the eval case format**
+  - [ ] Add a small eval case data shape.
+  - [ ] Include `id`.
+  - [ ] Include `target_id`.
+  - [ ] Include `message`.
+  - [ ] Include `must_include`.
+  - [ ] Include `must_include_any`.
+  - [ ] Include `must_not_include`.
+  - [ ] Include `expected_unknown`.
+  - [ ] Include `notes`.
 
-Run the AI-enabled demo with the local model and manually compare normal dialogue with grounded dialogue.
+- [ ] **Primary task: Add starter eval cases**
+  - [ ] Add `priv/evals/npc_interaction_cases.jsonl`.
+  - [ ] Add at least 10 starter NPC interaction eval cases.
+  - [ ] Include known-entity questions.
+  - [ ] Include unknown-entity questions.
+  - [ ] Include identity-preservation cases.
+  - [ ] Include uncertainty cases.
+  - [ ] Include field-boundary cases.
+  - [ ] Include question-preservation cases.
 
-Recommended script:
+- [ ] **Primary task: Build deterministic eval scoring**
+  - [ ] Add a deterministic eval runner that can score static responses without Ollama.
+  - [ ] Add tests for loading eval cases.
+  - [ ] Add tests for scoring pass/fail cases.
+  - [ ] Add tests for identity failure detection.
+  - [ ] Add tests for field-bleed detection where practical.
+  - [ ] Ensure default tests do not require Ollama.
 
-- [ ] `talk to Tobin: Who is Mira?`
-- [ ] `grounded talk to Tobin: Who is Mira?`
-- [ ] `grounded talk to Tobin: Where is Mira?`
-- [ ] `grounded talk to Tobin: What is Mira's job?`
-- [ ] `grounded talk to Mira: Who is Tobin?`
-- [ ] `grounded talk to Tobin: Who is Elandra?`
+- [ ] **Primary task: Establish the base model baseline**
+  - [ ] Add a manual Ollama eval runner if simple.
+  - [ ] Run the base model against the starter eval set.
+  - [ ] Record base model results.
+  - [ ] Document common base model failures.
 
-Acceptance notes:
+### Gate 4: Training data format and corpus
 
-- [ ] Tobin should not claim to be Mira.
-- [ ] Mira should not claim to be Tobin.
-- [ ] Known facts should be used when present.
-- [ ] Unknown facts should produce uncertainty instead of invented lore.
-- [ ] Any remaining failure modes should be documented for Phase 18.
+- [ ] **Primary task: Define the training example format**
+  - [ ] Include the same context shape used by `Procession.AI.NPCInteraction`.
+  - [ ] Include target NPC identity.
+  - [ ] Include speaker facts.
+  - [ ] Include location facts.
+  - [ ] Include known scene entities.
+  - [ ] Include other known NPCs.
+  - [ ] Include relevant target memories.
+  - [ ] Include the player message.
+  - [ ] Include the expected bounded NPC response.
 
-### Deferred from Phase 17
+- [ ] **Primary task: Create the first curated training corpus**
+  - [ ] Create 25–50 curated `npc_interaction` examples.
+  - [ ] Add known entity question examples.
+  - [ ] Add unknown entity question examples.
+  - [ ] Add location question examples.
+  - [ ] Add occupation/role question examples.
+  - [ ] Add relationship question examples.
+  - [ ] Add target identity preservation examples.
+  - [ ] Add field-boundary examples.
+  - [ ] Add uncertainty-instead-of-invention examples.
+  - [ ] Add concise playable voice examples.
 
-- [ ] Defer storing AI dialogue as memory.
-- [ ] Defer AI-generated facts becoming world truth.
-- [ ] Defer long-term conversation memory.
-- [ ] Defer validated rumor/thread mutation.
-- [ ] Defer NPC-specific knowledge limits beyond active scope.
-- [ ] Defer model training.
-- [ ] Defer separate AI skills beyond `npc_interaction`.
+- [ ] **Primary task: Keep the corpus non-authoritative**
+  - [ ] Do not treat training examples as world truth.
+  - [ ] Do not import generated model outputs into entity memory.
+  - [ ] Do not create behavior metadata from training examples.
+  - [ ] Keep generated/exported files separate from runtime state.
+  - [ ] Document that examples teach bounded behavior, not authoritative lore.
+
+### Gate 5: Training export and local tooling
+
+- [ ] **Primary task: Add training export support**
+  - [ ] Add a script or Mix task to export training data.
+    - Example: `mix procession.export_npc_interaction_training`
+  - [ ] Keep exported training data reproducible.
+  - [ ] Keep exported files separate from runtime code.
+  - [ ] Add basic tests for export shape if practical.
+  - [ ] Document how to regenerate the training file.
+
+- [ ] **Primary task: Choose local training tooling**
+  - [ ] Research practical local LoRA or adapter-style fine-tuning options.
+  - [ ] Prefer free/local tooling.
+  - [ ] Do not train a model from scratch.
+  - [ ] Confirm whether `llama3.2:1b` is practical as the first experiment target.
+  - [ ] Document setup steps and system assumptions.
+
+- [ ] **Primary task: Keep training outside runtime assumptions**
+  - [ ] Do not add training dependencies to the default test path.
+  - [ ] Do not require training tools for normal development.
+  - [ ] Keep model artifacts out of the repo unless intentionally documented.
+  - [ ] Document where local model artifacts live.
+
+### Gate 6: First local fine-tuning experiment
+
+- [ ] **Primary task: Run the first training experiment**
+  - [ ] Use the curated dataset.
+  - [ ] Use `llama3.2:1b` or another practical local small model.
+  - [ ] Run the first fine-tuning experiment.
+  - [ ] Name the trained model clearly.
+    - Example: `procession-npc-interaction:1b`
+  - [ ] Record exact commands used.
+  - [ ] Record training limitations and failures.
+
+- [ ] **Primary task: Keep expectations realistic**
+  - [ ] Do not require perfect dialogue.
+  - [ ] Do not require the trained model to become default.
+  - [ ] Treat this as a reproducible first experiment.
+  - [ ] Document what would justify later fine-tuning.
+
+### Gate 7: Model comparison and acceptance
+
+- [ ] **Primary task: Compare base model and trained model**
+  - [ ] Run the eval harness against the base model.
+  - [ ] Run the eval harness against the trained model.
+  - [ ] Compare identity preservation.
+  - [ ] Compare context-only answering.
+  - [ ] Compare field-boundary preservation.
+  - [ ] Compare uncertainty behavior.
+  - [ ] Compare concise NPC voice.
+  - [ ] Compare question preservation.
+
+- [ ] **Primary task: Decide whether quality improved enough**
+  - [ ] Document whether the trained model performs better than the base model.
+  - [ ] Document remaining weaknesses.
+  - [ ] Decide whether the trained model is useful enough for optional use.
+  - [ ] Do not require perfection.
+  - [ ] Do not make the trained model mandatory.
+
+### Gate 8: Optional integration and documentation
+
+- [ ] **Primary task: Add optional trained-model usage if justified**
+  - [ ] If useful, add a documented model option.
+    - Example: `model: "procession-npc-interaction:1b"`
+  - [ ] Keep fake adapter as the default for tests.
+  - [ ] Keep Ollama opt-in for automated tests.
+  - [ ] Keep AI output non-authoritative.
+  - [ ] Do not allow trained model output to mutate memory, behavior metadata, entity state, or world state.
+
+- [ ] **Primary task: Run the human acceptance script**
+  - [ ] `grounded talk to Tobin: Who is Mira?`
+  - [ ] `grounded talk to Tobin: Where is Mira?`
+  - [ ] `grounded talk to Tobin: What is Mira's job?`
+  - [ ] `grounded talk to Mira: Who is Tobin?`
+  - [ ] `grounded talk to Tobin: Who is Elandra?`
+  - [ ] `grounded talk to Mira: Are you Tobin?`
+  - [ ] `grounded talk to Tobin: Are you Mira?`
+
+- [ ] **Primary task: Document Phase 18 results**
+  - [ ] Document `npc_interaction` as the first task-specific AI skill.
+  - [ ] Document the eval workflow.
+  - [ ] Document the training dataset format.
+  - [ ] Document the first training experiment.
+  - [ ] Document base-vs-trained results.
+  - [ ] Document whether the trained model is accepted for optional use.
+  - [ ] Document future fine-tuning opportunities.
+  - [ ] Document future AI skill candidates:
+    - `npc_actions`
+    - `faction_planning`
+    - `world_generation`
+    - `memory_summarization`
+    - `relationship_consistency`
+
+### Deferred from Phase 18
+
+- [ ] Defer training `npc_actions`.
+- [ ] Defer training `faction_planning`.
+- [ ] Defer training `world_generation`.
+- [ ] Defer AI-authored behavior metadata.
+- [ ] Defer AI mutation of memory.
+- [ ] Defer AI mutation of world state.
+- [ ] Defer making the trained model mandatory.
+- [ ] Defer large-scale automated dataset generation.
 
 ---
 
-## Phase 18: Starter Area Content Depth & World Reactivity
+## Phase 19: Starter Area Content Depth & World Reactivity
 
-Phase 18 makes the current starter area more interesting while keeping the simulation deterministic and inspectable.
+Phase 19 makes the current starter area more interesting while keeping the simulation deterministic and inspectable.
 
 The goal is to improve visible world reactivity. The starter area should feel less like a static demo and more like a small living situation.
 
@@ -244,7 +368,7 @@ The goal is to improve visible world reactivity. The starter area should feel le
 - [ ] Add optional AI-enhanced demo notes if Phase 16 supports them.
 - [ ] Keep the demo focused on simulation behavior, not just prettier text.
 
-### Deferred from Phase 18
+### Deferred from Phase 19
 
 - [ ] Defer full quest systems.
 - [ ] Defer combat.
@@ -254,9 +378,9 @@ The goal is to improve visible world reactivity. The starter area should feel le
 
 ---
 
-## Phase 19: Rumor / Thread Prototype
+## Phase 20: Rumor / Thread Prototype
 
-Phase 19 introduces a small world-thread system.
+Phase 20 introduces a small world-thread system.
 
 The goal is to track emerging story threads without building a rigid quest system. Threads should help the player follow world activity while preserving the simulation-first design.
 
@@ -297,7 +421,7 @@ The goal is to track emerging story threads without building a rigid quest syste
 - [ ] Keep output readable but not overly polished.
 - [ ] Document that threads are not full quests yet.
 
-### Deferred from Phase 19
+### Deferred from Phase 20
 
 - [ ] Defer quest rewards.
 - [ ] Defer objectives/checklists unless they naturally emerge.
@@ -307,9 +431,9 @@ The goal is to track emerging story threads without building a rigid quest syste
 
 ---
 
-## Phase 20: Active Scope & Selective Simulation
+## Phase 21: Active Scope & Selective Simulation
 
-Phase 20 returns to the long-term large-world architecture.
+Phase 21 returns to the long-term large-world architecture.
 
 The goal is to formalize the difference between live active content and inactive blueprint/summary content. This prevents large worlds from becoming fully spawned GenServer forests.
 
@@ -349,7 +473,7 @@ The goal is to formalize the difference between live active content and inactive
 - [ ] Avoid storing all future content as live entities.
 - [ ] Add small examples in `WORLD_GENERATION.md` if useful.
 
-### Deferred from Phase 20
+### Deferred from Phase 21
 
 - [ ] Defer region-scale generation.
 - [ ] Defer save/load.
@@ -359,9 +483,9 @@ The goal is to formalize the difference between live active content and inactive
 
 ---
 
-## Phase 21: Cascading World Generation Foundation
+## Phase 22: Cascading World Generation Foundation
 
-Phase 21 begins the large-world generation pipeline.
+Phase 22 begins the large-world generation pipeline.
 
 The goal is not to generate everything at once. The goal is to generate broad summaries first, then expand details only when needed.
 
@@ -402,7 +526,7 @@ The goal is not to generate everything at once. The goal is to generate broad su
 - [ ] Keep active scope ownership explicit.
 - [ ] Add tests for activating generated scope data.
 
-### Deferred from Phase 21
+### Deferred from Phase 22
 
 - [ ] Defer AI-generated hierarchy if deterministic generation is not stable.
 - [ ] Defer persistence.
@@ -412,9 +536,9 @@ The goal is not to generate everything at once. The goal is to generate broad su
 
 ---
 
-## Phase 22: AI-Assisted Validated Expansion
+## Phase 23: AI-Assisted Validated Expansion
 
-Phase 22 uses local AI to propose larger world content.
+Phase 23 uses local AI to propose larger world content.
 
 The goal is to let Ollama assist generation without making it authoritative. AI proposes. Elixir validates. Invalid content gets rejected, repaired, or ignored.
 
@@ -451,7 +575,7 @@ The goal is to let Ollama assist generation without making it authoritative. AI 
 - [ ] Consider Python tooling later for prompt evaluation or generation diagnostics.
 - [ ] Do not add Python into the simulation runtime.
 
-### Deferred from Phase 22
+### Deferred from Phase 23
 
 - [ ] Defer AI autonomous planning.
 - [ ] Defer direct AI state mutation.

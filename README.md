@@ -4,7 +4,7 @@ An experimental living world engine where every NPC, faction, and location is an
 
 ## Current Status
 
-Procession has completed Phases 1–14 and is ready for the next roadmap phase.
+Procession has completed Phases 1–17 and is ready for the next roadmap phase.
 
 - [x] Phase 1: Core Entity System & Message Passing
 - [x] Phase 2: Hierarchical Memory System
@@ -18,6 +18,11 @@ Procession has completed Phases 1–14 and is ready for the next roadmap phase.
 - [x] Phase 10: Player Entity & Location Context
 - [x] Phase 11: Deterministic Command Parser
 - [x] Phase 12: Basic Travel & Active Scope Preparation
+- [x] Phase 13: First Playable Vertical Slice
+- [x] Phase 14: Tiny Local CLI Loop
+- [x] Phase 15: Capability Boundaries & Playability Polish
+- [x] Phase 16: AI-Backed NPC Dialogue Through Safe Boundaries
+- [x] Phase 17: Dialogue Context & Grounded AI Responses
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion criteria.
 
