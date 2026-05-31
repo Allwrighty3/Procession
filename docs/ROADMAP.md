@@ -150,9 +150,9 @@ Further fine-tuning may happen in later phases as Procession gains more characte
   - [x] Keep validation separate from prompt construction.
   - [x] Do not mutate entity state, memory, behavior metadata, or world state during validation.
 
-- [ ] **Primary task: Detect target identity violations**
+- [x] **Primary task: Detect target identity violations**
   - [x] Detect when Tobin claims to be Mira.
-  - [ ] Detect when Mira claims to be Tobin.
+  - [x] Detect when Mira claims to be Tobin.
   - [x] Detect when the target NPC introduces itself as another known active entity.
   - [x] Detect obvious “I am <other entity>” patterns.
   - [x] Keep first validation rules simple and explainable.

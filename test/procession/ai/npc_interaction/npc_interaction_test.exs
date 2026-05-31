@@ -66,7 +66,7 @@ defmodule Procession.AI.NPCInteractionTest do
 
   test "generate_response routes grounded context through the AI boundary" do
     assert {:ok, response} =
-            NPCInteraction.generate_response(grounded_context(), adapter: EchoAdapter)
+             NPCInteraction.generate_response(grounded_context(), adapter: EchoAdapter)
 
     assert response =~ "You are Tobin and only Tobin."
     assert response =~ "Your entity ID is npc_tobin."
@@ -82,19 +82,19 @@ defmodule Procession.AI.NPCInteractionTest do
 
   test "generate_response accepts validated NPC dialogue" do
     assert {:ok, response} =
-            NPCInteraction.generate_response(grounded_context(),
-              adapter: ValidDialogueAdapter
-            )
+             NPCInteraction.generate_response(grounded_context(),
+               adapter: ValidDialogueAdapter
+             )
 
     assert response ==
-            "Mira is over in Briar Village. I only know she keeps close watch on the place."
+             "Mira is over in Briar Village. I only know she keeps close watch on the place."
   end
 
   test "generate_response rejects identity-violating NPC dialogue" do
     assert {:error, errors} =
-            NPCInteraction.generate_response(grounded_context(),
-              adapter: IdentityViolationAdapter
-            )
+             NPCInteraction.generate_response(grounded_context(),
+               adapter: IdentityViolationAdapter
+             )
 
     assert Enum.any?(errors, &(&1.code == :target_identity_violation))
   end
