@@ -34,7 +34,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
     response =
       cond do
         role && location ->
-          "I'm #{name}, the #{role} out by #{location}."
+          "I'm #{name}, the #{role} #{location_phrase(location)}."
 
         role ->
           "I'm #{name}, the #{role}."
@@ -132,4 +132,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
       unknown["entity_name"] || unknown["location_name"] || unknown["name"]
     end)
   end
+
+  defp location_phrase("crossroads"), do: "out by the crossroads"
+  defp location_phrase(location), do: "in #{location}"
 end
