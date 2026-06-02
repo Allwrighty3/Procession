@@ -10,7 +10,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
 
     assert {:ok, response} = ResponseRealizer.realize(intent)
 
-    assert response == "I'm Tobin, the merchant out by crossroads."
+    assert response == "I'm Tobin, the merchant out by the crossroads."
   end
 
   test "realizes known entity intent without transferring roles" do
