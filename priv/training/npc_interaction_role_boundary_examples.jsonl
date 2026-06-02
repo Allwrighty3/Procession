@@ -8,3 +8,4 @@
 {"id":"role_boundary_tobin_current_activity_unknown","message":"Is Tobin unloading a shipment right now?","target_id":"npc_mira","response":"I wouldn't know what Tobin's doing right now. He's the merchant out by the crossroads.","notes":"Known role does not imply current activity."}
 {"id":"role_boundary_unknown_elandra","message":"Who is Elandra?","target_id":"npc_tobin","response":"Can't say I've heard of Elandra.","notes":"Unknown entity should produce natural uncertainty."}
 {"id":"role_boundary_unknown_place","message":"Where is the Silent Mine?","target_id":"npc_mira","response":"I'm not sure. I know Briar Village, but I can't place a Silent Mine.","notes":"Unknown location should produce natural uncertainty without inventing."}
+
