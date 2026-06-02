@@ -86,6 +86,28 @@ The smoke-test adapter is local-only:
 
 This is not a useful gameplay model. It only proves the local training pipeline works.
 
+## SmolLM2 LoRA smoke test
+
+The ROCm 6.4 environment successfully trained and reloaded a LoRA adapter for:
+
+```text
+HuggingFaceTB/SmolLM2-360M-Instruct
+```
+
+Local output path:
+
+```bash
+~/procession-ai-training/outputs/smollm2_npc_lora_smoke
+```
+
+Verified loop:
+
+```text
+Procession SFT export → SmolLM2 LoRA train → adapter save → adapter reload → GPU inference
+```
+
+The first adapter was trained for only 5 steps on 25 examples. It proves the pipeline, not model quality.
+
 ## Procession training data
 
 Canonical training export:
