@@ -16,7 +16,7 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
              InteractionPipeline.respond(context(%{"message" => "Who are you?"}))
 
     assert result.intent["dialogue_act"] == "answer_self_identity"
-    assert result.response == "I'm Tobin, the merchant out by crossroads."
+    assert result.response == "I'm Tobin, the merchant out by the crossroads."
   end
 
   test "responds to unknown entity question with uncertainty" do
