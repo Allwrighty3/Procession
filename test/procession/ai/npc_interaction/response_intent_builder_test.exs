@@ -122,6 +122,60 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
     assert "Tobin role transfer" in intent["forbidden_inventions"]
   end
 
+  test "builds false relationship intent without inventing family ties" do
+    assert {:ok, intent} =
+             ResponseIntentBuilder.build(context(%{"message" => "Is Mira your sister?"}))
+
+    assert intent["speaker_id"] == "npc_tobin"
+    assert intent["target_id"] == "npc_tobin"
+    assert intent["dialogue_act"] == "reject_false_relationship"
+
+    assert intent["response_goal"] =~ "Mira is not Tobin's sister"
+    assert intent["response_goal"] =~ "preserving known role facts"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_mira" and
+               fact["field"] == "role" and
+               fact["value"] == "innkeeper"
+           end)
+
+    assert "Mira sister relationship" in intent["forbidden_inventions"]
+    assert "Mira family relationship" in intent["forbidden_inventions"]
+    assert "Tobin family relationship" in intent["forbidden_inventions"]
+  end
+
+  test "builds false relationship intent for Mira about Tobin" do
+    mira_context =
+      context(%{
+        "message" => "Is Tobin your brother?",
+        "target" => %{
+          "id" => "npc_mira",
+          "name" => "Mira",
+          "type" => "npc",
+          "role" => "innkeeper",
+          "location" => "Briar Village"
+        }
+      })
+
+    assert {:ok, intent} = ResponseIntentBuilder.build(mira_context)
+
+    assert intent["speaker_id"] == "npc_mira"
+    assert intent["target_id"] == "npc_mira"
+    assert intent["dialogue_act"] == "reject_false_relationship"
+
+    assert intent["response_goal"] =~ "Tobin is not Mira's brother"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_tobin" and
+               fact["field"] == "role" and
+               fact["value"] == "merchant"
+           end)
+
+    assert "Tobin brother relationship" in intent["forbidden_inventions"]
+    assert "Tobin family relationship" in intent["forbidden_inventions"]
+    assert "Mira family relationship" in intent["forbidden_inventions"]
+  end
+
   defp context(overrides \\ %{}) do
     Map.merge(
       %{

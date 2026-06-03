@@ -27,6 +27,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
   - self identity questions
   - known entity identity/role questions
   - false role questions
+  - false relationship questions
   - unknown entity uncertainty
   """
   @spec build(map()) :: build_result()
@@ -41,6 +42,9 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
           false_role_question?(message, target) ->
             build_false_role_intent(target, message, known_entities)
+
+          false_relationship_question?(message, target, known_entities) ->
+            build_false_relationship_intent(target, message, known_entities)
 
           requested_entity = find_requested_known_entity(message, known_entities) ->
             build_known_entity_intent(target, requested_entity)
@@ -116,6 +120,29 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
         "#{target_name} #{requested_role} role",
         "#{target_name} current activity",
         "#{target_name} role transfer"
+      ]
+    }
+  end
+
+  defp build_false_relationship_intent(target, message, known_entities) do
+    target_id = target["id"]
+    target_name = target["name"] || target_id
+    related_entity = requested_entity_from_message(message, known_entities)
+    related_name = related_entity["name"] || related_entity["id"]
+    relationship = requested_relationship_from_message(message)
+
+    %{
+      "speaker_id" => target_id,
+      "target_id" => target_id,
+      "dialogue_act" => "reject_false_relationship",
+      "response_goal" =>
+        "Tell the player #{related_name} is not #{target_name}'s #{relationship}, while preserving known role facts.",
+      "known_facts_used" => compact_facts(related_entity, ["name", "role", "location"]),
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "#{related_name} #{relationship} relationship",
+        "#{related_name} family relationship",
+        "#{target_name} family relationship"
       ]
     }
   end
@@ -225,6 +252,10 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
   end
 
   defp find_requested_known_entity(message, known_entities) do
+    requested_entity_from_message(message, known_entities)
+  end
+
+  defp requested_entity_from_message(message, known_entities) do
     normalized_message = normalize(message)
 
     Enum.find(known_entities, fn entity ->
@@ -239,7 +270,8 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
     requested_role = requested_role_from_message(message)
     target_role = target["role"]
 
-    is_binary(requested_role) and is_binary(target_role) and requested_role != normalize(target_role)
+    is_binary(requested_role) and is_binary(target_role) and
+      requested_role != normalize(target_role)
   end
 
   defp find_entity_by_role(known_entities, role) when is_binary(role) do
@@ -294,6 +326,29 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
       true ->
         "Tell the player #{target_name} is not the #{requested_role}; #{holder_name} is."
+    end
+  end
+
+  defp false_relationship_question?(message, target, known_entities) do
+    relationship = requested_relationship_from_message(message)
+    entity = requested_entity_from_message(message, known_entities)
+
+    is_binary(relationship) and is_map(entity) and entity["id"] != target["id"]
+  end
+
+  defp requested_relationship_from_message(message) do
+    normalized = normalize(message)
+
+    cond do
+      Regex.match?(~r/\byour brother\b/, normalized) -> "brother"
+      Regex.match?(~r/\byour sister\b/, normalized) -> "sister"
+      Regex.match?(~r/\byour father\b/, normalized) -> "father"
+      Regex.match?(~r/\byour mother\b/, normalized) -> "mother"
+      Regex.match?(~r/\byour husband\b/, normalized) -> "husband"
+      Regex.match?(~r/\byour wife\b/, normalized) -> "wife"
+      Regex.match?(~r/\byour son\b/, normalized) -> "son"
+      Regex.match?(~r/\byour daughter\b/, normalized) -> "daughter"
+      true -> nil
     end
   end
 
