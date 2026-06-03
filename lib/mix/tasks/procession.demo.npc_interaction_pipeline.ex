@@ -64,12 +64,15 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
         Mix.shell().info("Dialogue act: #{result.intent["dialogue_act"]}")
         Mix.shell().info("Response source: #{result.response_source}")
         Mix.shell().info("Response: #{result.response}")
+
         if Map.get(result, :expression_candidate_response) do
           Mix.shell().info("Expression candidate: #{result.expression_candidate_response}")
         end
 
         if Map.get(result, :expression_adapter_error) do
-          Mix.shell().info("Expression adapter error: #{inspect(result.expression_adapter_error)}")
+          Mix.shell().info(
+            "Expression adapter error: #{inspect(result.expression_adapter_error)}"
+          )
         end
 
         if result.validation_failures != [] do

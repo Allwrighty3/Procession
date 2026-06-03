@@ -242,8 +242,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
   end
 
   test "builds known location intent without inventing current activity" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Where is Mira?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Where is Mira?"}))
 
     assert intent["speaker_id"] == "npc_tobin"
     assert intent["target_id"] == "npc_tobin"

@@ -24,13 +24,13 @@ defmodule Procession.AI.NPCInteraction.QE3ExpressionSFTExporterTest do
              is_binary(row["id"]) and
                String.starts_with?(row["id"], "qe3_expression_") and
                is_binary(row["prompt"]) and
-               is_binary(row["response"]) and
+               is_binary(row["completion"]) and
                is_binary(row["text"]) and
                is_map(row["metadata"])
            end)
 
     assert Enum.all?(rows, fn row ->
-             row["text"] == row["prompt"] <> "\n" <> row["response"]
+             row["text"] == row["prompt"] <> "\n" <> row["completion"]
            end)
 
     File.rm!(output_path)
@@ -55,7 +55,7 @@ defmodule Procession.AI.NPCInteraction.QE3ExpressionSFTExporterTest do
     assert Enum.any?(rows, fn row ->
              row["metadata"]["message"] == "Who is Elandra?" and
                row["prompt"] =~ "I don't know anyone named Elandra." and
-               row["response"] =~ "Elandra"
+               row["completion"] =~ "Elandra"
            end)
 
     File.rm!(output_path)

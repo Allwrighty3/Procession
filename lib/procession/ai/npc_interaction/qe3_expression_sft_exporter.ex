@@ -70,7 +70,7 @@ defmodule Procession.AI.NPCInteraction.QE3ExpressionSFTExporter do
        %{
          "id" => "qe3_expression_#{example["id"]}",
          "prompt" => prompt,
-         "response" => example["response"],
+         "completion" => example["response"],
          "text" => prompt <> "\n" <> example["response"],
          "metadata" => %{
            "non_authoritative" => true,

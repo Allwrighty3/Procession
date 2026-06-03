@@ -59,8 +59,7 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
   end
 
   test "uses deterministic response when no candidate response is provided" do
-    assert {:ok, result} =
-             InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
+    assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
 
     assert result.response_source == :deterministic
     assert result.response == "Mira is the innkeeper in Briar Village."

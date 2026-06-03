@@ -30,8 +30,7 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
   test "rejects wrong speaker identity" do
     intent = self_identity_intent()
 
-    assert {:error, failures} =
-             ResponseTextValidator.validate(intent, "I'm Mira, the innkeeper.")
+    assert {:error, failures} = ResponseTextValidator.validate(intent, "I'm Mira, the innkeeper.")
 
     assert Enum.any?(failures, fn failure ->
              failure.code == :wrong_speaker_identity
@@ -42,7 +41,10 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
     intent = false_role_intent()
 
     assert {:error, failures} =
-             ResponseTextValidator.validate(intent, "No, I don't run the inn. I'm Tobin, the innkeeper.")
+             ResponseTextValidator.validate(
+               intent,
+               "No, I don't run the inn. I'm Tobin, the innkeeper."
+             )
 
     assert Enum.any?(failures, fn failure ->
              failure.code == :forbidden_invention and
@@ -170,7 +172,8 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
       "speaker_id" => "npc_tobin",
       "target_id" => "npc_tobin",
       "dialogue_act" => "express_uncertainty",
-      "response_goal" => "Tell the player the target NPC does not know what Mira is doing right now.",
+      "response_goal" =>
+        "Tell the player the target NPC does not know what Mira is doing right now.",
       "known_facts_used" => [
         %{"entity_id" => "npc_mira", "field" => "name", "value" => "Mira"},
         %{"entity_id" => "npc_mira", "field" => "role", "value" => "innkeeper"},

@@ -33,11 +33,15 @@ defmodule Mix.Tasks.ProcessionDemoNpcInteractionPipelineTest do
     assert output =~ "No, Mira isn't family. Mira is the innkeeper in Briar Village."
 
     assert output =~ "Case: tobin_mira_current_activity_unknown"
-    assert output =~ "I don't know what Mira is doing right now. Mira is the innkeeper in Briar Village."
+
+    assert output =~
+             "I don't know what Mira is doing right now. Mira is the innkeeper in Briar Village."
 
     assert output =~ "Case: tobin_where_is_mira"
     assert output =~ "Dialogue act: answer_known_location"
-    assert output =~ "Mira is associated with Briar Village. I don't know where they are right now."
+
+    assert output =~
+             "Mira is associated with Briar Village. I don't know where they are right now."
 
     assert output =~ "Case: safe_candidate_about_mira"
     assert output =~ "Candidate: \"Mira keeps the inn in Briar Village.\""

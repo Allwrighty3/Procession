@@ -164,7 +164,8 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
       "speaker_id" => target_id,
       "target_id" => target_id,
       "dialogue_act" => "express_uncertainty",
-      "response_goal" => "Tell the player the target NPC does not know what #{entity_name} is doing right now.",
+      "response_goal" =>
+        "Tell the player the target NPC does not know what #{entity_name} is doing right now.",
       "known_facts_used" => compact_facts(entity, ["name", "role", "location"]),
       "unknowns_acknowledged" => [
         %{
@@ -437,7 +438,10 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
     is_map(entity) and
       (String.contains?(normalized, " right now") or
-         Regex.match?(~r/^is .+ (serving|cleaning|checking|unloading|working|running)/, normalized))
+         Regex.match?(
+           ~r/^is .+ (serving|cleaning|checking|unloading|working|running)/,
+           normalized
+         ))
   end
 
   defp known_location_question?(message, known_entities) do

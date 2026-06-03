@@ -37,8 +37,7 @@ defmodule Procession.AI.NPCInteraction.ExpressionExampleLoaderTest do
     not valid json
     """)
 
-    assert {:error, {:invalid_jsonl_line, 2, _reason}} =
-             ExpressionExampleLoader.load(path)
+    assert {:error, {:invalid_jsonl_line, 2, _reason}} = ExpressionExampleLoader.load(path)
 
     File.rm!(path)
   end

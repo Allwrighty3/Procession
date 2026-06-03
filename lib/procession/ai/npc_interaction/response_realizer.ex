@@ -227,7 +227,9 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
   defp current_activity_uncertainty_response(intent) do
     facts = facts_by_field(intent)
 
-    name = get_fact(facts, "name") || first_unknown_name(intent["unknowns_acknowledged"]) || "they"
+    name =
+      get_fact(facts, "name") || first_unknown_name(intent["unknowns_acknowledged"]) || "they"
+
     role = get_fact(facts, "role")
     location = get_fact(facts, "location")
 
