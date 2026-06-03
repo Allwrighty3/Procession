@@ -187,6 +187,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the detailed roadmap and completion c
 
   * Detailed phased development roadmap and completion criteria.
 
+* `docs/MODEL_TRAINING_ROADMAP.md`
+
+  * Specialized roadmap for NPC dialogue model-training phases, dataset evolution, evaluation strategy, and local LoRA experiments.
+
 * `docs/ARCHITECTURE.md`
 
   * Architecture notes and design direction.
