@@ -2,6 +2,7 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
   use ExUnit.Case, async: true
 
   alias Procession.AI.NPCInteraction.InteractionPipeline
+  alias Procession.AI.NPCInteraction.FakeExpressionAdapter
 
   defmodule SafeExpressionAdapter do
     def generate(_prompt, _opts) do
@@ -171,6 +172,20 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
     assert result.response == "Mira keeps the inn in Briar Village."
     assert result.expression_prompt == nil
     assert result.expression_candidate_response == nil
+  end
+
+  test "supports reusable fake expression adapter" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Mira?"}),
+               expression_adapter: FakeExpressionAdapter,
+               response: "Mira keeps the inn in Briar Village."
+             )
+
+    assert result.response_source == :expression_candidate
+    assert result.response == "Mira keeps the inn in Briar Village."
+    assert result.fallback_response == "Mira is the innkeeper in Briar Village."
+    assert result.validation_failures == []
   end
 
   defp context(overrides \\ %{}) do

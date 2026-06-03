@@ -3,8 +3,8 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
   Runs supervised NPC response expression.
 
   This pipeline renders an expression prompt from a validated response intent and
-  deterministic fallback, asks an adapter for candidate text, then validates the
-  candidate against the original intent.
+  deterministic fallback, asks an expression adapter for candidate text, cleans
+  the candidate, then validates it against the original intent.
 
   If the candidate is invalid or the adapter fails, the deterministic fallback is
   returned.
@@ -34,7 +34,8 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
   Runs supervised expression for an intent and deterministic fallback.
 
   Options are passed to `Procession.AI.generate/2`, so callers can provide
-  adapters such as `Procession.AI.FakeAdapter` or `Procession.AI.Ollama`.
+  adapters that follow the existing AI adapter shape. For NPC expression-specific
+  tests and demos, use `Procession.AI.NPCInteraction.FakeExpressionAdapter`.
   """
   @spec express(map(), String.t(), keyword()) :: expression_result()
   def express(intent, fallback_response, opts \\ [])
