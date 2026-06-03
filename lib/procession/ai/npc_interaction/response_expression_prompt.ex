@@ -21,17 +21,33 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
   the already validated meaning.
   """
   @spec render(map(), String.t()) :: render_result()
-  def render(intent, fallback_response) when is_map(intent) and is_binary(fallback_response) do
+  def render(intent, fallback_response) do
+    render(intent, fallback_response, [])
+  end
+
+  @doc """
+  Renders an expression prompt from a validated response intent, deterministic
+  fallback, and optional expression context.
+
+  Supported options:
+
+  - `:voice_profile` - map describing speaker tone/style.
+  - `:relationship_stance` - map describing the speaker's subjective stance
+    toward another entity.
+  """
+  @spec render(map(), String.t(), keyword()) :: render_result()
+  def render(intent, fallback_response, opts)
+      when is_map(intent) and is_binary(fallback_response) and is_list(opts) do
     with {:ok, validated_intent} <- ResponseIntentValidator.validate(intent) do
-      {:ok, do_render(validated_intent, fallback_response)}
+      {:ok, do_render(validated_intent, fallback_response, opts)}
     end
   end
 
-  def render(_intent, _fallback_response) do
+  def render(_intent, _fallback_response, _opts) do
     {:error, :invalid_expression_prompt_input}
   end
 
-  defp do_render(intent, fallback_response) do
+  defp do_render(intent, fallback_response, opts) do
     """
     ### Task
     Rewrite the fallback NPC line so it sounds more natural, conversational, and in-character.
@@ -40,14 +56,19 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     - Return only the final NPC line.
     - Do not use JSON.
     - Do not explain your reasoning.
-    - Do not add facts.
+    - Do not add objective world facts.
+    - You may add subjective tone, attitude, opinion, and phrasing when supported by the expression context.
+    - You do not need to mention every known fact.
     - Do not change speaker identity.
     - Do not change entity roles, locations, relationships, or current activity.
-    - Do not mention forbidden inventions.
+    - Do not mention forbidden inventions as true.
     - If the fallback expresses uncertainty, preserve that uncertainty.
 
     ### Response Intent
     #{Jason.encode!(intent, pretty: true)}
+
+    ### Expression Context
+    #{Jason.encode!(expression_context(opts), pretty: true)}
 
     ### Deterministic Fallback
     #{fallback_response}
@@ -55,5 +76,17 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     ### Final NPC Line
     """
     |> String.trim_trailing()
+  end
+
+  defp expression_context(opts) do
+    %{
+      "voice_profile" => Keyword.get(opts, :voice_profile, %{}),
+      "relationship_stance" => Keyword.get(opts, :relationship_stance, %{}),
+      "style_permissions" => %{
+        "may_use_subjective_opinion" => true,
+        "may_omit_nonessential_known_facts" => true,
+        "must_not_add_objective_world_facts" => true
+      }
+    }
   end
 end

@@ -13,7 +13,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "Rewrite the fallback NPC line"
     assert prompt =~ "### Hard Rules"
     assert prompt =~ "Return only the final NPC line."
-    assert prompt =~ "Do not add facts."
+    assert prompt =~ "Do not add objective world facts."
     assert prompt =~ "Do not change speaker identity."
     assert prompt =~ "If the fallback expresses uncertainty, preserve that uncertainty."
     assert prompt =~ "### Response Intent"
@@ -21,6 +21,10 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "\"response_goal\""
     assert prompt =~ "Mira is the innkeeper in Briar Village."
     assert prompt =~ "### Final NPC Line"
+    assert prompt =~ "### Expression Context"
+    assert prompt =~ "may_use_subjective_opinion"
+    assert prompt =~ "may_omit_nonessential_known_facts"
+    assert prompt =~ "must_not_add_objective_world_facts"
   end
 
   test "includes forbidden inventions in rendered prompt" do
@@ -45,6 +49,33 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
 
   test "rejects invalid input" do
     assert ResponseExpressionPrompt.render(nil, nil) == {:error, :invalid_expression_prompt_input}
+  end
+
+  test "renders optional voice profile and relationship stance" do
+    intent = known_entity_intent()
+    fallback = "Mira is the innkeeper in Briar Village."
+
+    assert {:ok, prompt} =
+             ResponseExpressionPrompt.render(
+               intent,
+               fallback,
+               voice_profile: %{
+                 "tone" => "haughty",
+                 "warmth" => "low",
+                 "bluntness" => "high"
+               },
+               relationship_stance: %{
+                 "toward" => "npc_tobin",
+                 "attitude" => "dismissive",
+                 "trust" => "low"
+               }
+             )
+
+    assert prompt =~ "\"tone\": \"haughty\""
+    assert prompt =~ "\"warmth\": \"low\""
+    assert prompt =~ "\"bluntness\": \"high\""
+    assert prompt =~ "\"attitude\": \"dismissive\""
+    assert prompt =~ "\"trust\": \"low\""
   end
 
   defp known_entity_intent do

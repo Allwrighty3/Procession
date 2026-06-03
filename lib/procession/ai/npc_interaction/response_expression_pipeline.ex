@@ -42,7 +42,11 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
 
   def express(intent, fallback_response, opts)
       when is_map(intent) and is_binary(fallback_response) and is_list(opts) do
-    with {:ok, prompt} <- ResponseExpressionPrompt.render(intent, fallback_response) do
+    prompt_opts =
+      opts
+      |> Keyword.take([:voice_profile, :relationship_stance])
+
+    with {:ok, prompt} <- ResponseExpressionPrompt.render(intent, fallback_response, prompt_opts) do
       prompt
       |> AI.generate(opts)
       |> handle_candidate(intent, fallback_response, prompt)

@@ -26,8 +26,7 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
   test "rejects asserted forbidden relationship" do
     intent = false_relationship_intent()
 
-    assert {:error, failures} =
-             ResponseTextValidator.validate(intent, "Tobin is my brother.")
+    assert {:error, failures} = ResponseTextValidator.validate(intent, "Tobin is my brother.")
 
     assert Enum.any?(failures, fn failure ->
              failure.code == :forbidden_invention and
@@ -35,7 +34,10 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
            end)
 
     assert {:error, failures} =
-             ResponseTextValidator.validate(intent, "My brother Tobin sells goods at the crossroads.")
+             ResponseTextValidator.validate(
+               intent,
+               "My brother Tobin sells goods at the crossroads."
+             )
 
     assert Enum.any?(failures, fn failure ->
              failure.code == :forbidden_invention and

@@ -33,6 +33,16 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     end
   end
 
+  defmodule PromptEchoAdapter do
+    def generate(prompt, _opts) do
+      if prompt =~ "\"tone\": \"haughty\"" and prompt =~ "\"attitude\": \"dismissive\"" do
+        {:ok, "Mira? Hmph. She keeps the inn in Briar Village."}
+      else
+        {:error, :missing_expression_context}
+      end
+    end
+  end
+
   test "uses valid expression candidate" do
     fallback = "Mira is the innkeeper in Briar Village."
 
@@ -131,6 +141,30 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
   test "rejects invalid expression pipeline input" do
     assert ResponseExpressionPipeline.express(nil, nil) ==
              {:error, :invalid_expression_pipeline_input}
+  end
+
+  test "passes voice profile and relationship stance into expression prompt" do
+    fallback = "Mira is the innkeeper in Briar Village."
+
+    assert {:ok, result} =
+             ResponseExpressionPipeline.express(
+               known_entity_intent(),
+               fallback,
+               adapter: PromptEchoAdapter,
+               voice_profile: %{
+                 "tone" => "haughty",
+                 "warmth" => "low",
+                 "bluntness" => "high"
+               },
+               relationship_stance: %{
+                 "toward" => "npc_tobin",
+                 "attitude" => "dismissive"
+               }
+             )
+
+    assert result.response_source == :expression_candidate
+    assert result.response == "Mira? Hmph. She keeps the inn in Briar Village."
+    assert result.validation_failures == []
   end
 
   defp known_entity_intent do
