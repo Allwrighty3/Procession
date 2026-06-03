@@ -26,6 +26,10 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "may_omit_nonessential_known_facts"
     assert prompt =~ "must_not_add_objective_world_facts"
     assert prompt =~ "emotional_state"
+    assert prompt =~ "delivery_style"
+    assert prompt =~ "conversational_move"
+    assert prompt =~ "may_use_follow_up_questions"
+    assert prompt =~ "may_use_short_answers"
   end
 
   test "includes forbidden inventions in rendered prompt" do
@@ -85,6 +89,32 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "\"mood\": \"irritated\""
     assert prompt =~ "\"intensity\": \"high\""
     assert prompt =~ "\"restraint\": \"medium\""
+  end
+
+  test "renders optional delivery style and conversational move" do
+    intent = known_entity_intent()
+    fallback = "Mira is the innkeeper in Briar Village."
+
+    assert {:ok, prompt} =
+             ResponseExpressionPrompt.render(
+               intent,
+               fallback,
+               delivery_style: %{
+                 "shape" => "terse",
+                 "pace" => "quick",
+                 "detail_level" => "minimal"
+               },
+               conversational_move: %{
+                 "move" => "ask_followup",
+                 "question_allowed" => true
+               }
+             )
+
+    assert prompt =~ "\"shape\": \"terse\""
+    assert prompt =~ "\"pace\": \"quick\""
+    assert prompt =~ "\"detail_level\": \"minimal\""
+    assert prompt =~ "\"move\": \"ask_followup\""
+    assert prompt =~ "\"question_allowed\": true"
   end
 
   defp known_entity_intent do

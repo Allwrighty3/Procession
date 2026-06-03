@@ -36,6 +36,11 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     toward another entity.
   - `:emotional_state` - map describing the speaker's current mood,
     intensity, restraint, stress, or emotional pressure.
+  - `:delivery_style` - map or string describing the response shape,
+    such as terse, warm, sharp, controlled, rambling, or eager.
+  - `:conversational_move` - map or string describing what the line
+    should do in conversation, such as answer only, ask a follow-up,
+    challenge a premise, warn, redirect, or refuse.
   """
   @spec render(map(), String.t(), keyword()) :: render_result()
   def render(intent, fallback_response, opts)
@@ -61,6 +66,9 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     - Do not add objective world facts.
     - You may add subjective tone, attitude, opinion, and phrasing when supported by the expression context.
     - You do not need to mention every known fact.
+    - You may ask a natural follow-up question if the conversational move supports it.
+    - Short answers are valid when the delivery style calls for them.
+    - Do not explain every grounded fact unless the character would naturally say it.
     - Do not change speaker identity.
     - Do not change entity roles, locations, relationships, or current activity.
     - Do not mention forbidden inventions as true.
@@ -85,9 +93,13 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
       "voice_profile" => Keyword.get(opts, :voice_profile, %{}),
       "relationship_stance" => Keyword.get(opts, :relationship_stance, %{}),
       "emotional_state" => Keyword.get(opts, :emotional_state, %{}),
+      "delivery_style" => Keyword.get(opts, :delivery_style, "plain"),
+      "conversational_move" => Keyword.get(opts, :conversational_move, "answer_only"),
       "style_permissions" => %{
         "may_use_subjective_opinion" => true,
         "may_omit_nonessential_known_facts" => true,
+        "may_use_follow_up_questions" => true,
+        "may_use_short_answers" => true,
         "must_not_add_objective_world_facts" => true
       }
     }
