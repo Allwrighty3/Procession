@@ -46,6 +46,75 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
              {:error, {:missing_or_invalid_context_field, "target"}}
   end
 
+  test "uses deterministic response when no candidate response is provided" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
+
+    assert result.response_source == :deterministic
+    assert result.response == "Mira is the innkeeper in Briar Village."
+    assert result.fallback_response == "Mira is the innkeeper in Briar Village."
+    assert result.validation_failures == []
+  end
+
+  test "uses valid candidate response instead of deterministic fallback" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Mira?"}),
+               candidate_response: "Mira keeps the inn in Briar Village."
+             )
+
+    assert result.response_source == :candidate
+    assert result.response == "Mira keeps the inn in Briar Village."
+    assert result.fallback_response == "Mira is the innkeeper in Briar Village."
+    assert result.validation_failures == []
+  end
+
+  test "falls back when candidate response violates intent" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Elandra?"}),
+               candidate_response: "Elandra is a merchant at the crossroads."
+             )
+
+    assert result.response_source == :deterministic
+    assert result.response == "I don't know anyone named Elandra."
+    assert result.fallback_response == "I don't know anyone named Elandra."
+
+    assert Enum.any?(result.validation_failures, fn failure ->
+             failure.code == :unknown_trait_invention
+           end)
+  end
+
+  test "falls back when candidate response claims wrong speaker identity" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who are you?"}),
+               candidate_response: "I'm Mira, the innkeeper."
+             )
+
+    assert result.response_source == :deterministic
+    assert result.response == "I'm Tobin, the merchant out by the crossroads."
+
+    assert Enum.any?(result.validation_failures, fn failure ->
+             failure.code == :wrong_speaker_identity
+           end)
+  end
+
+  test "falls back when candidate response is not a string" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Mira?"}),
+               candidate_response: %{text: "Mira keeps the inn."}
+             )
+
+    assert result.response_source == :deterministic
+    assert result.response == "Mira is the innkeeper in Briar Village."
+
+    assert Enum.any?(result.validation_failures, fn failure ->
+             failure.code == :invalid_candidate_response
+           end)
+  end
+
   defp context(overrides \\ %{}) do
     Map.merge(
       %{
