@@ -23,5 +23,20 @@ defmodule Mix.Tasks.ProcessionDemoNpcInteractionPipelineTest do
 
     assert output =~ "Case: tobin_unknown_elandra"
     assert output =~ "Response: I don't know anyone named Elandra."
+
+      assert output =~ "Case: tobin_not_innkeeper"
+    assert output =~ "Dialogue act: reject_false_role"
+    assert output =~ "No, Mira is the innkeeper. I'm Tobin, the merchant out by the crossroads."
+
+    assert output =~ "Case: tobin_mira_not_sister"
+    assert output =~ "Dialogue act: reject_false_relationship"
+    assert output =~ "No, Mira isn't family. Mira is the innkeeper in Briar Village."
+
+    assert output =~ "Case: tobin_mira_current_activity_unknown"
+    assert output =~ "I don't know what Mira is doing right now. Mira is the innkeeper in Briar Village."
+
+    assert output =~ "Case: tobin_where_is_mira"
+    assert output =~ "Dialogue act: answer_known_location"
+    assert output =~ "Mira is associated with Briar Village. I don't know where they are right now."
   end
 end

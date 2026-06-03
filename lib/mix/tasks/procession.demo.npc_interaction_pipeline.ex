@@ -51,6 +51,22 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
       %{
         "id" => "tobin_unknown_elandra",
         "context" => context("npc_tobin", "Who is Elandra?")
+      },
+      %{
+        "id" => "tobin_not_innkeeper",
+        "context" => context("npc_tobin", "Do you run the inn?")
+      },
+      %{
+        "id" => "tobin_mira_not_sister",
+        "context" => context("npc_tobin", "Is Mira your sister?")
+      },
+      %{
+        "id" => "tobin_mira_current_activity_unknown",
+        "context" => context("npc_tobin", "Is Mira serving drinks right now?")
+      },
+      %{
+        "id" => "tobin_where_is_mira",
+        "context" => context("npc_tobin", "Where is Mira?")
       }
     ]
   end
