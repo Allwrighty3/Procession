@@ -28,6 +28,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
   - known entity identity/role questions
   - false role questions
   - false relationship questions
+  - known current activity uncertainty
   - unknown entity uncertainty
   """
   @spec build(map()) :: build_result()
@@ -45,6 +46,9 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
           false_relationship_question?(message, target, known_entities) ->
             build_false_relationship_intent(target, message, known_entities)
+
+          current_activity_question?(message, known_entities) ->
+            build_current_activity_uncertainty_intent(target, message, known_entities)
 
           requested_entity = find_requested_known_entity(message, known_entities) ->
             build_known_entity_intent(target, requested_entity)
@@ -143,6 +147,32 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
         "#{related_name} #{relationship} relationship",
         "#{related_name} family relationship",
         "#{target_name} family relationship"
+      ]
+    }
+  end
+
+  defp build_current_activity_uncertainty_intent(target, message, known_entities) do
+    target_id = target["id"]
+    entity = requested_entity_from_message(message, known_entities)
+    entity_name = entity["name"] || entity["id"]
+
+    %{
+      "speaker_id" => target_id,
+      "target_id" => target_id,
+      "dialogue_act" => "express_uncertainty",
+      "response_goal" => "Tell the player the target NPC does not know what #{entity_name} is doing right now.",
+      "known_facts_used" => compact_facts(entity, ["name", "role", "location"]),
+      "unknowns_acknowledged" => [
+        %{
+          "entity_name" => entity_name,
+          "field" => "current_activity",
+          "reason" => "current activity not present in grounded context"
+        }
+      ],
+      "forbidden_inventions" => [
+        "#{entity_name} current activity",
+        "#{entity_name} implied activity from role",
+        "#{entity_name} implied activity from location"
       ]
     }
   end
@@ -350,6 +380,15 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
       Regex.match?(~r/\byour daughter\b/, normalized) -> "daughter"
       true -> nil
     end
+  end
+
+  defp current_activity_question?(message, known_entities) do
+    normalized = normalize(message)
+    entity = requested_entity_from_message(message, known_entities)
+
+    is_map(entity) and
+      (String.contains?(normalized, " right now") or
+         Regex.match?(~r/^is .+ (serving|cleaning|checking|unloading|working|running)/, normalized))
   end
 
   defp extract_requested_entity_name(message) do

@@ -176,6 +176,71 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
     assert "Mira family relationship" in intent["forbidden_inventions"]
   end
 
+  test "builds current activity uncertainty intent for known entity" do
+    assert {:ok, intent} =
+             ResponseIntentBuilder.build(
+               context(%{"message" => "Is Mira serving drinks right now?"})
+             )
+
+    assert intent["speaker_id"] == "npc_tobin"
+    assert intent["target_id"] == "npc_tobin"
+    assert intent["dialogue_act"] == "express_uncertainty"
+
+    assert intent["response_goal"] =~ "does not know what Mira is doing right now"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_mira" and
+               fact["field"] == "role" and
+               fact["value"] == "innkeeper"
+           end)
+
+    assert Enum.any?(intent["unknowns_acknowledged"], fn unknown ->
+             unknown["entity_name"] == "Mira" and
+               unknown["field"] == "current_activity"
+           end)
+
+    assert "Mira current activity" in intent["forbidden_inventions"]
+    assert "Mira implied activity from role" in intent["forbidden_inventions"]
+    assert "Mira implied activity from location" in intent["forbidden_inventions"]
+  end
+
+  test "builds current activity uncertainty intent for Mira about Tobin" do
+    mira_context =
+      context(%{
+        "message" => "Is Tobin unloading a shipment right now?",
+        "target" => %{
+          "id" => "npc_mira",
+          "name" => "Mira",
+          "type" => "npc",
+          "role" => "innkeeper",
+          "location" => "Briar Village"
+        }
+      })
+
+    assert {:ok, intent} = ResponseIntentBuilder.build(mira_context)
+
+    assert intent["speaker_id"] == "npc_mira"
+    assert intent["target_id"] == "npc_mira"
+    assert intent["dialogue_act"] == "express_uncertainty"
+
+    assert intent["response_goal"] =~ "does not know what Tobin is doing right now"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_tobin" and
+               fact["field"] == "role" and
+               fact["value"] == "merchant"
+           end)
+
+    assert Enum.any?(intent["unknowns_acknowledged"], fn unknown ->
+             unknown["entity_name"] == "Tobin" and
+               unknown["field"] == "current_activity"
+           end)
+
+    assert "Tobin current activity" in intent["forbidden_inventions"]
+    assert "Tobin implied activity from role" in intent["forbidden_inventions"]
+    assert "Tobin implied activity from location" in intent["forbidden_inventions"]
+  end
+
   defp context(overrides \\ %{}) do
     Map.merge(
       %{
