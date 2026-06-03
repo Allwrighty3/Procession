@@ -78,19 +78,43 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
     unknowns = Map.get(intent, "unknowns_acknowledged", [])
 
     response =
-      case first_unknown_name(unknowns) do
-        nil ->
-          "I don't know enough to answer that."
+      cond do
+        current_activity_unknown?(unknowns) ->
+          current_activity_uncertainty_response(intent)
 
-        name ->
+        name = first_unknown_name(unknowns) ->
           "I don't know anyone named #{name}."
+
+        true ->
+          "I don't know enough to answer that."
       end
 
     {:ok, response}
   end
 
   defp do_realize(%{"dialogue_act" => "reject_false_relationship"} = intent) do
-    {:ok, intent["response_goal"]}
+    facts = facts_by_field(intent)
+
+    name = get_fact(facts, "name") || "They"
+    role = get_fact(facts, "role")
+    location = get_fact(facts, "location")
+
+    response =
+      cond do
+        role && location ->
+          "No, #{name} isn't family. #{name} is the #{role} in #{location}."
+
+        role ->
+          "No, #{name} isn't family. #{name} is the #{role}."
+
+        location ->
+          "No, #{name} isn't family. #{name} is associated with #{location}."
+
+        true ->
+          "No, #{name} isn't family."
+      end
+
+    {:ok, response}
   end
 
   defp do_realize(%{"dialogue_act" => "reject_false_role"} = intent) do
@@ -156,10 +180,6 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
     {:ok, response}
   end
 
-  defp do_realize(intent) do
-    {:error, {:unsupported_dialogue_act, intent["dialogue_act"]}}
-  end
-
   defp facts_by_field(intent) do
     intent
     |> Map.get("known_facts_used", [])
@@ -197,6 +217,37 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
   defp pronoun_for(_name), do: "they"
   defp present_tense_be_for("they"), do: "are"
   defp present_tense_be_for(_pronoun), do: "is"
+
+  defp current_activity_unknown?(unknowns) do
+    Enum.any?(unknowns, fn unknown ->
+      unknown["field"] == "current_activity"
+    end)
+  end
+
+  defp current_activity_uncertainty_response(intent) do
+    facts = facts_by_field(intent)
+
+    name = get_fact(facts, "name") || first_unknown_name(intent["unknowns_acknowledged"]) || "they"
+    role = get_fact(facts, "role")
+    location = get_fact(facts, "location")
+
+    known_fact_sentence =
+      cond do
+        role && location ->
+          " #{name} is the #{role} #{location_phrase(location)}."
+
+        role ->
+          " #{name} is the #{role}."
+
+        location ->
+          " #{name} is associated with #{location}."
+
+        true ->
+          ""
+      end
+
+    "I don't know what #{name} is doing right now." <> known_fact_sentence
+  end
 
   defp location_phrase("crossroads"), do: "out by the crossroads"
   defp location_phrase(location), do: "in #{location}"

@@ -82,6 +82,69 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
     refute response =~ "right now at"
   end
 
+  test "realizes false relationship intent without inventing family ties" do
+    intent = %{
+      "speaker_id" => "npc_tobin",
+      "target_id" => "npc_tobin",
+      "dialogue_act" => "reject_false_relationship",
+      "response_goal" =>
+        "Tell the player Mira is not Tobin's sister, while preserving known role facts.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_mira", "field" => "name", "value" => "Mira"},
+        %{"entity_id" => "npc_mira", "field" => "role", "value" => "innkeeper"},
+        %{"entity_id" => "npc_mira", "field" => "location", "value" => "Briar Village"}
+      ],
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "Mira sister relationship",
+        "Mira family relationship",
+        "Tobin family relationship"
+      ]
+    }
+
+    assert {:ok, response} = ResponseRealizer.realize(intent)
+
+    assert response == "No, Mira isn't family. Mira is the innkeeper in Briar Village."
+
+    refute response =~ "sister"
+    refute response =~ "brother"
+  end
+
+  test "realizes current activity uncertainty while preserving known facts" do
+    intent = %{
+      "speaker_id" => "npc_mira",
+      "target_id" => "npc_mira",
+      "dialogue_act" => "express_uncertainty",
+      "response_goal" =>
+        "Tell the player the target NPC does not know what Tobin is doing right now.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_tobin", "field" => "name", "value" => "Tobin"},
+        %{"entity_id" => "npc_tobin", "field" => "role", "value" => "merchant"},
+        %{"entity_id" => "npc_tobin", "field" => "location", "value" => "crossroads"}
+      ],
+      "unknowns_acknowledged" => [
+        %{
+          "entity_name" => "Tobin",
+          "field" => "current_activity",
+          "reason" => "current activity not present in grounded context"
+        }
+      ],
+      "forbidden_inventions" => [
+        "Tobin current activity",
+        "Tobin implied activity from role",
+        "Tobin implied activity from location"
+      ]
+    }
+
+    assert {:ok, response} = ResponseRealizer.realize(intent)
+
+    assert response ==
+             "I don't know what Tobin is doing right now. Tobin is the merchant out by the crossroads."
+
+    refute response =~ "unloading"
+    refute response =~ "shipment"
+  end
+
   test "realizes unknown entity intent without invented traits" do
     assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
 
