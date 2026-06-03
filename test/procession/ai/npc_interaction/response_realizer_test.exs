@@ -22,6 +22,66 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
     refute response =~ "crossroads"
   end
 
+  test "realizes false role intent without transferring roles" do
+    intent = %{
+      "speaker_id" => "npc_tobin",
+      "target_id" => "npc_tobin",
+      "dialogue_act" => "reject_false_role",
+      "response_goal" =>
+        "Tell the player Tobin is not the innkeeper; Mira is. Tobin is the merchant associated with crossroads.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_tobin", "field" => "name", "value" => "Tobin"},
+        %{"entity_id" => "npc_tobin", "field" => "role", "value" => "merchant"},
+        %{"entity_id" => "npc_tobin", "field" => "location", "value" => "crossroads"},
+        %{"entity_id" => "npc_mira", "field" => "name", "value" => "Mira"},
+        %{"entity_id" => "npc_mira", "field" => "role", "value" => "innkeeper"},
+        %{"entity_id" => "npc_mira", "field" => "location", "value" => "Briar Village"}
+      ],
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "Tobin innkeeper role",
+        "Tobin current activity",
+        "Tobin role transfer"
+      ]
+    }
+
+    assert {:ok, response} = ResponseRealizer.realize(intent)
+
+    assert response ==
+             "No, Mira is the innkeeper. I'm Tobin, the merchant out by the crossroads."
+
+    refute response =~ "I'm Mira"
+    refute response =~ "I keep the inn"
+  end
+
+  test "realizes known location intent without claiming current presence" do
+    intent = %{
+      "speaker_id" => "npc_tobin",
+      "target_id" => "npc_tobin",
+      "dialogue_act" => "answer_known_location",
+      "response_goal" =>
+        "Tell the player Mira is associated with Briar Village, without inventing current activity.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_mira", "field" => "name", "value" => "Mira"},
+        %{"entity_id" => "npc_mira", "field" => "location", "value" => "Briar Village"}
+      ],
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "Mira current activity",
+        "Mira relationship",
+        "unlisted location details"
+      ]
+    }
+
+    assert {:ok, response} = ResponseRealizer.realize(intent)
+
+    assert response ==
+             "Mira is associated with Briar Village. I don't know where they are right now."
+
+    refute response =~ "serving"
+    refute response =~ "right now at"
+  end
+
   test "realizes unknown entity intent without invented traits" do
     assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
 
@@ -55,7 +115,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
            end)
   end
 
-  defp context(overrides \\ %{}) do
+  defp context(overrides) do
     Map.merge(
       %{
         "known_entities" => [

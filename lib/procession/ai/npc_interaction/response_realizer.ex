@@ -94,7 +94,44 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
   end
 
   defp do_realize(%{"dialogue_act" => "reject_false_role"} = intent) do
-    {:ok, intent["response_goal"]}
+    facts = Map.get(intent, "known_facts_used", [])
+
+    target_facts =
+      facts
+      |> facts_for_entity(intent["speaker_id"])
+      |> facts_list_by_field()
+
+    role_holder_facts =
+      facts
+      |> Enum.reject(fn fact -> fact["entity_id"] == intent["speaker_id"] end)
+      |> facts_list_by_field()
+
+    speaker_name = get_fact(target_facts, "name") || intent["speaker_id"]
+    speaker_role = get_fact(target_facts, "role")
+    speaker_location = get_fact(target_facts, "location")
+
+    holder_name = get_fact(role_holder_facts, "name")
+    holder_role = get_fact(role_holder_facts, "role")
+
+    response =
+      cond do
+        holder_name && holder_role && speaker_role && speaker_location ->
+          "No, #{holder_name} is the #{holder_role}. I'm #{speaker_name}, the #{speaker_role} #{location_phrase(speaker_location)}."
+
+        holder_name && holder_role && speaker_role ->
+          "No, #{holder_name} is the #{holder_role}. I'm #{speaker_name}, the #{speaker_role}."
+
+        speaker_role && speaker_location ->
+          "No, I'm #{speaker_name}, the #{speaker_role} #{location_phrase(speaker_location)}."
+
+        speaker_role ->
+          "No, I'm #{speaker_name}, the #{speaker_role}."
+
+        true ->
+          "No, that's not my role."
+      end
+
+    {:ok, response}
   end
 
   defp do_realize(%{"dialogue_act" => "answer_role_boundary"} = intent) do
@@ -102,7 +139,21 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
   end
 
   defp do_realize(%{"dialogue_act" => "answer_known_location"} = intent) do
-    {:ok, intent["response_goal"]}
+    facts = facts_by_field(intent)
+
+    name = get_fact(facts, "name") || "They"
+    location = get_fact(facts, "location")
+
+    response =
+      if location do
+        pronoun = pronoun_for(name)
+
+        "#{name} is associated with #{location}. I don't know where #{pronoun} #{present_tense_be_for(pronoun)} right now."
+      else
+        "I don't know where #{name} is."
+      end
+
+    {:ok, response}
   end
 
   defp do_realize(intent) do
@@ -112,7 +163,11 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
   defp facts_by_field(intent) do
     intent
     |> Map.get("known_facts_used", [])
-    |> Enum.reduce(%{}, fn fact, acc ->
+    |> facts_list_by_field()
+  end
+
+  defp facts_list_by_field(facts) do
+    Enum.reduce(facts, %{}, fn fact, acc ->
       field = fact["field"]
       value = fact["value"]
 
@@ -132,6 +187,16 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizer do
       unknown["entity_name"] || unknown["location_name"] || unknown["name"]
     end)
   end
+
+  defp facts_for_entity(facts, entity_id) do
+    Enum.filter(facts, fn fact ->
+      fact["entity_id"] == entity_id
+    end)
+  end
+
+  defp pronoun_for(_name), do: "they"
+  defp present_tense_be_for("they"), do: "are"
+  defp present_tense_be_for(_pronoun), do: "is"
 
   defp location_phrase("crossroads"), do: "out by the crossroads"
   defp location_phrase(location), do: "in #{location}"
