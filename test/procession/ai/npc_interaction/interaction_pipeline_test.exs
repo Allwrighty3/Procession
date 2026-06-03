@@ -3,6 +3,18 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
 
   alias Procession.AI.NPCInteraction.InteractionPipeline
 
+  defmodule SafeExpressionAdapter do
+    def generate(_prompt, _opts) do
+      {:ok, "Mira keeps the inn in Briar Village."}
+    end
+  end
+
+  defmodule UnsafeExpressionAdapter do
+    def generate(_prompt, _opts) do
+      {:ok, "Elandra is a merchant at the crossroads."}
+    end
+  end
+
   test "responds to known entity question with grounded realized text" do
     assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
 
@@ -113,6 +125,53 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
     assert Enum.any?(result.validation_failures, fn failure ->
              failure.code == :invalid_candidate_response
            end)
+  end
+
+  test "uses valid expression adapter response when provided" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Mira?"}),
+               expression_adapter: SafeExpressionAdapter
+             )
+
+    assert result.response_source == :expression_candidate
+    assert result.response == "Mira keeps the inn in Briar Village."
+    assert result.fallback_response == "Mira is the innkeeper in Briar Village."
+    assert result.validation_failures == []
+    assert result.expression_prompt =~ "### Final NPC Line"
+    assert result.expression_candidate_response == "Mira keeps the inn in Briar Village."
+    assert result.expression_adapter_error == nil
+  end
+
+  test "falls back when expression adapter response violates intent" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Elandra?"}),
+               expression_adapter: UnsafeExpressionAdapter
+             )
+
+    assert result.response_source == :deterministic
+    assert result.response == "I don't know anyone named Elandra."
+    assert result.fallback_response == "I don't know anyone named Elandra."
+    assert result.expression_candidate_response == "Elandra is a merchant at the crossroads."
+
+    assert Enum.any?(result.validation_failures, fn failure ->
+             failure.code == :unknown_trait_invention
+           end)
+  end
+
+  test "candidate response takes precedence over expression adapter" do
+    assert {:ok, result} =
+             InteractionPipeline.respond(
+               context(%{"message" => "Who is Mira?"}),
+               candidate_response: "Mira keeps the inn in Briar Village.",
+               expression_adapter: UnsafeExpressionAdapter
+             )
+
+    assert result.response_source == :candidate
+    assert result.response == "Mira keeps the inn in Briar Village."
+    assert result.expression_prompt == nil
+    assert result.expression_candidate_response == nil
   end
 
   defp context(overrides \\ %{}) do
