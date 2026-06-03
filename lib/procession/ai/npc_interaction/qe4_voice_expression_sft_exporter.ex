@@ -64,7 +64,8 @@ defmodule Procession.AI.NPCInteraction.QE4VoiceExpressionSFTExporter do
 
     prompt_opts = [
       voice_profile: example["voice_profile"],
-      relationship_stance: example["relationship_stance"]
+      relationship_stance: example["relationship_stance"],
+      emotional_state: Map.get(example, "emotional_state", %{})
     ]
 
     with {:ok, pipeline_result} <- InteractionPipeline.respond(context),
@@ -90,6 +91,7 @@ defmodule Procession.AI.NPCInteraction.QE4VoiceExpressionSFTExporter do
            "fallback_response" => example["fallback_response"],
            "voice_profile" => example["voice_profile"],
            "relationship_stance" => example["relationship_stance"],
+           "emotional_state" => Map.get(example, "emotional_state", %{}),
            "notes" => Map.get(example, "notes")
          }
        }}

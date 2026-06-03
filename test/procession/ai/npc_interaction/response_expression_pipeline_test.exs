@@ -35,7 +35,10 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
 
   defmodule PromptEchoAdapter do
     def generate(prompt, _opts) do
-      if prompt =~ "\"tone\": \"haughty\"" and prompt =~ "\"attitude\": \"dismissive\"" do
+      if prompt =~ "\"tone\": \"haughty\"" and
+           prompt =~ "\"attitude\": \"dismissive\"" and
+           prompt =~ "\"mood\": \"irritated\"" and
+           prompt =~ "\"intensity\": \"high\"" do
         {:ok, "Mira? Hmph. She keeps the inn in Briar Village."}
       else
         {:error, :missing_expression_context}
@@ -143,7 +146,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
              {:error, :invalid_expression_pipeline_input}
   end
 
-  test "passes voice profile and relationship stance into expression prompt" do
+  test "passes voice profile relationship stance and emotional state into expression prompt" do
     fallback = "Mira is the innkeeper in Briar Village."
 
     assert {:ok, result} =
@@ -159,6 +162,11 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
                relationship_stance: %{
                  "toward" => "npc_tobin",
                  "attitude" => "dismissive"
+               },
+                emotional_state: %{
+                 "mood" => "irritated",
+                 "intensity" => "high",
+                 "restraint" => "medium"
                }
              )
 

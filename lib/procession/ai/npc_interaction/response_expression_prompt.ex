@@ -34,6 +34,8 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
   - `:voice_profile` - map describing speaker tone/style.
   - `:relationship_stance` - map describing the speaker's subjective stance
     toward another entity.
+  - `:emotional_state` - map describing the speaker's current mood,
+    intensity, restraint, stress, or emotional pressure.
   """
   @spec render(map(), String.t(), keyword()) :: render_result()
   def render(intent, fallback_response, opts)
@@ -82,6 +84,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     %{
       "voice_profile" => Keyword.get(opts, :voice_profile, %{}),
       "relationship_stance" => Keyword.get(opts, :relationship_stance, %{}),
+      "emotional_state" => Keyword.get(opts, :emotional_state, %{}),
       "style_permissions" => %{
         "may_use_subjective_opinion" => true,
         "may_omit_nonessential_known_facts" => true,

@@ -25,6 +25,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "may_use_subjective_opinion"
     assert prompt =~ "may_omit_nonessential_known_facts"
     assert prompt =~ "must_not_add_objective_world_facts"
+    assert prompt =~ "emotional_state"
   end
 
   test "includes forbidden inventions in rendered prompt" do
@@ -51,7 +52,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert ResponseExpressionPrompt.render(nil, nil) == {:error, :invalid_expression_prompt_input}
   end
 
-  test "renders optional voice profile and relationship stance" do
+  test "renders optional voice profile relationship stance and emotional state" do
     intent = known_entity_intent()
     fallback = "Mira is the innkeeper in Briar Village."
 
@@ -68,6 +69,11 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
                  "toward" => "npc_tobin",
                  "attitude" => "dismissive",
                  "trust" => "low"
+               },
+                emotional_state: %{
+                 "mood" => "irritated",
+                 "intensity" => "high",
+                 "restraint" => "medium"
                }
              )
 
@@ -76,6 +82,9 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "\"bluntness\": \"high\""
     assert prompt =~ "\"attitude\": \"dismissive\""
     assert prompt =~ "\"trust\": \"low\""
+    assert prompt =~ "\"mood\": \"irritated\""
+    assert prompt =~ "\"intensity\": \"high\""
+    assert prompt =~ "\"restraint\": \"medium\""
   end
 
   defp known_entity_intent do

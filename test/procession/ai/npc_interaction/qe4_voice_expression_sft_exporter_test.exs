@@ -48,6 +48,7 @@ defmodule Procession.AI.NPCInteraction.QE4VoiceExpressionSFTExporterTest do
     assert Enum.all?(rows, fn row ->
              row["prompt"] =~ "### Expression Context" and
                row["prompt"] =~ "voice_profile" and
+               row["prompt"] =~ "emotional_state" and
                row["prompt"] =~ "relationship_stance" and
                row["prompt"] =~ "may_use_subjective_opinion" and
                row["prompt"] =~ "may_omit_nonessential_known_facts"
@@ -77,7 +78,8 @@ defmodule Procession.AI.NPCInteraction.QE4VoiceExpressionSFTExporterTest do
                row["metadata"]["source"] == "npc_interaction_voice_expression_example" and
                row["metadata"]["category"] == "npc_interaction_voice_expression" and
                is_map(row["metadata"]["voice_profile"]) and
-               is_map(row["metadata"]["relationship_stance"])
+               is_map(row["metadata"]["relationship_stance"]) and
+               is_map(row["metadata"]["emotional_state"])
            end)
 
     File.rm!(output_path)
