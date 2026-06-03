@@ -12,6 +12,18 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
 
   alias Procession.AI.NPCInteraction.InteractionPipeline
 
+  defmodule SafeExpressionAdapter do
+    def generate(_prompt, _opts) do
+      {:ok, "Mira keeps the inn in Briar Village."}
+    end
+  end
+
+  defmodule UnsafeExpressionAdapter do
+    def generate(_prompt, _opts) do
+      {:ok, "Elandra is a merchant at the crossroads."}
+    end
+  end
+
   @shortdoc "Runs deterministic NPC interaction pipeline demo"
 
   @impl Mix.Task
@@ -29,12 +41,21 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
     Mix.shell().info("Target: #{context["target"]["id"]}")
 
     opts =
-      case Map.fetch(demo_case, "candidate_response") do
-        {:ok, candidate_response} ->
+      cond do
+        Map.has_key?(demo_case, "candidate_response") ->
+          candidate_response = Map.fetch!(demo_case, "candidate_response")
           Mix.shell().info("Candidate: #{inspect(candidate_response)}")
           [candidate_response: candidate_response]
 
-        :error ->
+        Map.get(demo_case, "expression_adapter") == :safe ->
+          Mix.shell().info("Expression adapter: safe")
+          [expression_adapter: SafeExpressionAdapter]
+
+        Map.get(demo_case, "expression_adapter") == :unsafe ->
+          Mix.shell().info("Expression adapter: unsafe")
+          [expression_adapter: UnsafeExpressionAdapter]
+
+        true ->
           []
       end
 
@@ -43,6 +64,13 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
         Mix.shell().info("Dialogue act: #{result.intent["dialogue_act"]}")
         Mix.shell().info("Response source: #{result.response_source}")
         Mix.shell().info("Response: #{result.response}")
+        if Map.get(result, :expression_candidate_response) do
+          Mix.shell().info("Expression candidate: #{result.expression_candidate_response}")
+        end
+
+        if Map.get(result, :expression_adapter_error) do
+          Mix.shell().info("Expression adapter error: #{inspect(result.expression_adapter_error)}")
+        end
 
         if result.validation_failures != [] do
           Mix.shell().info("Fallback: #{result.fallback_response}")
@@ -93,6 +121,16 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
         "id" => "unsafe_candidate_unknown_elandra",
         "context" => context("npc_tobin", "Who is Elandra?"),
         "candidate_response" => "Elandra is a merchant at the crossroads."
+      },
+      %{
+        "id" => "safe_expression_adapter_about_mira",
+        "context" => context("npc_tobin", "Who is Mira?"),
+        "expression_adapter" => :safe
+      },
+      %{
+        "id" => "unsafe_expression_adapter_unknown_elandra",
+        "context" => context("npc_tobin", "Who is Elandra?"),
+        "expression_adapter" => :unsafe
       }
     ]
   end

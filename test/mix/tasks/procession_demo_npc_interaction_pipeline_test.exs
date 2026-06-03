@@ -50,5 +50,18 @@ defmodule Mix.Tasks.ProcessionDemoNpcInteractionPipelineTest do
     assert output =~ "Response: I don't know anyone named Elandra."
     assert output =~ "Fallback: I don't know anyone named Elandra."
     assert output =~ "unknown_trait_invention"
+
+    assert output =~ "Case: safe_expression_adapter_about_mira"
+    assert output =~ "Expression adapter: safe"
+    assert output =~ "Response source: expression_candidate"
+    assert output =~ "Response: Mira keeps the inn in Briar Village."
+    assert output =~ "Expression candidate: Mira keeps the inn in Briar Village."
+
+    assert output =~ "Case: unsafe_expression_adapter_unknown_elandra"
+    assert output =~ "Expression adapter: unsafe"
+    assert output =~ "Response source: deterministic"
+    assert output =~ "Response: I don't know anyone named Elandra."
+    assert output =~ "Expression candidate: Elandra is a merchant at the crossroads."
+    assert output =~ "unknown_trait_invention"
   end
 end
