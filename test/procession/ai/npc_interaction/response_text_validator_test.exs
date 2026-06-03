@@ -10,6 +10,39 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
              ResponseTextValidator.validate(intent, "Mira is the innkeeper in Briar Village.")
   end
 
+  test "allows denied forbidden relationship mention" do
+    intent = false_relationship_intent()
+
+    assert {:ok, "Tobin? My brother? Not a chance."} =
+             ResponseTextValidator.validate(intent, "Tobin? My brother? Not a chance.")
+
+    assert {:ok, "No, Tobin's not my brother."} =
+             ResponseTextValidator.validate(intent, "No, Tobin's not my brother.")
+
+    assert {:ok, "Tobin, my brother? Hardly."} =
+             ResponseTextValidator.validate(intent, "Tobin, my brother? Hardly.")
+  end
+
+  test "rejects asserted forbidden relationship" do
+    intent = false_relationship_intent()
+
+    assert {:error, failures} =
+             ResponseTextValidator.validate(intent, "Tobin is my brother.")
+
+    assert Enum.any?(failures, fn failure ->
+             failure.code == :forbidden_invention and
+               failure.forbidden_invention == "Tobin brother relationship"
+           end)
+
+    assert {:error, failures} =
+             ResponseTextValidator.validate(intent, "My brother Tobin sells goods at the crossroads.")
+
+    assert Enum.any?(failures, fn failure ->
+             failure.code == :forbidden_invention and
+               failure.forbidden_invention == "Tobin brother relationship"
+           end)
+  end
+
   test "rejects blank response text" do
     assert {:error, failures} = ResponseTextValidator.validate(known_entity_intent(), " ")
 
@@ -190,6 +223,27 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidatorTest do
         "Mira current activity",
         "Mira implied activity from role",
         "Mira implied activity from location"
+      ]
+    }
+  end
+
+  defp false_relationship_intent do
+    %{
+      "speaker_id" => "npc_mira",
+      "target_id" => "npc_mira",
+      "dialogue_act" => "reject_false_relationship",
+      "response_goal" =>
+        "Tell the player Tobin is not Mira's brother, while preserving known role facts.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_tobin", "field" => "name", "value" => "Tobin"},
+        %{"entity_id" => "npc_tobin", "field" => "role", "value" => "merchant"},
+        %{"entity_id" => "npc_tobin", "field" => "location", "value" => "crossroads"}
+      ],
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "Tobin brother relationship",
+        "Tobin family relationship",
+        "Mira family relationship"
       ]
     }
   end

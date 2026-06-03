@@ -232,9 +232,12 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidator do
   end
 
   defp relationship_invention_appears?(forbidden_item, lower_text) do
-    forbidden_item
-    |> String.replace(" relationship", "")
-    |> phrase_tokens_present?(lower_text)
+    phrase =
+      forbidden_item
+      |> String.replace(" relationship", "")
+
+    phrase_tokens_present?(phrase, lower_text) and
+      not relationship_mention_is_denied?(phrase, lower_text)
   end
 
   defp location_transfer_appears?(forbidden_item, lower_text) do
@@ -247,6 +250,35 @@ defmodule Procession.AI.NPCInteraction.ResponseTextValidator do
     forbidden_item
     |> String.replace(" role transfer", "")
     |> phrase_tokens_present?(lower_text)
+  end
+
+  defp relationship_mention_is_denied?(phrase, lower_text) do
+    tokens = String.split(phrase, ~r/\s+/, trim: true)
+
+    case tokens do
+      [name, relationship | _rest] ->
+        denied_relationship_patterns?(name, relationship, lower_text)
+
+      _other ->
+        false
+    end
+  end
+
+  defp denied_relationship_patterns?(name, relationship, lower_text) do
+    denial_patterns = [
+      ~r/\bno\b.*\b#{Regex.escape(name)}\b.*\b#{Regex.escape(relationship)}\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bnot\b.*\b#{Regex.escape(relationship)}\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bisn't\b.*\b#{Regex.escape(relationship)}\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bis not\b.*\b#{Regex.escape(relationship)}\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bnot my\b.*\b#{Regex.escape(relationship)}\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bmy #{Regex.escape(relationship)}\?.*\bnot a chance\b/,
+      ~r/\b#{Regex.escape(name)}\?.*\bmy #{Regex.escape(relationship)}\?.*\bnot a chance\b/,
+      ~r/\b#{Regex.escape(name)}\b.*\bmy #{Regex.escape(relationship)}\?.*\bhardly\b/
+    ]
+
+    Enum.any?(denial_patterns, fn pattern ->
+      Regex.match?(pattern, lower_text)
+    end)
   end
 
   defp phrase_tokens_present?(phrase, lower_text) do
