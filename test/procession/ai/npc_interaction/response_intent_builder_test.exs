@@ -4,8 +4,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
   alias Procession.AI.NPCInteraction.ResponseIntentBuilder
 
   test "builds self identity intent for target NPC" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who are you?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who are you?"}))
 
     assert intent["speaker_id"] == "npc_tobin"
     assert intent["target_id"] == "npc_tobin"
@@ -18,8 +17,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
   end
 
   test "builds known entity intent without transferring target role" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who is Mira?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Mira?"}))
 
     assert intent["speaker_id"] == "npc_tobin"
     assert intent["target_id"] == "npc_tobin"
@@ -38,8 +36,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
   end
 
   test "builds unknown entity uncertainty intent" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
 
     assert intent["speaker_id"] == "npc_tobin"
     assert intent["dialogue_act"] == "express_uncertainty"
@@ -95,6 +92,34 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
 
     assert ResponseIntentBuilder.build(bad_context) ==
              {:error, {:missing_or_invalid_context_field, "known_entities"}}
+  end
+
+  test "builds false role intent when target is asked about another NPC role" do
+    assert {:ok, intent} =
+             ResponseIntentBuilder.build(context(%{"message" => "Do you run the inn?"}))
+
+    assert intent["speaker_id"] == "npc_tobin"
+    assert intent["target_id"] == "npc_tobin"
+    assert intent["dialogue_act"] == "reject_false_role"
+
+    assert intent["response_goal"] =~ "Tobin is not the innkeeper"
+    assert intent["response_goal"] =~ "Mira is"
+    assert intent["response_goal"] =~ "Tobin is the merchant"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_tobin" and
+               fact["field"] == "role" and
+               fact["value"] == "merchant"
+           end)
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_mira" and
+               fact["field"] == "role" and
+               fact["value"] == "innkeeper"
+           end)
+
+    assert "Tobin innkeeper role" in intent["forbidden_inventions"]
+    assert "Tobin role transfer" in intent["forbidden_inventions"]
   end
 
   defp context(overrides \\ %{}) do

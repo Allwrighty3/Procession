@@ -36,8 +36,7 @@ defmodule Procession.AI.NPCInteraction.RoleBoundaryExampleLoaderTest do
     not valid json
     """)
 
-    assert {:error, {:invalid_jsonl_line, 2, _reason}} =
-             RoleBoundaryExampleLoader.load(path)
+    assert {:error, {:invalid_jsonl_line, 2, _reason}} = RoleBoundaryExampleLoader.load(path)
 
     File.rm!(path)
   end

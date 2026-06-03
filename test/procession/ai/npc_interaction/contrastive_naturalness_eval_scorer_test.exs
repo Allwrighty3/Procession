@@ -17,8 +17,7 @@ defmodule Procession.AI.NPCInteraction.ContrastiveNaturalnessEvalScorerTest do
       ]
     }
 
-    assert %{passed: true, failures: []} =
-             ContrastiveNaturalnessEvalScorer.score(eval_case)
+    assert %{passed: true, failures: []} = ContrastiveNaturalnessEvalScorer.score(eval_case)
   end
 
   test "fails invalid eval input" do

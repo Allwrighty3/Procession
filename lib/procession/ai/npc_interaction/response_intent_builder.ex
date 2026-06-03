@@ -22,10 +22,11 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
   - `message`
   - `known_entities`
 
-  The builder currently supports:
+    The builder currently supports:
 
   - self identity questions
   - known entity identity/role questions
+  - false role questions
   - unknown entity uncertainty
   """
   @spec build(map()) :: build_result()
@@ -37,6 +38,9 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
         cond do
           self_identity_question?(message) ->
             build_self_identity_intent(target)
+
+          false_role_question?(message, target) ->
+            build_false_role_intent(target, message, known_entities)
 
           requested_entity = find_requested_known_entity(message, known_entities) ->
             build_known_entity_intent(target, requested_entity)
@@ -89,6 +93,29 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
         "#{entity_name} relationship to #{target["name"] || target_id}",
         "#{target["name"] || target_id} role transfer",
         "#{target["name"] || target_id} location transfer"
+      ]
+    }
+  end
+
+  defp build_false_role_intent(target, message, known_entities) do
+    target_id = target["id"]
+    target_name = target["name"] || target_id
+    requested_role = requested_role_from_message(message)
+    role_holder = find_entity_by_role(known_entities, requested_role)
+
+    %{
+      "speaker_id" => target_id,
+      "target_id" => target_id,
+      "dialogue_act" => "reject_false_role",
+      "response_goal" => false_role_response_goal(target, requested_role, role_holder),
+      "known_facts_used" =>
+        compact_facts(target, ["name", "role", "location"]) ++
+          compact_facts(role_holder || %{}, ["name", "role", "location"]),
+      "unknowns_acknowledged" => [],
+      "forbidden_inventions" => [
+        "#{target_name} #{requested_role} role",
+        "#{target_name} current activity",
+        "#{target_name} role transfer"
       ]
     }
   end
@@ -161,6 +188,8 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
     end
   end
 
+  defp compact_facts(nil, _fields), do: []
+
   defp compact_facts(entity, fields) do
     entity_id = entity["id"]
 
@@ -204,6 +233,68 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
       is_binary(name) and
         String.contains?(normalized_message, normalize(name))
     end)
+  end
+
+  defp false_role_question?(message, target) do
+    requested_role = requested_role_from_message(message)
+    target_role = target["role"]
+
+    is_binary(requested_role) and is_binary(target_role) and requested_role != normalize(target_role)
+  end
+
+  defp find_entity_by_role(known_entities, role) when is_binary(role) do
+    Enum.find(known_entities, fn entity ->
+      normalize(entity["role"] || "") == role
+    end)
+  end
+
+  defp find_entity_by_role(_known_entities, _role), do: nil
+
+  defp requested_role_from_message(message) do
+    normalized = normalize(message)
+
+    cond do
+      Regex.match?(~r/\brun the inn\b/, normalized) -> "innkeeper"
+      Regex.match?(~r/\bkeep the inn\b/, normalized) -> "innkeeper"
+      Regex.match?(~r/\bthe innkeeper\b/, normalized) -> "innkeeper"
+      Regex.match?(~r/\bthe merchant\b/, normalized) -> "merchant"
+      true -> nil
+    end
+  end
+
+  defp false_role_response_goal(target, requested_role, nil) do
+    target_name = target["name"] || target["id"]
+    actual_role = target["role"]
+    location = target["location"]
+
+    cond do
+      is_binary(actual_role) and is_binary(location) ->
+        "Tell the player #{target_name} is not the #{requested_role}; #{target_name} is the #{actual_role} associated with #{location}."
+
+      is_binary(actual_role) ->
+        "Tell the player #{target_name} is not the #{requested_role}; #{target_name} is the #{actual_role}."
+
+      true ->
+        "Tell the player #{target_name} is not the #{requested_role}, without inventing a replacement role."
+    end
+  end
+
+  defp false_role_response_goal(target, requested_role, role_holder) do
+    target_name = target["name"] || target["id"]
+    holder_name = role_holder["name"] || role_holder["id"]
+    target_role = target["role"]
+    target_location = target["location"]
+
+    cond do
+      is_binary(target_role) and is_binary(target_location) ->
+        "Tell the player #{target_name} is not the #{requested_role}; #{holder_name} is. #{target_name} is the #{target_role} associated with #{target_location}."
+
+      is_binary(target_role) ->
+        "Tell the player #{target_name} is not the #{requested_role}; #{holder_name} is. #{target_name} is the #{target_role}."
+
+      true ->
+        "Tell the player #{target_name} is not the #{requested_role}; #{holder_name} is."
+    end
   end
 
   defp extract_requested_entity_name(message) do

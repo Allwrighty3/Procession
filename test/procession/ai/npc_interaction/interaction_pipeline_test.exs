@@ -4,32 +4,28 @@ defmodule Procession.AI.NPCInteraction.InteractionPipelineTest do
   alias Procession.AI.NPCInteraction.InteractionPipeline
 
   test "responds to known entity question with grounded realized text" do
-    assert {:ok, result} =
-             InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
+    assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who is Mira?"}))
 
     assert result.intent["dialogue_act"] == "answer_known_entity"
     assert result.response == "Mira is the innkeeper in Briar Village."
   end
 
   test "responds to self identity question in first person" do
-    assert {:ok, result} =
-             InteractionPipeline.respond(context(%{"message" => "Who are you?"}))
+    assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who are you?"}))
 
     assert result.intent["dialogue_act"] == "answer_self_identity"
     assert result.response == "I'm Tobin, the merchant out by the crossroads."
   end
 
   test "responds to unknown entity question with uncertainty" do
-    assert {:ok, result} =
-             InteractionPipeline.respond(context(%{"message" => "Who is Elandra?"}))
+    assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who is Elandra?"}))
 
     assert result.intent["dialogue_act"] == "express_uncertainty"
     assert result.response == "I don't know anyone named Elandra."
   end
 
   test "does not transfer known roles into unknown entity response" do
-    assert {:ok, result} =
-             InteractionPipeline.respond(context(%{"message" => "Who is Elandra?"}))
+    assert {:ok, result} = InteractionPipeline.respond(context(%{"message" => "Who is Elandra?"}))
 
     refute result.response =~ "merchant"
     refute result.response =~ "innkeeper"

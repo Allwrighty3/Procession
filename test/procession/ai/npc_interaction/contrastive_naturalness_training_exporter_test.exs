@@ -9,8 +9,7 @@ defmodule Procession.AI.NPCInteraction.ContrastiveNaturalnessTrainingExporterTes
 
     File.rm(output_path)
 
-    assert {:ok, summary} =
-             ContrastiveNaturalnessTrainingExporter.export(output_path)
+    assert {:ok, summary} = ContrastiveNaturalnessTrainingExporter.export(output_path)
 
     assert summary.output_path == output_path
     assert summary.exported_count > 0
@@ -44,8 +43,7 @@ defmodule Procession.AI.NPCInteraction.ContrastiveNaturalnessTrainingExporterTes
 
     File.rm(output_path)
 
-    assert {:ok, _summary} =
-             ContrastiveNaturalnessTrainingExporter.export(output_path)
+    assert {:ok, _summary} = ContrastiveNaturalnessTrainingExporter.export(output_path)
 
     ids =
       output_path

@@ -86,6 +86,7 @@ defmodule Procession.AI.NPCInteraction.NaturalnessEvalScorerTest do
 
     assert summary.total == 0
     assert summary.failed == 0
+
     assert [%{id: nil, passed: false, failures: [%{code: :invalid_eval_batch_input}]}] =
              summary.results
   end

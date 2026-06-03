@@ -146,7 +146,8 @@ defmodule Procession.AI.NPCInteraction.ContrastiveNaturalnessEvalScorer do
       [
         %{
           code: :responses_do_not_differ,
-          message: "Contrastive naturalness eval case requires different worse and better responses."
+          message:
+            "Contrastive naturalness eval case requires different worse and better responses."
         }
         | failures
       ]
@@ -166,8 +167,7 @@ defmodule Procession.AI.NPCInteraction.ContrastiveNaturalnessEvalScorer do
         [
           %{
             code: :missing_preference_reasons,
-            message:
-              "Contrastive naturalness eval case requires at least one preference reason."
+            message: "Contrastive naturalness eval case requires at least one preference reason."
           }
           | failures
         ]

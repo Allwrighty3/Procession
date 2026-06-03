@@ -46,8 +46,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentValidatorTest do
   end
 
   test "rejects non-map input" do
-    assert {:error, [%{code: :invalid_intent}]} =
-             ResponseIntentValidator.validate(nil)
+    assert {:error, [%{code: :invalid_intent}]} = ResponseIntentValidator.validate(nil)
   end
 
   test "rejects missing required fields" do
@@ -63,10 +62,11 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentValidatorTest do
   end
 
   test "rejects speaker and target mismatch" do
-    intent = valid_intent(%{
-      "speaker_id" => "npc_mira",
-      "target_id" => "npc_tobin"
-    })
+    intent =
+      valid_intent(%{
+        "speaker_id" => "npc_mira",
+        "target_id" => "npc_tobin"
+      })
 
     assert {:error, failures} = ResponseIntentValidator.validate(intent)
 

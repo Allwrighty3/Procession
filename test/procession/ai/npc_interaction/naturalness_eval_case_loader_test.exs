@@ -34,8 +34,7 @@ defmodule Procession.AI.NPCInteraction.NaturalnessEvalCaseLoaderTest do
     not valid json
     """)
 
-    assert {:error, {:invalid_jsonl_line, 2, _reason}} =
-             NaturalnessEvalCaseLoader.load(path)
+    assert {:error, {:invalid_jsonl_line, 2, _reason}} = NaturalnessEvalCaseLoader.load(path)
 
     File.rm!(path)
   end

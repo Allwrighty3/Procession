@@ -5,8 +5,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
   alias Procession.AI.NPCInteraction.ResponseRealizer
 
   test "realizes self identity intent in first person" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who are you?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who are you?"}))
 
     assert {:ok, response} = ResponseRealizer.realize(intent)
 
@@ -14,8 +13,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
   end
 
   test "realizes known entity intent without transferring roles" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who is Mira?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Mira?"}))
 
     assert {:ok, response} = ResponseRealizer.realize(intent)
 
@@ -25,8 +23,7 @@ defmodule Procession.AI.NPCInteraction.ResponseRealizerTest do
   end
 
   test "realizes unknown entity intent without invented traits" do
-    assert {:ok, intent} =
-             ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
+    assert {:ok, intent} = ResponseIntentBuilder.build(context(%{"message" => "Who is Elandra?"}))
 
     assert {:ok, response} = ResponseRealizer.realize(intent)
 
