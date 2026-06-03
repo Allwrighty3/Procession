@@ -27,6 +27,12 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     end
   end
 
+  defmodule RamblySafeAdapter do
+    def generate(_prompt, _opts) do
+      {:ok, "Mira keeps the inn in Briar Village.\n### Response\nMira is still talking."}
+    end
+  end
+
   test "uses valid expression candidate" do
     fallback = "Mira is the innkeeper in Briar Village."
 
@@ -104,6 +110,22 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     assert Enum.any?(result.validation_failures, fn failure ->
              failure.code == :invalid_expression_candidate
            end)
+  end
+
+  test "cleans expression candidate before validation" do
+    fallback = "Mira is the innkeeper in Briar Village."
+
+    assert {:ok, result} =
+             ResponseExpressionPipeline.express(
+               known_entity_intent(),
+               fallback,
+               adapter: RamblySafeAdapter
+             )
+
+    assert result.response_source == :expression_candidate
+    assert result.response == "Mira keeps the inn in Briar Village."
+    assert result.candidate_response == "Mira keeps the inn in Briar Village."
+    assert result.validation_failures == []
   end
 
   test "rejects invalid expression pipeline input" do

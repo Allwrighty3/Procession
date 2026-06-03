@@ -15,6 +15,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
   alias Procession.AI
   alias Procession.AI.NPCInteraction.ResponseExpressionPrompt
   alias Procession.AI.NPCInteraction.ResponseTextValidator
+  alias Procession.AI.NPCInteraction.ResponseCandidateCleaner
 
   @type expression_result ::
           {:ok,
@@ -53,7 +54,9 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
 
   defp handle_candidate({:ok, candidate_response}, intent, fallback_response, prompt)
        when is_binary(candidate_response) do
-    case ResponseTextValidator.validate(intent, candidate_response) do
+    cleaned_candidate_response = ResponseCandidateCleaner.clean(candidate_response)
+
+    case ResponseTextValidator.validate(intent, cleaned_candidate_response) do
       {:ok, validated_response} ->
         {:ok,
          %{
@@ -61,7 +64,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
            response_source: :expression_candidate,
            fallback_response: fallback_response,
            prompt: prompt,
-           candidate_response: candidate_response,
+           candidate_response: cleaned_candidate_response,
            validation_failures: [],
            adapter_error: nil
          }}
@@ -73,7 +76,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipeline do
            response_source: :deterministic,
            fallback_response: fallback_response,
            prompt: prompt,
-           candidate_response: candidate_response,
+           candidate_response: cleaned_candidate_response,
            validation_failures: failures,
            adapter_error: nil
          }}
