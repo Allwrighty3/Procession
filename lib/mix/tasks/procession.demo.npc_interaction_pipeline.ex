@@ -22,16 +22,32 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
     |> Enum.each(&run_case/1)
   end
 
-  defp run_case(%{"id" => id, "context" => context}) do
+  defp run_case(%{"id" => id, "context" => context} = demo_case) do
     Mix.shell().info("")
     Mix.shell().info("Case: #{id}")
     Mix.shell().info("Message: #{context["message"]}")
     Mix.shell().info("Target: #{context["target"]["id"]}")
 
-    case InteractionPipeline.respond(context) do
+    opts =
+      case Map.fetch(demo_case, "candidate_response") do
+        {:ok, candidate_response} ->
+          Mix.shell().info("Candidate: #{inspect(candidate_response)}")
+          [candidate_response: candidate_response]
+
+        :error ->
+          []
+      end
+
+    case InteractionPipeline.respond(context, opts) do
       {:ok, result} ->
         Mix.shell().info("Dialogue act: #{result.intent["dialogue_act"]}")
+        Mix.shell().info("Response source: #{result.response_source}")
         Mix.shell().info("Response: #{result.response}")
+
+        if result.validation_failures != [] do
+          Mix.shell().info("Fallback: #{result.fallback_response}")
+          Mix.shell().info("Validation failures: #{inspect(result.validation_failures)}")
+        end
 
       {:error, reason} ->
         Mix.shell().info("Error: #{inspect(reason)}")
@@ -67,6 +83,16 @@ defmodule Mix.Tasks.Procession.Demo.NpcInteractionPipeline do
       %{
         "id" => "tobin_where_is_mira",
         "context" => context("npc_tobin", "Where is Mira?")
+      },
+      %{
+        "id" => "safe_candidate_about_mira",
+        "context" => context("npc_tobin", "Who is Mira?"),
+        "candidate_response" => "Mira keeps the inn in Briar Village."
+      },
+      %{
+        "id" => "unsafe_candidate_unknown_elandra",
+        "context" => context("npc_tobin", "Who is Elandra?"),
+        "candidate_response" => "Elandra is a merchant at the crossroads."
       }
     ]
   end
