@@ -241,6 +241,62 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilderTest do
     assert "Tobin implied activity from location" in intent["forbidden_inventions"]
   end
 
+  test "builds known location intent without inventing current activity" do
+    assert {:ok, intent} =
+             ResponseIntentBuilder.build(context(%{"message" => "Where is Mira?"}))
+
+    assert intent["speaker_id"] == "npc_tobin"
+    assert intent["target_id"] == "npc_tobin"
+    assert intent["dialogue_act"] == "answer_known_location"
+
+    assert intent["response_goal"] =~ "Mira is associated with Briar Village"
+    assert intent["response_goal"] =~ "without inventing current activity"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_mira" and
+               fact["field"] == "location" and
+               fact["value"] == "Briar Village"
+           end)
+
+    assert intent["unknowns_acknowledged"] == []
+
+    assert "Mira current activity" in intent["forbidden_inventions"]
+    assert "Mira relationship" in intent["forbidden_inventions"]
+    assert "unlisted location details" in intent["forbidden_inventions"]
+  end
+
+  test "builds known location intent for Mira asking about Tobin" do
+    mira_context =
+      context(%{
+        "message" => "Where is Tobin?",
+        "target" => %{
+          "id" => "npc_mira",
+          "name" => "Mira",
+          "type" => "npc",
+          "role" => "innkeeper",
+          "location" => "Briar Village"
+        }
+      })
+
+    assert {:ok, intent} = ResponseIntentBuilder.build(mira_context)
+
+    assert intent["speaker_id"] == "npc_mira"
+    assert intent["target_id"] == "npc_mira"
+    assert intent["dialogue_act"] == "answer_known_location"
+
+    assert intent["response_goal"] =~ "Tobin is associated with crossroads"
+    assert intent["response_goal"] =~ "without inventing current activity"
+
+    assert Enum.any?(intent["known_facts_used"], fn fact ->
+             fact["entity_id"] == "npc_tobin" and
+               fact["field"] == "location" and
+               fact["value"] == "crossroads"
+           end)
+
+    assert "Tobin current activity" in intent["forbidden_inventions"]
+    assert "Tobin relationship" in intent["forbidden_inventions"]
+  end
+
   defp context(overrides \\ %{}) do
     Map.merge(
       %{

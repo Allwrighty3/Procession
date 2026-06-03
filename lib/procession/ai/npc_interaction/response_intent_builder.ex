@@ -29,6 +29,7 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
   - false role questions
   - false relationship questions
   - known current activity uncertainty
+  - known entity location questions
   - unknown entity uncertainty
   """
   @spec build(map()) :: build_result()
@@ -49,6 +50,9 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
           current_activity_question?(message, known_entities) ->
             build_current_activity_uncertainty_intent(target, message, known_entities)
+
+          known_location_question?(message, known_entities) ->
+            build_known_location_intent(target, message, known_entities)
 
           requested_entity = find_requested_known_entity(message, known_entities) ->
             build_known_entity_intent(target, requested_entity)
@@ -177,6 +181,40 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
     }
   end
 
+  defp build_known_location_intent(target, message, known_entities) do
+    target_id = target["id"]
+    entity = requested_entity_from_message(message, known_entities)
+    entity_name = entity["name"] || entity["id"]
+    location = entity["location"]
+
+    unknowns =
+      if is_binary(location) and String.trim(location) != "" do
+        []
+      else
+        [
+          %{
+            "entity_name" => entity_name,
+            "field" => "location",
+            "reason" => "location not present in known entity facts"
+          }
+        ]
+      end
+
+    %{
+      "speaker_id" => target_id,
+      "target_id" => target_id,
+      "dialogue_act" => "answer_known_location",
+      "response_goal" => known_location_response_goal(entity),
+      "known_facts_used" => compact_facts(entity, ["name", "location"]),
+      "unknowns_acknowledged" => unknowns,
+      "forbidden_inventions" => [
+        "#{entity_name} current activity",
+        "#{entity_name} relationship",
+        "unlisted location details"
+      ]
+    }
+  end
+
   defp build_unknown_entity_intent(target, requested_name) do
     target_id = target["id"]
 
@@ -242,6 +280,17 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
 
       true ->
         "Tell the player #{name} is known, without inventing extra details."
+    end
+  end
+
+  defp known_location_response_goal(entity) do
+    name = entity["name"] || entity["id"]
+    location = entity["location"]
+
+    if is_binary(location) and String.trim(location) != "" do
+      "Tell the player #{name} is associated with #{location}, without inventing current activity."
+    else
+      "Tell the player the target NPC does not know where #{name} is."
     end
   end
 
@@ -389,6 +438,13 @@ defmodule Procession.AI.NPCInteraction.ResponseIntentBuilder do
     is_map(entity) and
       (String.contains?(normalized, " right now") or
          Regex.match?(~r/^is .+ (serving|cleaning|checking|unloading|working|running)/, normalized))
+  end
+
+  defp known_location_question?(message, known_entities) do
+    normalized = normalize(message)
+
+    String.starts_with?(normalized, "where is ") and
+      is_map(requested_entity_from_message(message, known_entities))
   end
 
   defp extract_requested_entity_name(message) do
