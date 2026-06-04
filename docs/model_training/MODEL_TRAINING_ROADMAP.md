@@ -569,6 +569,25 @@ accept_player_facing: yes/no
 notes
 ```
 
+### QE5 Result
+
+QE5 is considered a successful first pass.
+
+It trained natural conversation shape using:
+
+- `emotional_state`
+- `delivery_style`
+- `conversational_move`
+
+Observed result:
+
+- Raw outputs often had the correct first line or phrase.
+- Some raw outputs continued with unnecessary or unsafe tails.
+- `ResponseCandidateCleaner` now trims common drift while preserving rhetorical question chains and expressive short-question setups.
+- Remaining issues around verbosity, long question chains, and expressive continuation should be handled through future response-length metadata, relationship-aware expression, and situation-aware context rather than over-tightening the cleaner.
+
+QE5 is good enough to move forward to QE6.
+
 ---
 
 ## Near-Term Model Phases
