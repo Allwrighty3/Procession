@@ -642,6 +642,26 @@ Completion criteria:
 * [ ] Train and evaluate relationship-conditioned output.
 * [ ] Confirm model does not invent unsupported relationships.
 
+### QE6b Result
+
+QE6b improved some exact-row behavior but did not generalize well enough.
+
+Observed holdout failures:
+
+- New names and roles were sometimes dropped or malformed.
+- The model mutated roles, such as turning healer/baker into “I keep the healer/bakery.”
+- It overused suspicious phrasing like “Why are you asking about me?”
+- It did not reliably express unfamiliar moods such as despondent, ashamed, or reluctant.
+- It showed weaker behavior on unseen names/roles than on Mira/Tobin/Elandra examples.
+
+Decision:
+
+QE6 should not advance to QE7 yet.
+
+Next step:
+
+QE6c adds synthetic, non-authoritative relationship-expression examples with varied names, roles, moods, listener relationships, and subject relationships. The purpose is generalization, not new canon.
+
 ---
 
 ### QE7: Situation / Topic-Aware Expression
