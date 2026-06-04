@@ -662,6 +662,33 @@ Next step:
 
 QE6c adds synthetic, non-authoritative relationship-expression examples with varied names, roles, moods, listener relationships, and subject relationships. The purpose is generalization, not new canon.
 
+### QE6d Direction
+
+QE6c improved generalization across unseen names and roles, but holdout v2 showed remaining weaknesses:
+
+- mood expression is shallow or generic
+- some sensitive roles produce unsafe role-associated phrasing
+- some self-identity responses drift into third person
+- introductions are too uniform
+- the model often treats fallback facts as mandatory facts to recite
+
+QE6d adds disclosure control.
+
+For self-identity questions like "Who are you?", the model should learn that the fallback is the truth source, not a required script. A grounded response may reveal the full identity, give only a name, give a guarded name, partially disclose, or withhold and ask a question if relationship and conversational context support it.
+
+Examples:
+
+- "Nella."
+- "Name's Nella."
+- "You can call me Nella."
+- "Nella, if you need a name."
+- "Who's asking?"
+- "That depends on your business here."
+
+The job/role should be optional unless it is socially natural, useful, or personality-supported.
+
+QE6d should train name-introduction variation, optional role disclosure, valid non-answer behavior, first-person preservation, and mood expression without unsupported lore.
+
 ---
 
 ### QE7: Situation / Topic-Aware Expression
