@@ -689,6 +689,28 @@ The job/role should be optional unless it is socially natural, useful, or person
 
 QE6d should train name-introduction variation, optional role disclosure, valid non-answer behavior, first-person preservation, and mood expression without unsupported lore.
 
+### QE6d Result
+
+QE6d is considered a successful first pass for relationship-aware disclosure control.
+
+Validated improvements:
+
+- unseen names and roles were mostly preserved
+- role collapse was significantly reduced
+- NPCs can now give name-only answers
+- NPCs can partially disclose identity
+- NPCs can withhold identity when suspicion supports it
+- job/role disclosure is no longer always mandatory
+
+Remaining issues:
+
+- some lines are awkward without nonverbal delivery cues
+- some moods still collapse into generic phrasing
+- service-role phrasing can be slightly unnatural, such as a locksmith saying "Need something opened? I can lock it."
+- future work should eventually separate spoken dialogue from delivery cues
+
+QE6d is good enough to move forward. Do not advance by over-polishing exact phrasing unless it blocks runtime behavior.
+
 ---
 
 ### QE7: Situation / Topic-Aware Expression
