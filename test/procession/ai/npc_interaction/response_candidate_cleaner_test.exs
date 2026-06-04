@@ -157,4 +157,16 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleanerTest do
     assert ResponseCandidateCleaner.clean(candidate, context) ==
              "I don't know! Is she a knight? Does she have a sword?"
   end
+
+  test "keeps terse refusal boundary" do
+    candidate = "No. Don't ask me that again."
+
+    context = %{
+      "delivery_style" => %{"shape" => "terse"},
+      "conversational_move" => %{"move" => "refuse"}
+    }
+
+    assert ResponseCandidateCleaner.clean(candidate, context) ==
+            "No. Don't ask me that again."
+  end
 end

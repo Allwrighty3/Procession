@@ -123,8 +123,11 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleaner do
       is_nil(delivery_shape) and is_nil(conversational_move) ->
         keep_sentence_units(candidate, 3)
 
-      delivery_shape in ["terse", "flat"] and conversational_move in ["answer_only", "refuse"] ->
+      delivery_shape in ["terse", "flat"] and conversational_move == "answer_only" ->
         keep_sentence_units(candidate, 1)
+
+      delivery_shape in ["terse", "flat"] and conversational_move == "refuse" ->
+        keep_sentence_units(candidate, 2)
 
       delivery_shape in ["terse", "flat"] and conversational_move == "challenge_premise" ->
         keep_challenge_premise_units(candidate)
