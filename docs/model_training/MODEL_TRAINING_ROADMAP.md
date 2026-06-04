@@ -803,6 +803,29 @@ Completion criteria:
 * [ ] Keep model output non-authoritative.
 * [ ] Keep the selector simple and inspectable.
 
+### QE7b Direction
+
+QE7 exact-row evaluation showed that the initial memory-expression dataset was too small.
+
+Observed failures:
+
+- phrase collapse around memorable lines such as "That's about all I can say today"
+- irrelevant memory was sometimes directly referenced
+- `do_not_reference` was not reliably obeyed
+- control labels such as "withhold and question" could leak into dialogue
+- some outputs appended semantically odd tails
+
+QE7b adds memory-policy patch examples.
+
+Training goals:
+
+- `do_not_reference` means memory may affect tone only, or be ignored
+- irrelevant memory should not be mentioned
+- `may_allude` should produce subtle callbacks, not full recaps
+- `may_reference` permits direct reference only when relevant and natural
+- metadata/control labels must never appear in the final NPC line
+- avoid overusing any single emotional phrase
+
 ---
 
 ## Later Model Phases
