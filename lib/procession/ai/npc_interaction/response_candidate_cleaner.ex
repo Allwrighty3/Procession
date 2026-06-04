@@ -123,17 +123,30 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleaner do
       is_nil(delivery_shape) and is_nil(conversational_move) ->
         keep_sentence_units(candidate, 3)
 
-      delivery_shape in ["terse", "flat"] ->
+      delivery_shape in ["terse", "flat"] and conversational_move in ["answer_only", "refuse"] ->
         keep_sentence_units(candidate, 1)
 
-      conversational_move in ["answer_only", "refuse", "challenge_premise"] ->
+      delivery_shape in ["terse", "flat"] and conversational_move == "challenge_premise" ->
+        keep_challenge_premise_units(candidate)
+
+      delivery_shape in ["terse", "flat"] and
+          conversational_move in ["ask_followup", "answer_and_question"] ->
+        keep_sentence_units(candidate, 1)
+
+      conversational_move == "ask_followup" ->
+        keep_sentence_units(candidate, 3)
+
+      conversational_move == "answer_and_question" ->
         keep_sentence_units(candidate, 2)
+
+      conversational_move in ["challenge_premise"] ->
+        keep_challenge_premise_units(candidate)
 
       conversational_move in ["answer_and_warn", "answer_and_challenge"] ->
         keep_sentence_units(candidate, 2)
 
       conversational_move in ["ask_followup", "answer_and_question"] ->
-        keep_sentence_units(candidate, 2)
+        keep_sentence_units(candidate, 3)
 
       true ->
         keep_sentence_units(candidate, 2)
@@ -155,6 +168,31 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleaner do
         |> Enum.take(max_units)
         |> Enum.join(" ")
     end
+  end
+
+  defp keep_challenge_premise_units(candidate) do
+    units = sentence_units(candidate)
+
+    case units do
+      [first, second | _rest] ->
+        if short_question_chain?(first) do
+          Enum.join([first, second], " ")
+        else
+          first
+        end
+
+      _ ->
+        candidate
+    end
+  end
+
+  defp short_question_chain?(unit) do
+    unit
+    |> String.split("?")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> length()
+    |> Kernel.>(1)
   end
 
   defp trim_dangling_tail(candidate) do
@@ -181,6 +219,37 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleaner do
     |> List.flatten()
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+    |> merge_leading_question_fragments()
+  end
+
+  defp merge_leading_question_fragments(units) do
+    {leading_questions, rest} = Enum.split_while(units, &short_question_fragment?/1)
+
+    case {leading_questions, rest} do
+      {[], _rest} ->
+        units
+
+      {_questions, []} ->
+        [Enum.join(leading_questions, " ")]
+
+      {[_one_question], _rest} ->
+        units
+
+      {questions, remaining} ->
+        [Enum.join(questions, " ") | remaining]
+    end
+  end
+
+  defp short_question_fragment?(unit) do
+    trimmed = String.trim(unit)
+
+    word_count =
+      trimmed
+      |> String.trim_trailing("?")
+      |> String.split(~r/\s+/, trim: true)
+      |> length()
+
+    String.ends_with?(trimmed, "?") and word_count <= 4
   end
 
   defp normalize_for_comparison(sentence) do

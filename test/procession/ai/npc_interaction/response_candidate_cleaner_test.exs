@@ -41,7 +41,7 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleanerTest do
     }
 
     assert ResponseCandidateCleaner.clean(raw, context) ==
-            "No, Tobin's not my brother. He's the merchant out by the crossroads."
+             "No, Tobin's not my brother. He's the merchant out by the crossroads."
   end
 
   test "returns non-string candidates unchanged" do
@@ -108,5 +108,53 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleanerTest do
 
     assert ResponseCandidateCleaner.clean(candidate, context) ==
              "I don't know. Is she nice?"
+  end
+
+  test "preserves rhetorical false-premise question chain" do
+    candidate = "Tobin? My brother? I'd have better luck adopting a mule."
+
+    context = %{
+      "delivery_style" => %{"shape" => "sharp"},
+      "conversational_move" => %{"move" => "challenge_premise"}
+    }
+
+    assert ResponseCandidateCleaner.clean(candidate, context) ==
+             "Tobin? My brother? I'd have better luck adopting a mule."
+  end
+
+  test "preserves contemptuous short question setup" do
+    candidate = "Tobin? That roadside fool? Not a chance."
+
+    context = %{
+      "delivery_style" => %{"shape" => "terse"},
+      "conversational_move" => %{"move" => "challenge_premise"}
+    }
+
+    assert ResponseCandidateCleaner.clean(candidate, context) ==
+             "Tobin? That roadside fool? Not a chance."
+  end
+
+  test "keeps short setup question with follow-up question" do
+    candidate = "Elandra? She looking for money? I don't have time for this."
+
+    context = %{
+      "delivery_style" => %{"shape" => "terse"},
+      "conversational_move" => %{"move" => "ask_followup"}
+    }
+
+    assert ResponseCandidateCleaner.clean(candidate, context) ==
+             "Elandra? She looking for money?"
+  end
+
+  test "preserves eager child question chain" do
+    candidate = "I don't know! Is she a knight? Does she have a sword?"
+
+    context = %{
+      "delivery_style" => %{"shape" => "eager"},
+      "conversational_move" => %{"move" => "ask_followup"}
+    }
+
+    assert ResponseCandidateCleaner.clean(candidate, context) ==
+             "I don't know! Is she a knight? Does she have a sword?"
   end
 end

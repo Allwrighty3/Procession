@@ -94,21 +94,24 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     }
 
     assert {:ok, result} =
-            ResponseExpressionPipeline.express(
-              intent,
-              fallback,
-              adapter: TerseDriftAdapter,
-              delivery_style: %{
-                "shape" => "terse",
-                "detail_level" => "minimal"
-              },
-              conversational_move: %{
-                "move" => "challenge_premise"
-              }
-            )
+             ResponseExpressionPipeline.express(
+               intent,
+               fallback,
+               adapter: TerseDriftAdapter,
+               delivery_style: %{
+                 "shape" => "terse",
+                 "detail_level" => "minimal"
+               },
+               conversational_move: %{
+                 "move" => "challenge_premise"
+               }
+             )
 
     assert result.response_source == :expression_candidate
-    assert result.candidate_response == "Do I look like Tobin to you? Do I look like the merchant to you?"
+
+    assert result.candidate_response ==
+             "Do I look like Tobin to you? Do I look like the merchant to you?"
+
     assert result.response == "Do I look like Tobin to you? Do I look like the merchant to you?"
     assert result.validation_failures == []
   end
@@ -211,7 +214,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
                  "toward" => "npc_tobin",
                  "attitude" => "dismissive"
                },
-                emotional_state: %{
+               emotional_state: %{
                  "mood" => "irritated",
                  "intensity" => "high",
                  "restraint" => "medium"

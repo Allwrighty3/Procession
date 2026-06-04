@@ -27,7 +27,9 @@ defmodule Mix.Tasks.Procession.Training.NpcInteraction.Qe4VoiceExpressionSft.Exp
         Mix.shell().info("Total rows: #{summary.exported_count}")
 
       {:error, reason} ->
-        Mix.raise("Failed to export QE4 NPC interaction voice expression SFT rows: #{inspect(reason)}")
+        Mix.raise(
+          "Failed to export QE4 NPC interaction voice expression SFT rows: #{inspect(reason)}"
+        )
     end
   end
 end

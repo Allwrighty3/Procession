@@ -39,7 +39,9 @@ defmodule Procession.AI.NPCInteraction.VoiceExpressionExampleLoaderTest do
 
   test "returns file read errors" do
     assert {:error, :enoent} =
-             VoiceExpressionExampleLoader.load("priv/training/missing_voice_expression_examples.jsonl")
+             VoiceExpressionExampleLoader.load(
+               "priv/training/missing_voice_expression_examples.jsonl"
+             )
   end
 
   test "returns invalid JSONL line errors" do
@@ -50,8 +52,7 @@ defmodule Procession.AI.NPCInteraction.VoiceExpressionExampleLoaderTest do
     not valid json
     """)
 
-    assert {:error, {:invalid_jsonl_line, 2, _reason}} =
-             VoiceExpressionExampleLoader.load(path)
+    assert {:error, {:invalid_jsonl_line, 2, _reason}} = VoiceExpressionExampleLoader.load(path)
 
     File.rm!(path)
   end

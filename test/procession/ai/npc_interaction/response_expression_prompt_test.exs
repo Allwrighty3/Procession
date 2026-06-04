@@ -74,7 +74,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
                  "attitude" => "dismissive",
                  "trust" => "low"
                },
-                emotional_state: %{
+               emotional_state: %{
                  "mood" => "irritated",
                  "intensity" => "high",
                  "restraint" => "medium"

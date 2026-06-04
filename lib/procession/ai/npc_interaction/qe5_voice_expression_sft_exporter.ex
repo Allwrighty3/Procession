@@ -97,7 +97,7 @@ defmodule Procession.AI.NPCInteraction.QE5VoiceExpressionSFTExporter do
            "emotional_state" => Map.get(example, "emotional_state", %{}),
            "notes" => Map.get(example, "notes"),
            "delivery_style" => Map.get(example, "delivery_style", %{}),
-           "conversational_move" => Map.get(example, "conversational_move", %{}),
+           "conversational_move" => Map.get(example, "conversational_move", %{})
          }
        }}
     end
