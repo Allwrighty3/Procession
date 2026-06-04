@@ -46,6 +46,12 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     end
   end
 
+  defmodule TerseDriftAdapter do
+    def generate(_prompt, _opts \\ []) do
+      {:ok, "Do I look like Tobin to you? Do I look like the merchant to you?"}
+    end
+  end
+
   test "uses valid expression candidate" do
     fallback = "Mira is the innkeeper in Briar Village."
 
@@ -63,6 +69,48 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPipelineTest do
     assert result.validation_failures == []
     assert result.adapter_error == nil
     assert result.prompt =~ "### Final NPC Line"
+  end
+
+  test "cleans expression candidate using delivery style and conversational move" do
+    fallback = "No, Tobin is the merchant. I'm Mira, the innkeeper in Briar Village."
+
+    intent = %{
+      "speaker_id" => "npc_mira",
+      "target_id" => "npc_mira",
+      "dialogue_act" => "reject_false_role",
+      "response_goal" => "Tell the player Mira is not Tobin the merchant.",
+      "known_facts_used" => [
+        %{"entity_id" => "npc_tobin", "field" => "name", "value" => "Tobin"},
+        %{"entity_id" => "npc_tobin", "field" => "role", "value" => "merchant"},
+        %{"entity_id" => "npc_mira", "field" => "name", "value" => "Mira"},
+        %{"entity_id" => "npc_mira", "field" => "role", "value" => "innkeeper"}
+      ],
+      "forbidden_inventions" => [
+        "Mira is Tobin",
+        "Mira is the merchant",
+        "Tobin is the innkeeper"
+      ],
+      "unknowns_acknowledged" => []
+    }
+
+    assert {:ok, result} =
+            ResponseExpressionPipeline.express(
+              intent,
+              fallback,
+              adapter: TerseDriftAdapter,
+              delivery_style: %{
+                "shape" => "terse",
+                "detail_level" => "minimal"
+              },
+              conversational_move: %{
+                "move" => "challenge_premise"
+              }
+            )
+
+    assert result.response_source == :expression_candidate
+    assert result.candidate_response == "Do I look like Tobin to you? Do I look like the merchant to you?"
+    assert result.response == "Do I look like Tobin to you? Do I look like the merchant to you?"
+    assert result.validation_failures == []
   end
 
   test "falls back when expression candidate violates intent" do
