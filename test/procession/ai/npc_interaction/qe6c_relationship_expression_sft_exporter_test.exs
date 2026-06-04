@@ -4,7 +4,8 @@ defmodule Procession.AI.NPCInteraction.QE6CRelationshipExpressionSFTExporterTest
   alias Procession.AI.NPCInteraction.QE6CRelationshipExpressionSFTExporter
 
   test "exports combined QE6c relationship expression SFT rows" do
-    output_path = "tmp/training_exports/npc_interaction_qe6c_relationship_expression_sft_test.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6c_relationship_expression_sft_test.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)

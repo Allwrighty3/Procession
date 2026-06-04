@@ -713,52 +713,40 @@ QE6d is good enough to move forward. Do not advance by over-polishing exact phra
 
 ---
 
-### QE7: Situation / Topic-Aware Expression
+### QE7: Memory-influenced expression
 
-Input:
+QE7 teaches the expression model to adjust phrasing based on validated recent memory.
 
-```text
-intent + fallback + voice_profile + relationship_stance + emotional_state + delivery_style + conversational_move + current situation/topic
-```
+Important distinction:
 
-Goal:
+- QE7 is memory-influenced expression, not automatic memory-referencing.
+- Memory should usually affect tone, patience, warmth, suspicion, cooperation, or amount of detail.
+- Memory should only be directly mentioned when the memory is highly relevant and the reference policy allows it.
 
-Same speaker can shift expression when the immediate situation or sensitive topic changes.
+Elixir owns:
 
-Example:
+- memory truth
+- memory relevance
+- whether memory may be referenced
+- memory summaries
+- relationship/state updates
 
-```text
-Normal public inn interaction:
-Player: Do you have a room?
-Mira: Of course. Need one bed or two?
+AI owns:
 
-Tobin family question:
-Player: Is Tobin your brother?
-Mira: No. Don't use that word lightly around me.
+- phrasing
+- tone
+- subtle allusion
+- conversational rhythm
 
-Player pushes the topic:
-Player: Why not? What happened?
-Mira: I said no.
-```
+QE7 input should include a `recent_memory` object:
 
-Important:
-
-QE7 trains expression for situationally selected state.
-
-It does not train the model to decide the situation.
-
-Elixir should decide the active topic/situation and expression metadata.
-
-Completion criteria:
-
-* [ ] Add examples with `situation` or `topic`.
-* [ ] Include sensitive-topic shifts.
-* [ ] Include public/private context differences.
-* [ ] Include under-pressure responses.
-* [ ] Include examples where the same NPC is friendly in one situation and hostile in another.
-* [ ] Ensure Elixir-owned metadata selects the state.
-* [ ] Ensure model only expresses supplied state.
-* [ ] Avoid letting the model infer hidden trauma or secret relationships.
+```json
+{
+  "summary": "The player asked Mira about Tobin several times.",
+  "relevance": "high",
+  "stance_effect": "impatient",
+  "reference_policy": "may_allude"
+}
 
 ---
 

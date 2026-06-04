@@ -167,6 +167,6 @@ defmodule Procession.AI.NPCInteraction.ResponseCandidateCleanerTest do
     }
 
     assert ResponseCandidateCleaner.clean(candidate, context) ==
-            "No. Don't ask me that again."
+             "No. Don't ask me that again."
   end
 end

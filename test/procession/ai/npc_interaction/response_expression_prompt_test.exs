@@ -117,6 +117,40 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPromptTest do
     assert prompt =~ "\"question_allowed\": true"
   end
 
+  test "renders recent memory in expression context" do
+    intent = %{
+      "speaker_id" => "npc_mira",
+      "target_id" => "npc_mira",
+      "dialogue_act" => "reject_false_relationship",
+      "response_goal" => "Tell the listener Tobin is not Mira's family.",
+      "known_facts_used" => [],
+      "forbidden_inventions" => ["Tobin is Mira's brother"],
+      "unknowns_acknowledged" => []
+    }
+
+    fallback = "No, Tobin isn't family."
+
+    recent_memory = %{
+      "summary" => "The listener has already asked Mira about Tobin several times.",
+      "relevance" => "high",
+      "stance_effect" => "impatient",
+      "reference_policy" => "may_allude"
+    }
+
+    assert {:ok, prompt} =
+             Procession.AI.NPCInteraction.ResponseExpressionPrompt.render(
+               intent,
+               fallback,
+               recent_memory: recent_memory
+             )
+
+    assert prompt =~ "recent_memory"
+    assert prompt =~ "already asked Mira about Tobin"
+    assert prompt =~ "may_allude"
+    assert prompt =~ "Recent memory may influence tone"
+    assert prompt =~ "Do not mention recent memory directly unless"
+  end
+
   defp known_entity_intent do
     %{
       "speaker_id" => "npc_tobin",

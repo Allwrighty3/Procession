@@ -41,6 +41,8 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
   - `:conversational_move` - map or string describing what the line
     should do in conversation, such as answer only, ask a follow-up,
     challenge a premise, warn, redirect, or refuse.
+  - `:recent_memory` - map describing validated recent memory influence,
+    relevance, stance effect, and reference policy.
   """
   @spec render(map(), String.t(), keyword()) :: render_result()
   def render(intent, fallback_response, opts)
@@ -73,6 +75,10 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     - Do not change entity roles, locations, relationships, or current activity.
     - Do not mention forbidden inventions as true.
     - If the fallback expresses uncertainty, preserve that uncertainty.
+    - Recent memory may influence tone, warmth, suspicion, patience, cooperation, or detail.
+    - Do not mention recent memory directly unless the memory reference policy allows it.
+    - If recent memory is irrelevant or marked do_not_reference, let it affect tone only or ignore it.
+    - Do not invent events, history, promises, favors, threats, or relationships from memory context.
 
     ### Response Intent
     #{Jason.encode!(intent, pretty: true)}
@@ -95,6 +101,7 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
       "emotional_state" => Keyword.get(opts, :emotional_state, %{}),
       "delivery_style" => Keyword.get(opts, :delivery_style, "plain"),
       "conversational_move" => Keyword.get(opts, :conversational_move, "answer_only"),
+      "recent_memory" => Keyword.get(opts, :recent_memory, %{}),
       "style_permissions" => %{
         "may_use_subjective_opinion" => true,
         "may_omit_nonessential_known_facts" => true,

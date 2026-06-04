@@ -8,7 +8,8 @@ defmodule Procession.AI.NPCInteraction.QE6BRelationshipExpressionSFTExporterTest
   @patch_examples_path "priv/training/npc_interaction_qe6b_relationship_expression_patch_examples.jsonl"
 
   test "exports QE6b relationship expression SFT rows" do
-    output_path = "tmp/training_exports/npc_interaction_qe6b_relationship_expression_sft_test.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6b_relationship_expression_sft_test.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)
@@ -42,7 +43,8 @@ defmodule Procession.AI.NPCInteraction.QE6BRelationshipExpressionSFTExporterTest
   end
 
   test "exports prompts with nested QE6b relationship expression context" do
-    output_path = "tmp/training_exports/npc_interaction_qe6b_relationship_expression_prompt_shape.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6b_relationship_expression_prompt_shape.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)
@@ -63,7 +65,8 @@ defmodule Procession.AI.NPCInteraction.QE6BRelationshipExpressionSFTExporterTest
            end)
 
     assert Enum.any?(rows, fn row ->
-             row["id"] == "qe6b_relationship_expression_qe6b_tobin_about_mira_plain_no_identity_bleed" and
+             row["id"] ==
+               "qe6b_relationship_expression_qe6b_tobin_about_mira_plain_no_identity_bleed" and
                row["prompt"] =~ "\"speaker\": \"Tobin\"" and
                row["prompt"] =~ "\"role\": \"innkeeper\"" and
                row["completion"] == "Mira keeps the inn in Briar Village."
@@ -73,7 +76,8 @@ defmodule Procession.AI.NPCInteraction.QE6BRelationshipExpressionSFTExporterTest
   end
 
   test "marks exported rows as non-authoritative QE6b relationship expression data" do
-    output_path = "tmp/training_exports/npc_interaction_qe6b_relationship_expression_metadata.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6b_relationship_expression_metadata.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)

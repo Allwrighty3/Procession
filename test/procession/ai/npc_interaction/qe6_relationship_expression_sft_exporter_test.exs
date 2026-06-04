@@ -7,7 +7,8 @@ defmodule Procession.AI.NPCInteraction.QE6RelationshipExpressionSFTExporterTest 
   @examples_path "priv/training/npc_interaction_qe6_relationship_expression_examples.jsonl"
 
   test "exports QE6 relationship expression SFT rows" do
-    output_path = "tmp/training_exports/npc_interaction_qe6_relationship_expression_sft_test.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6_relationship_expression_sft_test.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)
@@ -40,7 +41,8 @@ defmodule Procession.AI.NPCInteraction.QE6RelationshipExpressionSFTExporterTest 
   end
 
   test "exports prompts with nested relationship expression context" do
-    output_path = "tmp/training_exports/npc_interaction_qe6_relationship_expression_prompt_shape.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6_relationship_expression_prompt_shape.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)
@@ -71,7 +73,8 @@ defmodule Procession.AI.NPCInteraction.QE6RelationshipExpressionSFTExporterTest 
   end
 
   test "marks exported rows as non-authoritative QE6 relationship expression data" do
-    output_path = "tmp/training_exports/npc_interaction_qe6_relationship_expression_metadata.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6_relationship_expression_metadata.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)

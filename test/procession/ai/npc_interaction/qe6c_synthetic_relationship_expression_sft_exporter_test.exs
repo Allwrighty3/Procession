@@ -7,7 +7,8 @@ defmodule Procession.AI.NPCInteraction.QE6CSyntheticRelationshipExpressionSFTExp
   @examples_path "priv/training/npc_interaction_qe6c_relationship_expression_synthetic_examples.jsonl"
 
   test "exports QE6c synthetic relationship expression SFT rows" do
-    output_path = "tmp/training_exports/npc_interaction_qe6c_synthetic_relationship_expression_sft_test.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe6c_synthetic_relationship_expression_sft_test.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)
@@ -65,13 +66,15 @@ defmodule Procession.AI.NPCInteraction.QE6CSyntheticRelationshipExpressionSFTExp
 
     john_row =
       Enum.find(rows, fn row ->
-        row["id"] == "qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_despondent_friend"
+        row["id"] ==
+          "qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_despondent_friend"
       end)
 
     assert john_row
     assert john_row["prompt"] =~ "John"
     assert john_row["prompt"] =~ "blacksmith"
     assert john_row["prompt"] =~ "despondent"
+
     assert john_row["completion"] ==
              "John. I work the forge in Greyford. Some days that sounds heavier than it should."
 
