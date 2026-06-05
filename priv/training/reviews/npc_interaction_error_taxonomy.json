@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "ratings": {
+    "pass": "Acceptable raw dialogue. Could be used as-is.",
+    "minor": "Usable but not ideal: slightly awkward, redundant, too long, or less natural than expected.",
+    "fail": "Unacceptable for the target row, but not a severe canon, policy, identity, or format failure.",
+    "reject": "Severe failure: metadata leakage, memory-policy violation, identity or canon drift, malformed text, or otherwise unusable output."
+  },
+  "error_categories": {
+    "memory_policy_violation": "Mentions or uses recent memory when reference_policy is do_not_reference or memory relevance is irrelevant.",
+    "metadata_label_leak": "Outputs internal labels, metadata keys, move names, policy names, or field names as dialogue.",
+    "over_disclosure": "Provides more identity, role, location, or factual detail than the conversational move or delivery style calls for.",
+    "under_disclosure": "Omits required identity or grounded fact when the conversational move calls for answering.",
+    "catchphrase_tail": "Adds a repeated or overfit stock phrase, especially as an emotional or minimal-response tail.",
+    "duplicate_fact": "Repeats the same fact or proposition unnecessarily.",
+    "invented_fact": "Adds objective world facts not present in the response intent, fallback, expression context, or validated memory.",
+    "role_identity_drift": "Changes speaker identity, subject identity, role, location, first-person/third-person perspective, or relationship facts.",
+    "tone_mismatch": "Tone does not match the voice profile, relationship stance, emotional state, or recent memory stance effect.",
+    "followup_not_allowed": "Adds a question, warning, redirect, or challenge when the conversational move or delivery style does not support it.",
+    "missing_allowed_allusion": "Fails to use a memory allusion when that allusion is central to the expected behavior.",
+    "valid_alternative": "Differs from the expected text but satisfies the row intent, grounding, tone, and constraints.",
+    "awkward_but_safe": "Output is grounded and safe but sounds unnatural, stiff, or socially odd.",
+    "malformed_text": "Contains broken words, symbols, unfinished fragments, prompt residue, or obvious generation garbage."
+  }
+}
