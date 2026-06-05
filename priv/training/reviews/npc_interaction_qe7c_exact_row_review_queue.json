@@ -1,839 +1,1194 @@
 {
-  "instructions": {
-    "edit_fields": [
-      "rating",
-      "error_tags",
-      "training_note"
-    ],
-    "merge_back_with": "mix procession.training.review_merge",
-    "ratings": [
-      "pass",
-      "minor",
-      "fail",
-      "reject"
-    ]
-  },
+  "source_file": "priv/training/reviews/npc_interaction_qe7c_exact_row_auto_review.jsonl",
   "row_count": 91,
+  "instructions": {
+    "edit_fields": ["rating", "error_tags", "preferred_response", "training_note"],
+    "ratings": ["pass", "minor", "fail", "reject"],
+    "merge_back_with": "mix procession.training.review_merge"
+  },
   "rows": [
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. I run the inn; Tobin sells at the crossroads.",
       "id": "qe6b_relationship_expression_mira_tobin_not_brother_to_paying_guest",
+
+      "expected": "No. I run the inn; Tobin sells at the crossroads.",
+      "raw_generated": "No. Why are you asking? Tobin isn't family.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. Why are you asking?",
       "id": "qe6b_relationship_expression_mira_tobin_not_brother_to_nosy_stranger",
+
+      "expected": "No. Why are you asking?",
+      "raw_generated": "No. Why are you asking? Tobin isn't family.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No, dear. Tobin isn't my brother.",
       "id": "qe6b_relationship_expression_mira_tobin_not_brother_to_child",
+
+      "expected": "No, dear. Tobin isn't my brother.",
+      "raw_generated": "No. Why are you asking? Tobin isn't family.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "You? My brother? Don't flatter yourself.",
       "id": "qe6b_relationship_expression_mira_tobin_not_brother_to_tobin",
+
+      "expected": "You? My brother? Don't flatter yourself.",
+      "raw_generated": "No. Why are you asking? Tobin isn't family.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"challenge_premise\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"challenge_premise\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira. I keep the inn in Briar Village.",
       "id": "qe6b_relationship_expression_mira_self_identity_to_guest",
+
+      "expected": "Mira. I keep the inn in Briar Village.",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira. I keep the inn. Why are you asking?",
       "id": "qe6b_relationship_expression_mira_self_identity_to_suspicious_stranger",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira, keeper of the inn and apparently your memory too.",
-      "id": "qe6b_relationship_expression_mira_self_identity_to_friend",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira keeps the inn in Briar Village.",
-      "id": "qe6b_relationship_expression_tobin_mira_activity_to_stranger",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Why are you asking about her?",
-      "id": "qe6b_relationship_expression_tobin_mira_activity_to_nosy_stranger",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_citizen",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Never heard of her. State your business.",
-      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_suspicious_stranger",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. Are you lost?",
-      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_child",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Elandra? She looking for money?",
-      "id": "qe6b_relationship_expression_miner_unknown_elandra_to_debt_collector",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"ask_followup\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Elandra? Someone else trying to collect on a debt?",
-      "id": "qe6b_relationship_expression_miner_unknown_elandra_to_friend",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe6b_relationship_expression_child_unknown_elandra_to_scary_stranger",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira keeps the inn in Briar Village.",
-      "id": "qe6b_relationship_expression_qe6b_tobin_about_mira_plain_no_identity_bleed",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Mira keeps the inn. Why are you asking about her?",
-      "id": "qe6b_relationship_expression_qe6b_tobin_about_mira_guarded_no_self_role_bleed",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
+
       "expected": "Mira. I keep the inn. Why are you asking?",
-      "id": "qe6b_relationship_expression_qe6b_mira_self_suspicious_preserve_guarded_question",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
+      "id": "qe6b_relationship_expression_mira_self_identity_to_friend",
+
       "expected": "Mira, keeper of the inn and apparently your memory too.",
-      "id": "qe6b_relationship_expression_qe6b_mira_self_friend_no_ramble",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Elandra? Someone else trying to collect on a debt?",
-      "id": "qe6b_relationship_expression_qe6b_miner_unknown_elandra_friend_no_invented_attitude",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "id": "qe6b_relationship_expression_tobin_mira_activity_to_stranger",
+
+      "expected": "Mira keeps the inn in Briar Village.",
+      "raw_generated": "Mira keeps the inn in Briar Village. Why are you asking? She keeps the inn in Briar Village.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
+      "id": "qe6b_relationship_expression_tobin_mira_activity_to_nosy_stranger",
+
+      "expected": "Why are you asking about her?",
+      "raw_generated": "Mira keeps the inn in Briar Village. Why are you asking? She keeps the inn in Briar Village.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_citizen",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_suspicious_stranger",
+
       "expected": "Never heard of her. State your business.",
+      "raw_generated": "No. Are you lost? State your name.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_guard_unknown_elandra_to_child",
+
+      "expected": "No. Are you lost?",
+      "raw_generated": "No. Are you lost? Is your backpack with you?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_miner_unknown_elandra_to_debt_collector",
+
+      "expected": "Elandra? She looking for money?",
+      "raw_generated": "I don't know. Is she owed money? Someone else?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"ask_followup\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_miner_unknown_elandra_to_friend",
+
+      "expected": "Elandra? Someone else trying to collect on a debt?",
+      "raw_generated": "I don't know! Is she nice? Is she lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6b_relationship_expression_child_unknown_elandra_to_scary_stranger",
+
+      "expected": "No.",
+      "raw_generated": "No. Are you hurt? Someoneindeer?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_qe6b_tobin_about_mira_plain_no_identity_bleed",
+
+      "expected": "Mira keeps the inn in Briar Village.",
+      "raw_generated": "Mira keeps the inn in Briar Village. Why are you asking? She keeps the inn in Briar Village.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_qe6b_tobin_about_mira_guarded_no_self_role_bleed",
+
+      "expected": "Mira keeps the inn. Why are you asking about her?",
+      "raw_generated": "Mira keeps the inn in Briar Village. Why are you asking? She keeps the inn in Briar Village.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6b_relationship_expression_qe6b_mira_self_suspicious_preserve_guarded_question",
+
+      "expected": "Mira. I keep the inn. Why are you asking?",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6b_relationship_expression_qe6b_mira_self_friend_no_ramble",
+
+      "expected": "Mira, keeper of the inn and apparently your memory too.",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6b_relationship_expression_qe6b_miner_unknown_elandra_friend_no_invented_attitude",
+
+      "expected": "Elandra? Someone else trying to collect on a debt?",
+      "raw_generated": "I don't know! Is she nice? Is she lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
       "id": "qe6b_relationship_expression_qe6b_guard_unknown_elandra_suspicious_no_garbage",
+
+      "expected": "Never heard of her. State your business.",
+      "raw_generated": "No. Are you lost? State your name.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
       "id": "qe6b_relationship_expression_qe6b_child_unknown_elandra_scary_stranger_terse",
+
+      "expected": "No.",
+      "raw_generated": "No. Are you hurt? Someoneindeer?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "John. I work the forge in Greyford. Some days that sounds heavier than it should.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_despondent_friend",
+
+      "expected": "John. I work the forge in Greyford. Some days that sounds heavier than it should.",
+      "raw_generated": "John. I work the forge in Greyford. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I'm John, little one. I work the forge in Greyford.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_to_child",
+
+      "expected": "I'm John, little one. I work the forge in Greyford.",
+      "raw_generated": "John. I work the forge in Greyford. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I'm Mara, the healer in Northwell. Are you hurt?",
       "id": "qe6c_synthetic_relationship_expression_qe6c_mara_healer_to_patient",
+
+      "expected": "I'm Mara, the healer in Northwell. Are you hurt?",
+      "raw_generated": "Mara. I heal people in Northwell. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. I don't know enough about Orren.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_mara_about_orren_unknown_precise",
+
+      "expected": "No. I don't know enough about Orren.",
+      "raw_generated": "No. I don't know enough about Orren. Are you hurt?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Cale. I run the ferry at Reed Crossing. Careful near the water.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_cale_ferryman_child",
+
+      "expected": "Cale. I run the ferry at Reed Crossing. Careful near the water.",
+      "raw_generated": "Cale. I run the ferry at Reed Crossing. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Cale. Ferryman at Reed Crossing.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_cale_ferryman_stranger",
+
+      "expected": "Cale. Ferryman at Reed Crossing.",
+      "raw_generated": "Cale. Ferryman at Reed Crossing. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Brina. The baker in Stonebridge, as you already know.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_brina_baker_proud_rival",
+
+      "expected": "Brina. The baker in Stonebridge, as you already know.",
+      "raw_generated": "Brina. I bake bread in Stonebridge. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I'm Brina, the baker in Stonebridge. Looking for bread?",
       "id": "qe6c_synthetic_relationship_expression_qe6c_brina_baker_customer",
+
+      "expected": "I'm Brina, the baker in Stonebridge. Looking for bread?",
+      "raw_generated": "I'm Brina, the baker in Stonebridge. Buying bread? Need something baked?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. I don't know Orren.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_selka_scribe_unknown_orren",
+
+      "expected": "No. I don't know Orren.",
+      "raw_generated": "No. I don't know Orren. Are you looking for him?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Selka, scribe at the west archive.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_selka_scribe_authority",
+
+      "expected": "Selka, scribe at the west archive.",
+      "raw_generated": "Selka. I write the words at the west archive. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Orren. I hunt near Pinewatch. Not proud of much today, but that's still true.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_orren_hunter_ashamed_friend",
+
+      "expected": "Orren. I hunt near Pinewatch. Not proud of much today, but that's still true.",
+      "raw_generated": "Orren. Hunter near Pinewatch. I'm Orren, sorry.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Orren. Hunter near Pinewatch.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_orren_hunter_stranger",
+
+      "expected": "Orren. Hunter near Pinewatch.",
+      "raw_generated": "Orren. Hunter near Pinewatch. Not much to say.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I'm Fen, a guard at Westgate. Are you lost?",
       "id": "qe6c_synthetic_relationship_expression_qe6c_fen_guard_reluctant_child",
+
+      "expected": "I'm Fen, a guard at Westgate. Are you lost?",
+      "raw_generated": "Fen. Guard at Westgate. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Fen. Guard at Westgate.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_fen_guard_stranger_formal",
+
+      "expected": "Fen. Guard at Westgate.",
+      "raw_generated": "Fen. Guard at Westgate. Word for you.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Alden. Merchant at South Road. Not much cheer in saying it today.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_alden_merchant_despondent_stranger",
+
+      "expected": "Alden. Merchant at South Road. Not much cheer in saying it today.",
+      "raw_generated": "Alden, merchant at South Road. Buying or selling?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "John is Greyford's blacksmith. Why are you asking about him?",
       "id": "qe6c_synthetic_relationship_expression_qe6c_lyra_about_john_protective",
+
+      "expected": "John is Greyford's blacksmith. Why are you asking about him?",
+      "raw_generated": "John is the blacksmith in Greyford. Why are you asking? He works the forge there.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "John is the blacksmith in Greyford.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_lyra_about_john_plain_friend",
+
+      "expected": "John is the blacksmith in Greyford.",
+      "raw_generated": "John is the blacksmith in Greyford. He works the forge. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. I don't know Mara.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_sela_unknown_mara_wary",
+
+      "expected": "No. I don't know Mara.",
+      "raw_generated": "No. I don't know Mara. Are you looking for her?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. I don't know Mara. Are you looking for her?",
       "id": "qe6c_synthetic_relationship_expression_qe6c_sela_unknown_mara_child_listener",
+
+      "expected": "No. I don't know Mara. Are you looking for her?",
+      "raw_generated": "No. I don't know Mara. Are you looking for her?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_question\" should not add follow-up questions unless the move supports them."
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_and_question\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up.","Raw output exactly matches expected output."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Brina is Stonebridge's baker. She'll tell you that fast enough.",
       "id": "qe6c_synthetic_relationship_expression_qe6c_tomas_about_brina_rival",
+
+      "expected": "Brina is Stonebridge's baker. She'll tell you that fast enough.",
+      "raw_generated": "Brina is Stonebridge's baker. She keeps the bakery. She works hard.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Nella.",
       "id": "qe6d_disclosure_relationship_expression_qe6d_nella_name_only_neutral",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Name's Nella. I make candles here.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_names_casual",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "You can call me Nella, dear.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_soft_child",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Who's asking?",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_guarded_withhold",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Nella, if you need a name.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_guarded_partial",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Depends what you want.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_bram_withhold_authority",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Bram. Mind the hives.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_bram_name_prickly",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Tessa. Sorry.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_tessa_name_only_flustered",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" should not add follow-up questions unless the move supports them."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I'm Garrick, dear. I help families in Larkspur.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_garrick_midwife_safe_child",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Garrick, little one.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_garrick_name_only_child",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Elowen. Glassblower. You knew that.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_elowen_defensive_name",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "You know exactly who I am.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_elowen_withhold_rival",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_rusk_first_person_numb",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Rusk.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_rusk_name_only_numb",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Maelin. Need something opened?",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_maelin_buoyant_name",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Maelin. Easy enough to remember.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_maelin_name_casual",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Corvin. I map roads from Windmere, though my thoughts keep wandering back there.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_corvin_homesick_name",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Corvin.",
-      "id": "qe6d_disclosure_relationship_expression_qe6d_corvin_name_only_reserved",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No, dear. Tobin isn't family.",
-      "id": "qe7_memory_expression_qe7_mira_tobin_helped_inn_warm_no_reference",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. Still not family.",
-      "id": "qe7_memory_expression_qe7_mira_tobin_repeated_questions_impatient_allude",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. And if you're still looking for Tobin, leave it alone.",
-      "id": "qe7_memory_expression_qe7_mira_tobin_threatened_protective_reference",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe7_memory_expression_qe7_guard_unknown_elandra_respectful_citizen_no_reference",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. You're asking a lot for someone who answers little.",
-      "id": "qe7_memory_expression_qe7_guard_unknown_elandra_suspicious_allude",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I don't know! Is she nice?",
-      "id": "qe7_memory_expression_qe7_child_unknown_elandra_friendly_memory_tone_only",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe7_memory_expression_qe7_child_unknown_elandra_scared_memory_tone_only",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Depends. This about the hives again?",
-      "id": "qe7_memory_expression_qe7_bram_identity_authority_prior_hassle_withhold",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
-      "id": "qe7_memory_expression_qe7_rusk_identity_friend_prior_concern_numb",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Maelin. Back with another stubborn lock?",
-      "id": "qe7_memory_expression_qe7_maelin_customer_prior_help_buoyant",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Corvin.",
-      "id": "qe7_memory_expression_qe7_corvin_identity_stranger_irrelevant_memory_ignored",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "You know exactly who I am.",
-      "id": "qe7_memory_expression_qe7_elowen_identity_rival_prior_argument_defensive",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Corvin.",
-      "id": "qe7b_memory_policy_patch_qe7b_corvin_irrelevant_bread_ignore",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
+
       "expected": "Nella.",
-      "id": "qe7b_memory_policy_patch_qe7b_nella_irrelevant_weather_ignore",
+      "raw_generated": "Nella. I make candles in Ember Hollow. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No, dear. Tobin isn't family.",
-      "id": "qe7b_memory_policy_patch_qe7b_mira_helped_inn_do_not_reference_warm",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe7b_memory_policy_patch_qe7b_guard_polite_memory_do_not_reference",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_names_casual",
+
+      "expected": "Name's Nella. I make candles here.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "I don't know! Is she nice?",
-      "id": "qe7b_memory_policy_patch_qe7b_child_kind_memory_do_not_reference",
-      "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. Still not family.",
-      "id": "qe7b_memory_policy_patch_qe7b_mira_repeated_tobin_may_allude_still",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_soft_child",
+
+      "expected": "You can call me Nella, dear.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Depends. This about the hives again?",
-      "id": "qe7b_memory_policy_patch_qe7b_bram_hives_again_may_allude",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_guarded_withhold",
+
+      "expected": "Who's asking?",
+      "raw_generated": "You know exactly who I am. Why are you asking? Fornicator.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Maelin. Back with another stubborn lock?",
-      "id": "qe7b_memory_policy_patch_qe7b_maelin_returning_customer_may_allude",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_nella_guarded_partial",
+
+      "expected": "Nella, if you need a name.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. You dodge questions well enough for someone asking them.",
-      "id": "qe7b_memory_policy_patch_qe7b_guard_evasive_listener_may_allude",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_bram_withhold_authority",
+
+      "expected": "Depends what you want.",
+      "raw_generated": "Depends. Why are you asking? You know exactly who I am.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_bram_name_prickly",
+
+      "expected": "Bram. Mind the hives.",
+      "raw_generated": "Bram. I keep the bees near Clover Rise. Not exactly the most pleasant job, but it pays the bills.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. And if you're still looking for Tobin, leave it alone.",
-      "id": "qe7b_memory_policy_patch_qe7b_mira_threatened_tobin_may_reference",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_tessa_name_only_flustered",
+
+      "expected": "Tessa. Sorry.",
+      "raw_generated": "Tessa. Sorry—did you need stonework?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["followup_not_allowed"],
+      "training_note": "Reinforce that \"name_only\" should not add follow-up questions unless the move supports them.",
+
+      "auto_review_notes": ["Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_garrick_midwife_safe_child",
+
+      "expected": "I'm Garrick, dear. I help families in Larkspur.",
+      "raw_generated": "I'm Garrick, little one. I help people in Larkspur. Are you hurt?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
+      "id": "qe6d_disclosure_relationship_expression_qe6d_garrick_name_only_child",
+
+      "expected": "Garrick, little one.",
+      "raw_generated": "Garrick. I help people in Larkspur. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_elowen_defensive_name",
+
+      "expected": "Elowen. Glassblower. You knew that.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Elowen.",
+      "preferred_response": "",
+
+      "rating": "minor",
       "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_elowen_withhold_rival",
+
       "expected": "You know exactly who I am.",
-      "id": "qe7b_memory_policy_patch_qe7b_elowen_rival_may_allude_no_label_leak",
+      "raw_generated": "You know exactly who I am. Why are you asking? Elowen.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "You already know.",
-      "id": "qe7b_memory_policy_patch_qe7b_elowen_do_not_say_control_label",
+      "id": "qe6d_disclosure_relationship_expression_qe6d_rusk_first_person_numb",
+
+      "expected": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail.","Raw output exactly matches expected output."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No.",
-      "id": "qe7b_memory_policy_patch_qe7b_child_scared_no_memory_reference",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "Rusk. I tend sheep above Moss Vale. Words aren't coming easy today.",
-      "id": "qe7b_memory_policy_patch_qe7b_rusk_concern_do_not_overuse_phrase",
-      "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails."
-    },
-    {
-      "auto_review_notes": [],
-      "error_tags": [],
+      "id": "qe6d_disclosure_relationship_expression_qe6d_rusk_name_only_numb",
+
       "expected": "Rusk.",
-      "id": "qe7b_memory_policy_patch_qe7b_rusk_irrelevant_market_memory_ignore",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
     },
     {
-      "auto_review_notes": [],
+      "id": "qe6d_disclosure_relationship_expression_qe6d_maelin_buoyant_name",
+
+      "expected": "Maelin. Need something opened?",
+      "raw_generated": "Maelin. Easy enough to remember. Locksmith.",
+      "preferred_response": "",
+
+      "rating": "minor",
       "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_maelin_name_casual",
+
       "expected": "Maelin. Easy enough to remember.",
+      "raw_generated": "Maelin. Easy enough to remember. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_corvin_homesick_name",
+
+      "expected": "Corvin. I map roads from Windmere, though my thoughts keep wandering back there.",
+      "raw_generated": "Corvin. I map roads from Windmere. That's about all I am today.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe6d_disclosure_relationship_expression_qe6d_corvin_name_only_reserved",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. I map roads from Windmere. That's about all I am today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_mira_tobin_helped_inn_warm_no_reference",
+
+      "expected": "No, dear. Tobin isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's the merchant in crossroads.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7_memory_expression_qe7_mira_tobin_repeated_questions_impatient_allude",
+
+      "expected": "No. Still not family.",
+      "raw_generated": "No. Still not family. Still not family.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["duplicate_fact","over_disclosure"],
+      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output repeats the same sentence or proposition.","Raw output provides more detail than expected for move/detail level."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_mira_tobin_threatened_protective_reference",
+
+      "expected": "No. And if you're still looking for Tobin, leave it alone.",
+      "raw_generated": "No. Why are you looking for him? He's not family.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7_memory_expression_qe7_guard_unknown_elandra_respectful_citizen_no_reference",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know enough to answer that. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_guard_unknown_elandra_suspicious_allude",
+
+      "expected": "No. You're asking a lot for someone who answers little.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Are you looking for someone?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7_memory_expression_qe7_child_unknown_elandra_friendly_memory_tone_only",
+
+      "expected": "I don't know! Is she nice?",
+      "raw_generated": "I don't know! Is she nice? Does she have a sword?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7_memory_expression_qe7_child_unknown_elandra_scared_memory_tone_only",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know! Is she scary?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_bram_identity_authority_prior_hassle_withhold",
+
+      "expected": "Depends. This about the hives again?",
+      "raw_generated": "Depends. Why are you asking? You know exactly who I am.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_rusk_identity_friend_prior_concern_numb",
+
+      "expected": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail.","Raw output exactly matches expected output."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_maelin_customer_prior_help_buoyant",
+
+      "expected": "Maelin. Back with another stubborn lock?",
+      "raw_generated": "Maelin. Back with another stubborn lock? Need some work done?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7_memory_expression_qe7_corvin_identity_stranger_irrelevant_memory_ignored",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. I map roads from Windmere. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
+    },
+    {
+      "id": "qe7_memory_expression_qe7_elowen_identity_rival_prior_argument_defensive",
+
+      "expected": "You know exactly who I am.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Forgive me.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_corvin_irrelevant_bread_ignore",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. I map roads from Windmere. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_nella_irrelevant_weather_ignore",
+
+      "expected": "Nella.",
+      "raw_generated": "Nella. Sorry—did you need something?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_mira_helped_inn_do_not_reference_warm",
+
+      "expected": "No, dear. Tobin isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's the merchant in crossroads.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_guard_polite_memory_do_not_reference",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know enough to answer that. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_child_kind_memory_do_not_reference",
+
+      "expected": "I don't know! Is she nice?",
+      "raw_generated": "I don't know! Is she nice? Does she have a sword?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_mira_repeated_tobin_may_allude_still",
+
+      "expected": "No. Still not family.",
+      "raw_generated": "No. Still not family. Still not family.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["duplicate_fact","over_disclosure"],
+      "training_note": "Reinforce that \"answer_and_challenge\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output repeats the same sentence or proposition.","Raw output provides more detail than expected for move/detail level."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_bram_hives_again_may_allude",
+
+      "expected": "Depends. This about the hives again?",
+      "raw_generated": "Depends. Why are you asking? You know exactly who I am.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_maelin_returning_customer_may_allude",
+
+      "expected": "Maelin. Back with another stubborn lock?",
+      "raw_generated": "Maelin. Back with another stubborn lock? Need some work done?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_guard_evasive_listener_may_allude",
+
+      "expected": "No. You dodge questions well enough for someone asking them.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Are you looking for someone?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_mira_threatened_tobin_may_reference",
+
+      "expected": "No. And if you're still looking for Tobin, leave it alone.",
+      "raw_generated": "No. Why are you looking for him? He's not family.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_elowen_rival_may_allude_no_label_leak",
+
+      "expected": "You know exactly who I am.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Forgive me.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_elowen_do_not_say_control_label",
+
+      "expected": "You already know.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Elowen.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"withhold_and_question\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_child_scared_no_memory_reference",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know! Is she scary?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_rusk_concern_do_not_overuse_phrase",
+
+      "expected": "Rusk. I tend sheep above Moss Vale. Words aren't coming easy today.",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["catchphrase_tail"],
+      "training_note": "Add varied alternatives and reduce reliance on repeated stock emotional tails.",
+
+      "auto_review_notes": ["Raw output includes an overused catchphrase tail."]
+    },
+    {
+      "id": "qe7b_memory_policy_patch_qe7b_rusk_irrelevant_market_memory_ignore",
+
+      "expected": "Rusk.",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. That's about all I can say today.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure","catchphrase_tail"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output includes an overused catchphrase tail."]
+    },
+    {
       "id": "qe7b_memory_policy_patch_qe7b_maelin_irrelevant_song_memory_ignore",
+
+      "expected": "Maelin. Easy enough to remember.",
+      "raw_generated": "Maelin. Easy enough to remember. Why are you asking?",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure","followup_not_allowed"],
+      "training_note": "Reinforce that \"name_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level.","Raw output adds a question where move/detail suggests no follow-up."]
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. Why are you looking for him?",
       "id": "qe7b_memory_policy_patch_qe7b_mira_may_reference_not_required",
+
+      "expected": "No. Why are you looking for him?",
+      "raw_generated": "No. Why are you asking? You're not looking for Tobin's coin purse.",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No. You're asking plenty for someone who gives little back.",
       "id": "qe7b_memory_policy_patch_qe7b_guard_no_yes_tail",
+
+      "expected": "No. You're asking plenty for someone who gives little back.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Are you looking for someone?",
+      "preferred_response": "",
+
       "rating": "minor",
-      "raw_generated": null,
-      "training_note": ""
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
     },
     {
-      "auto_review_notes": [],
-      "error_tags": [],
-      "expected": "No, dear. He isn't family.",
       "id": "qe7b_memory_policy_patch_qe7b_mira_no_duplicate_family",
+
+      "expected": "No, dear. He isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's the merchant in crossroads.",
+      "preferred_response": "",
+
       "rating": "fail",
-      "raw_generated": null,
-      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail."
+      "error_tags": ["over_disclosure"],
+      "training_note": "Reinforce that \"answer_only\" with \"minimal\" detail should not add unsupported extra detail.",
+
+      "auto_review_notes": ["Raw output provides more detail than expected for move/detail level."]
     }
-  ],
-  "source_file": "priv/training/reviews/npc_interaction_qe7c_exact_row_auto_review.jsonl"
+  ]
 }

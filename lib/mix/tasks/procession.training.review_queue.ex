@@ -61,8 +61,11 @@ defmodule Mix.Tasks.Procession.Training.ReviewQueue do
 
   defp required!(opts, key) do
     case Keyword.fetch(opts, key) do
-      {:ok, value} -> value
-      :error -> Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
+      {:ok, value} ->
+        value
+
+      :error ->
+        Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
     end
   end
 
@@ -77,12 +80,13 @@ defmodule Mix.Tasks.Procession.Training.ReviewQueue do
   defp compact_row(row) do
     %{
       "id" => row["id"],
-      "expected" => row["expected"],
-      "raw_generated" => row["raw_generated"],
+      "expected" => Map.get(row, "expected") || "",
+      "raw_generated" => Map.get(row, "raw_generated") || Map.get(row, "raw") || "",
+      "preferred_response" => Map.get(row, "preferred_response", ""),
       "rating" => row["rating"],
-      "error_tags" => Map.get(row, "error_tags", []),
-      "auto_review_notes" => Map.get(row, "auto_review_notes", []),
-      "training_note" => Map.get(row, "training_note", "")
+      "error_tags" => Map.get(row, "error_tags") || Map.get(row, "tags") || [],
+      "auto_review_notes" => Map.get(row, "auto_review_notes") || Map.get(row, "notes") || [],
+      "training_note" => Map.get(row, "training_note") || Map.get(row, "note") || ""
     }
   end
 
@@ -119,17 +123,39 @@ defmodule Mix.Tasks.Procession.Training.ReviewQueue do
     |> Path.dirname()
     |> File.mkdir_p!()
 
-    queue = %{
-      "source_file" => source_path,
-      "row_count" => length(rows),
-      "instructions" => %{
-        "edit_fields" => ["rating", "error_tags", "training_note"],
-        "ratings" => ["pass", "minor", "fail", "reject"],
-        "merge_back_with" => "mix procession.training.review_merge"
+    contents = """
+    {
+      "source_file": #{Jason.encode!(source_path)},
+      "row_count": #{length(rows)},
+      "instructions": {
+        "edit_fields": ["rating", "error_tags", "preferred_response", "training_note"],
+        "ratings": ["pass", "minor", "fail", "reject"],
+        "merge_back_with": "mix procession.training.review_merge"
       },
-      "rows" => rows
+      "rows": [
+    #{rows |> Enum.map(&encode_review_row/1) |> Enum.join(",\n")}
+      ]
     }
+    """
 
-    File.write(path, Jason.encode!(queue, pretty: true) <> "\n")
+    File.write(path, contents)
+  end
+
+  defp encode_review_row(row) do
+    """
+        {
+          "id": #{Jason.encode!(row["id"])},
+
+          "expected": #{Jason.encode!(row["expected"])},
+          "raw_generated": #{Jason.encode!(row["raw_generated"])},
+          "preferred_response": #{Jason.encode!(Map.get(row, "preferred_response", ""))},
+
+          "rating": #{Jason.encode!(row["rating"])},
+          "error_tags": #{Jason.encode!(row["error_tags"])},
+          "training_note": #{Jason.encode!(row["training_note"])},
+
+          "auto_review_notes": #{Jason.encode!(row["auto_review_notes"])}
+        }\
+    """
   end
 end

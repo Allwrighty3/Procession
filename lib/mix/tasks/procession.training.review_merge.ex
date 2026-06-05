@@ -60,8 +60,11 @@ defmodule Mix.Tasks.Procession.Training.ReviewMerge do
 
   defp required!(opts, key) do
     case Keyword.fetch(opts, key) do
-      {:ok, value} -> value
-      :error -> Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
+      {:ok, value} ->
+        value
+
+      :error ->
+        Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
     end
   end
 
@@ -140,8 +143,9 @@ defmodule Mix.Tasks.Procession.Training.ReviewMerge do
   defp apply_review(source_row, reviewed_row) do
     source_row
     |> Map.put("rating", reviewed_row["rating"])
-    |> Map.put("error_tags", Map.get(reviewed_row, "error_tags", []))
-    |> Map.put("training_note", Map.get(reviewed_row, "training_note", ""))
+    |> Map.put("error_tags", Map.get(reviewed_row, "error_tags") || Map.get(reviewed_row, "tags") || [])
+    |> Map.put("preferred_response", Map.get(reviewed_row, "preferred_response", ""))
+    |> Map.put("training_note", Map.get(reviewed_row, "training_note") || Map.get(reviewed_row, "note") || "")
     |> Map.put("human_reviewed", true)
   end
 
