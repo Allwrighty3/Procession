@@ -79,6 +79,8 @@ defmodule Procession.AI.NPCInteraction.ResponseExpressionPrompt do
     - Do not mention recent memory directly unless the memory reference policy allows it.
     - If recent memory is irrelevant or marked do_not_reference, let it affect tone only or ignore it.
     - Do not invent events, history, promises, favors, threats, or relationships from memory context.
+    - Do not copy internal labels, metadata keys, move names, policy names, or field names into the NPC line.
+    - Never say phrases like answer_only, withhold_and_question, withhold and question, reference_policy, stance_effect, or do_not_reference.
 
     ### Response Intent
     #{Jason.encode!(intent, pretty: true)}
