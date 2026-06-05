@@ -73,8 +73,11 @@ defmodule Mix.Tasks.Procession.Training.ReviewDraft do
 
   defp required!(opts, key) do
     case Keyword.fetch(opts, key) do
-      {:ok, value} -> value
-      :error -> Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
+      {:ok, value} ->
+        value
+
+      :error ->
+        Mix.raise("Missing required option: --#{String.replace(to_string(key), "_", "-")}")
     end
   end
 

@@ -37,7 +37,8 @@ defmodule Procession.AI.NPCInteraction.QE7BMemoryPolicyPatchSFTExporterTest do
   end
 
   test "exports prompts with recent memory policy context" do
-    output_path = "tmp/training_exports/npc_interaction_qe7b_memory_policy_patch_prompt_shape.jsonl"
+    output_path =
+      "tmp/training_exports/npc_interaction_qe7b_memory_policy_patch_prompt_shape.jsonl"
 
     File.mkdir_p!(Path.dirname(output_path))
     File.rm(output_path)

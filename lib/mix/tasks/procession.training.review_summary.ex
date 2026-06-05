@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Procession.Training.ReviewSummary do
 
       tag_counts =
         rows
-        |> Enum.flat_map(fn row -> Map.get(row, "error_tags", []) end)
+        |> Enum.flat_map(fn row -> Map.get(row, "error_tags") || Map.get(row, "tags") || [] end)
         |> Enum.frequencies()
 
       Mix.shell().info("")
