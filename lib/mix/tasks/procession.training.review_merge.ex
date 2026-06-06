@@ -141,13 +141,35 @@ defmodule Mix.Tasks.Procession.Training.ReviewMerge do
   end
 
   defp apply_review(source_row, reviewed_row) do
+    preferred_response =
+      reviewed_row
+      |> Map.get("preferred_response", "")
+      |> normalize_string()
+
+    expected =
+      if preferred_response == "" do
+        Map.get(source_row, "expected", "")
+      else
+        preferred_response
+      end
+
     source_row
+    |> Map.put("expected", expected)
     |> Map.put("rating", reviewed_row["rating"])
-    |> Map.put("error_tags", Map.get(reviewed_row, "error_tags") || Map.get(reviewed_row, "tags") || [])
-    |> Map.put("preferred_response", Map.get(reviewed_row, "preferred_response", ""))
-    |> Map.put("training_note", Map.get(reviewed_row, "training_note") || Map.get(reviewed_row, "note") || "")
+    |> Map.put(
+      "error_tags",
+      Map.get(reviewed_row, "error_tags") || Map.get(reviewed_row, "tags") || []
+    )
+    |> Map.delete("preferred_response")
+    |> Map.put(
+      "training_note",
+      Map.get(reviewed_row, "training_note") || Map.get(reviewed_row, "note") || ""
+    )
     |> Map.put("human_reviewed", true)
   end
+
+  defp normalize_string(value) when is_binary(value), do: String.trim(value)
+  defp normalize_string(_value), do: ""
 
   defp write_jsonl(path, rows) do
     path

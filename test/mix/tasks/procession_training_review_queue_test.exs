@@ -53,7 +53,13 @@ defmodule Mix.Tasks.Procession.Training.ReviewQueueTest do
 
     assert queue["source_file"] == source_path
     assert queue["row_count"] == 1
-    assert queue["instructions"]["edit_fields"] == ["rating", "error_tags", "training_note"]
+
+    assert queue["instructions"]["edit_fields"] == [
+             "rating",
+             "error_tags",
+             "preferred_response",
+             "training_note"
+           ]
 
     assert [row] = queue["rows"]
     assert row["id"] == "row_fail"
