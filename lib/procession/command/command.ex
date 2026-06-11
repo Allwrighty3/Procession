@@ -406,10 +406,14 @@ defmodule Procession.Command do
 
     case InternalFields.apply_presentation(entity_id, presentation) do
       {:ok, snapshot} ->
-        {:ok, snapshot, DialogueConstraints.from_field_snapshot(snapshot), presentation}
+        constraints = DialogueConstraints.from_field_snapshot(snapshot, presentation)
+
+        {:ok, snapshot, constraints, presentation}
 
       _error ->
-        {:ok, nil, DialogueConstraints.from_field_snapshot(nil), presentation}
+        constraints = DialogueConstraints.from_field_snapshot(nil, presentation)
+
+        {:ok, nil, constraints, presentation}
     end
   end
 

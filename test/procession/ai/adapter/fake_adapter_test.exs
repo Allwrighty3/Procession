@@ -4,21 +4,38 @@ defmodule Procession.AI.FakeAdapterTest do
   alias Procession.AI.FakeAdapter
 
   describe "generate/2" do
-    test "uses guarded deflection constraints for Tobin" do
-      assert {:ok, "Why are you asking about Mira?"} =
+    test "renders public identity response shape for Tobin" do
+      assert {:ok, "A merchant. Why are you asking?"} =
                FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{
-                   intent: :guarded_deflection
-                 }
+                 dialogue_constraints: %{response_shape: :public_identity_then_question}
                )
     end
 
-    test "uses firm deflection constraints for Tobin" do
+    test "renders relationship denial response shape for Tobin" do
+      assert {:ok, "No. Why are you asking?"} =
+               FakeAdapter.generate("- Name: Tobin",
+                 dialogue_constraints: %{response_shape: :relationship_denial_then_question}
+               )
+    end
+
+    test "renders location refusal response shape for Tobin" do
+      assert {:ok, "That's not something I share with strangers."} =
+               FakeAdapter.generate("- Name: Tobin",
+                 dialogue_constraints: %{response_shape: :location_refusal}
+               )
+    end
+
+    test "renders repeated topic boundary response shape for Tobin" do
       assert {:ok, "I've answered enough about Mira."} =
                FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{
-                   intent: :firm_deflection
-                 }
+                 dialogue_constraints: %{response_shape: :repeated_topic_boundary}
+               )
+    end
+
+    test "renders ask why response shape for Tobin" do
+      assert {:ok, "Why are you asking about Mira?"} =
+               FakeAdapter.generate("- Name: Tobin",
+                 dialogue_constraints: %{response_shape: :ask_why}
                )
     end
 
@@ -28,36 +45,14 @@ defmodule Procession.AI.FakeAdapterTest do
       assert response =~ "Keep your voice down."
     end
 
-    test "uses public identity response for guarded Tobin Mira question" do
-      assert {:ok, "A merchant. Why are you asking?"} =
-               FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{intent: :guarded_deflection},
-                 presentation: %{message_intent: :ask_public_identity}
-               )
+    test "keeps deterministic Mira response" do
+      assert {:ok, "If Tobin is finally admitting trouble, then the mine is worse than I thought."} =
+               FakeAdapter.generate("- Name: Mira", [])
     end
 
-    test "uses relationship denial response for guarded Tobin Mira question" do
-      assert {:ok, "No. Why are you asking?"} =
-               FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{intent: :guarded_deflection},
-                 presentation: %{message_intent: :ask_relationship_denial}
-               )
-    end
-
-    test "uses location refusal for firm Tobin Mira question" do
-      assert {:ok, "That's not something I share with strangers."} =
-               FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{intent: :firm_deflection},
-                 presentation: %{message_intent: :ask_location}
-               )
-    end
-
-    test "uses general repeated-topic refusal for other firm Tobin questions" do
-      assert {:ok, "I've answered enough about Mira."} =
-               FakeAdapter.generate("- Name: Tobin",
-                 dialogue_constraints: %{intent: :firm_deflection},
-                 presentation: %{message_intent: :ask_relationship_denial}
-               )
+    test "falls back for unknown prompts" do
+      assert {:ok, "I have nothing new to say right now."} =
+               FakeAdapter.generate("- Name: Elin", [])
     end
   end
 end

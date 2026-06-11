@@ -2,8 +2,8 @@ defmodule Procession.AI.FakeAdapter do
   @moduledoc """
   Deterministic AI adapter for tests and early development.
 
-  This lets Phase 3 code be tested without requiring Ollama to be installed,
-  running, or loaded with a model.
+  This lets Procession exercise dialogue paths without requiring Ollama or a
+  local model. It renders from structured dialogue constraints when present.
   """
 
   @behaviour Procession.AI
@@ -11,30 +11,22 @@ defmodule Procession.AI.FakeAdapter do
   @impl true
   def generate(prompt, opts) when is_binary(prompt) do
     constraints = Keyword.get(opts, :dialogue_constraints, %{})
-    presentation = Keyword.get(opts, :presentation, %{})
-    message_intent = Map.get(presentation, :message_intent, :general)
+    response_shape = Map.get(constraints, :response_shape)
 
     cond do
-      prompt =~ "- Name: Tobin" and
-        constraints[:intent] == :firm_deflection and
-          message_intent == :ask_location ->
-        {:ok, "That's not something I share with strangers."}
-
-      prompt =~ "- Name: Tobin" and
-          constraints[:intent] == :firm_deflection ->
-        {:ok, "I've answered enough about Mira."}
-
-      prompt =~ "- Name: Tobin" and
-        constraints[:intent] == :guarded_deflection and
-          message_intent == :ask_public_identity ->
+      prompt =~ "- Name: Tobin" and response_shape == :public_identity_then_question ->
         {:ok, "A merchant. Why are you asking?"}
 
-      prompt =~ "- Name: Tobin" and
-        constraints[:intent] == :guarded_deflection and
-          message_intent == :ask_relationship_denial ->
+      prompt =~ "- Name: Tobin" and response_shape == :relationship_denial_then_question ->
         {:ok, "No. Why are you asking?"}
 
-      prompt =~ "- Name: Tobin" and constraints[:intent] == :guarded_deflection ->
+      prompt =~ "- Name: Tobin" and response_shape == :location_refusal ->
+        {:ok, "That's not something I share with strangers."}
+
+      prompt =~ "- Name: Tobin" and response_shape == :repeated_topic_boundary ->
+        {:ok, "I've answered enough about Mira."}
+
+      prompt =~ "- Name: Tobin" and response_shape == :ask_why ->
         {:ok, "Why are you asking about Mira?"}
 
       prompt =~ "- Name: Tobin" ->
