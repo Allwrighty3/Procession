@@ -293,6 +293,53 @@ defmodule Procession.CommandTest do
       assert {:error, :entity_not_found} = Command.run(session, "ask Nobody about road")
     end
 
+    test "grounded talk to returns presentation and dialogue constraints metadata" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} =
+              Command.run(
+                session,
+                "grounded talk to Tobin: Who is Mira?",
+                adapter: __MODULE__.GroundedDialogueAdapter,
+                model: "cli-test-model"
+              )
+
+      assert result.command == :grounded_talk_to
+      assert result.entity_id == "npc_tobin"
+      assert result.grounded_context == true
+
+      assert result.presentation.message_intent == :ask_public_identity
+      assert result.dialogue_constraints.intent == :guarded_deflection
+      assert result.dialogue_constraints.response_shape == :public_identity_then_question
+      assert result.dialogue_constraints.disclosure_level == :minimal
+      assert result.dialogue_constraints.field_pressure == :sensitive_topic
+    end
+
+    test "talk to returns presentation and dialogue constraints metadata" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Tobin: Who is Mira?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_tobin"
+      assert result.result == "A merchant. Why are you asking?"
+
+      assert result.presentation == %{
+              source: "player",
+              kind: :question,
+              target: {:person, :mira},
+              message_intent: :ask_public_identity,
+              text: "Who is Mira?"
+            }
+
+      assert result.dialogue_constraints.intent == :guarded_deflection
+      assert result.dialogue_constraints.response_shape == :public_identity_then_question
+      assert result.dialogue_constraints.disclosure_level == :minimal
+      assert result.dialogue_constraints.field_pressure == :sensitive_topic
+    end
+
     test "talk to uses guarded internal field constraints for first Mira question" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")

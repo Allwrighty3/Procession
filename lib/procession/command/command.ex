@@ -210,7 +210,9 @@ defmodule Procession.Command do
         target: target,
         entity_id: entity_id,
         entity_name: entity_display_name(entity_id),
-        message: message
+        message: message,
+        presentation: presentation,
+        dialogue_constraints: dialogue_constraints
       })
     end
   end
@@ -238,7 +240,9 @@ defmodule Procession.Command do
         entity_id: entity_id,
         entity_name: entity_display_name(entity_id),
         message: message,
-        grounded_context: true
+        grounded_context: true,
+        presentation: presentation,
+        dialogue_constraints: dialogue_constraints
       })
     end
   end
