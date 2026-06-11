@@ -15,19 +15,19 @@ defmodule Procession.AI.FakeAdapter do
     target_name = Map.get(constraints, :target_name) || "that"
 
     cond do
-      prompt =~ "- Name: Tobin" and response_shape == :public_identity_then_question ->
+      response_shape == :public_identity_then_question ->
         {:ok, "#{target_name} is a merchant. Why are you asking?"}
 
-      prompt =~ "- Name: Tobin" and response_shape == :relationship_denial_then_question ->
+      response_shape == :relationship_denial_then_question ->
         {:ok, "No. Why are you asking?"}
 
-      prompt =~ "- Name: Tobin" and response_shape == :location_refusal ->
+      response_shape == :location_refusal ->
         {:ok, "That's not something I share with strangers."}
 
-      prompt =~ "- Name: Tobin" and response_shape == :repeated_topic_boundary ->
+      response_shape == :repeated_topic_boundary ->
         {:ok, "I've answered enough about #{target_name}."}
 
-      prompt =~ "- Name: Tobin" and response_shape == :ask_why ->
+      response_shape == :ask_why ->
         {:ok, "Why are you asking about #{target_name}?"}
 
       prompt =~ "- Name: Tobin" ->

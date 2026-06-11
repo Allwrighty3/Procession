@@ -369,6 +369,27 @@ defmodule Procession.CommandTest do
       assert second_result.result == "I've answered enough about Mira."
     end
 
+    test "talk to uses field constraints for non-Tobin speakers" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Mira: Who is Tobin?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.target == {:person, "npc_tobin"}
+      assert result.presentation.target_name == "Tobin"
+      assert result.presentation.topic_key == :tobin
+      assert result.presentation.message_intent == :ask_public_identity
+
+      assert result.dialogue_constraints.intent == :guarded_deflection
+      assert result.dialogue_constraints.response_shape == :ask_why
+      assert result.dialogue_constraints.topic_key == :tobin
+      assert result.dialogue_constraints.target_name == "Tobin"
+
+      assert result.result == "Why are you asking about Tobin?"
+    end
+
     test "runs talk to against an exact session-owned entity name" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")
@@ -612,10 +633,13 @@ defmodule Procession.CommandTest do
       assert result.entity_id == "npc_mira"
       assert result.entity_name == "Mira"
       assert result.target == "Mira"
+      assert result.presentation.target == {:person, "npc_tobin"}
+      assert result.presentation.target_name == "Tobin"
+      assert result.presentation.topic_key == :tobin
+      assert result.dialogue_constraints.response_shape == :ask_why
       assert result.message == "What do you know about Tobin?"
 
-      assert result.result =~
-               "If Tobin is finally admitting trouble, then the mine is worse than I thought."
+      assert result.result == "Why are you asking about Tobin?"
     end
 
     test "talk command can use explicit AI dialogue adapter options" do

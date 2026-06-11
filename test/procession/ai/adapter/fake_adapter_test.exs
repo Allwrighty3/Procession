@@ -4,7 +4,7 @@ defmodule Procession.AI.FakeAdapterTest do
   alias Procession.AI.FakeAdapter
 
   describe "generate/2" do
-    test "renders public identity response shape for Tobin with target name" do
+    test "renders public identity response shape for any speaker" do
       assert {:ok, "Mira is a merchant. Why are you asking?"} =
                FakeAdapter.generate("- Name: Tobin",
                  dialogue_constraints: %{
@@ -12,21 +12,29 @@ defmodule Procession.AI.FakeAdapterTest do
                    target_name: "Mira"
                  }
                )
-    end
 
-    test "renders relationship denial response shape for Tobin" do
-      assert {:ok, "No. Why are you asking?"} =
-               FakeAdapter.generate("- Name: Tobin",
+      assert {:ok, "Tobin is a merchant. Why are you asking?"} =
+               FakeAdapter.generate("- Name: Mira",
                  dialogue_constraints: %{
-                   response_shape: :relationship_denial_then_question,
-                   target_name: "Mira"
+                   response_shape: :public_identity_then_question,
+                   target_name: "Tobin"
                  }
                )
     end
 
-    test "renders location refusal response shape for Tobin" do
+    test "renders relationship denial response shape for any speaker" do
+      assert {:ok, "No. Why are you asking?"} =
+               FakeAdapter.generate("- Name: Mira",
+                 dialogue_constraints: %{
+                   response_shape: :relationship_denial_then_question,
+                   target_name: "Tobin"
+                 }
+               )
+    end
+
+    test "renders location refusal response shape for any speaker" do
       assert {:ok, "That's not something I share with strangers."} =
-               FakeAdapter.generate("- Name: Tobin",
+               FakeAdapter.generate("- Name: Elin",
                  dialogue_constraints: %{
                    response_shape: :location_refusal,
                    target_name: "Mira"
@@ -34,9 +42,9 @@ defmodule Procession.AI.FakeAdapterTest do
                )
     end
 
-    test "renders repeated topic boundary response shape for Tobin with target name" do
+    test "renders repeated topic boundary response shape for any speaker with target name" do
       assert {:ok, "I've answered enough about Tobin."} =
-               FakeAdapter.generate("- Name: Tobin",
+               FakeAdapter.generate("- Name: Mira",
                  dialogue_constraints: %{
                    response_shape: :repeated_topic_boundary,
                    target_name: "Tobin"
@@ -44,9 +52,9 @@ defmodule Procession.AI.FakeAdapterTest do
                )
     end
 
-    test "renders ask why response shape for Tobin with target name" do
+    test "renders ask why response shape for any speaker with target name" do
       assert {:ok, "Why are you asking about Tobin?"} =
-               FakeAdapter.generate("- Name: Tobin",
+               FakeAdapter.generate("- Name: Elin",
                  dialogue_constraints: %{
                    response_shape: :ask_why,
                    target_name: "Tobin"
@@ -67,12 +75,12 @@ defmodule Procession.AI.FakeAdapterTest do
       assert response =~ "Keep your voice down."
     end
 
-    test "keeps deterministic Mira response" do
+    test "keeps deterministic Mira response without constraints" do
       assert {:ok, "If Tobin is finally admitting trouble, then the mine is worse than I thought."} =
                FakeAdapter.generate("- Name: Mira", [])
     end
 
-    test "falls back for unknown prompts" do
+    test "falls back for unknown prompts without constraints" do
       assert {:ok, "I have nothing new to say right now."} =
                FakeAdapter.generate("- Name: Elin", [])
     end
