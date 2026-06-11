@@ -35,7 +35,8 @@ defmodule Procession.Simulation.RelationshipTopicPolicy do
   defp relationship_for_entity?(relationship, entity_id) when is_map(relationship) do
     Map.get(relationship, :source_id) == entity_id or
       Map.get(relationship, :entity_id) == entity_id or
-      Map.get(relationship, :from_id) == entity_id
+      Map.get(relationship, :from_id) == entity_id or
+      Map.get(relationship, :from) == entity_id
   end
 
   defp relationship_for_entity?(_relationship, _entity_id), do: false
@@ -53,7 +54,8 @@ defmodule Procession.Simulation.RelationshipTopicPolicy do
   defp topic_key_for(relationship) do
     Map.get(relationship, :target_topic_key) ||
       topic_key_from_target_id(Map.get(relationship, :target_id)) ||
-      topic_key_from_target_id(Map.get(relationship, :to_id))
+      topic_key_from_target_id(Map.get(relationship, :to_id)) ||
+      topic_key_from_target_id(Map.get(relationship, :to))
   end
 
   defp topic_key_from_target_id("npc_" <> topic), do: String.to_atom(topic)

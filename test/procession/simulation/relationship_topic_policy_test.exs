@@ -83,5 +83,27 @@ defmodule Procession.Simulation.RelationshipTopicPolicyTest do
 
       assert RelationshipTopicPolicy.from_relationships("npc_tobin", relationships) == %{}
     end
+
+    test "derives topic policies from generator-style from/to relationships" do
+      relationships = [
+        %{
+          from: "npc_mira",
+          to: "npc_tobin",
+          type: :distrusts,
+          description: "Mira thinks Tobin knows more about the mine than he admits."
+        }
+      ]
+
+      assert RelationshipTopicPolicy.from_relationships("npc_mira", relationships) == %{
+              tobin: %{
+                track?: true,
+                sensitivity: :relationship_sensitive,
+                base_salience: :high,
+                first_boundary: :high,
+                repeated_boundary: :very_high,
+                trust_delta_on_press: -1
+              }
+            }
+    end
   end
 end
