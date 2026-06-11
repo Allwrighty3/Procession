@@ -80,7 +80,8 @@ defmodule Procession.Simulation.InternalFieldsTest do
                  text: "Is Mira your sister?"
                })
 
-      assert second.topic_salience[:mira] == :very_high
+      assert second.topic_salience[:mira] == :high
+      assert second.topic_pressure_counts[:mira] == 2
       assert second.disclosure_boundaries[:mira] == :very_high
       assert second.trust_deltas["player"] == -2
     end

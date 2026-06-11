@@ -286,7 +286,7 @@ defmodule Mix.Tasks.Procession.Training.AutoReview do
     if followup_not_allowed? do
       [
         {:followup_not_allowed,
-        "Raw output adds a question where the conversational move and expected response do not support a follow-up."}
+         "Raw output adds a question where the conversational move and expected response do not support a follow-up."}
         | items
       ]
     else
@@ -377,11 +377,9 @@ defmodule Mix.Tasks.Procession.Training.AutoReview do
     scary_listener? =
       listener_role in ["scary_stranger", "threatening_stranger", "suspicious_stranger"]
 
-    friend_listener? =
-      listener_role in ["friend", "trusted_friend"] or listener_trust == "high"
+    friend_listener? = listener_role in ["friend", "trusted_friend"] or listener_trust == "high"
 
-    customer_listener? =
-      listener_role in ["customer", "paying_guest", "patient"]
+    customer_listener? = listener_role in ["customer", "paying_guest", "patient"]
 
     authority_listener? =
       listener_role in ["authority", "authority_figure", "guard", "reeve", "captain"]
@@ -423,7 +421,8 @@ defmodule Mix.Tasks.Procession.Training.AutoReview do
         (mood in ["afraid", "scared"] and overly_social?(raw)) or
         (mood in ["protective", "guarded", "suspicious", "hostile"] and overly_apologetic?(raw)) or
         (listener_trust == "high" and formal_challenge?(raw)) or
-        (String.contains?(voice_style <> " " <> voice_baseline, "formal") and childish_or_overexcited?(raw))
+        (String.contains?(voice_style <> " " <> voice_baseline, "formal") and
+           childish_or_overexcited?(raw))
 
     if mismatch? do
       [

@@ -345,9 +345,10 @@ defmodule Procession.CommandTest do
       snapshot = Procession.Simulation.InternalFields.snapshot("npc_tobin")
 
       assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.topic_pressure_counts[:mira] == 1
       assert snapshot.disclosure_boundaries[:mira] == :high
       assert snapshot.trust_deltas["player"] == -1
-      assert snapshot.private_concerns == [:player_asking_about_mira]
+      assert snapshot.private_concerns == [:player_asking_about_mira]\
     end
 
     test "repeated talk to questions intensify target internal field" do
@@ -359,7 +360,8 @@ defmodule Procession.CommandTest do
 
       snapshot = Procession.Simulation.InternalFields.snapshot("npc_tobin")
 
-      assert snapshot.topic_salience[:mira] == :very_high
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.topic_pressure_counts[:mira] == 2
       assert snapshot.disclosure_boundaries[:mira] == :very_high
       assert snapshot.trust_deltas["player"] == -2
 

@@ -8,6 +8,7 @@ defmodule Procession.Simulation.DialogueConstraintsTest do
       snapshot = %{
         entity_id: "npc_tobin",
         topic_salience: %{},
+        topic_pressure_counts: %{},
         disclosure_boundaries: %{},
         trust_deltas: %{},
         private_concerns: [],
@@ -28,6 +29,7 @@ defmodule Procession.Simulation.DialogueConstraintsTest do
       snapshot = %{
         entity_id: "npc_tobin",
         topic_salience: %{mira: :high},
+        topic_pressure_counts: %{mira: 1},
         disclosure_boundaries: %{mira: :high},
         trust_deltas: %{"player" => -1},
         private_concerns: [:player_asking_about_mira],
@@ -39,15 +41,20 @@ defmodule Procession.Simulation.DialogueConstraintsTest do
                disclosure_level: :minimal,
                tone: [:cautious, :neighborly],
                allowed_facts: [:narrow_public_identity, :narrow_relationship_denial],
-               forbidden_topics: [:mira_location, :mira_private_history, :mira_hidden_relationship],
+               forbidden_topics: [
+                 :mira_location,
+                 :mira_private_history,
+                 :mira_hidden_relationship
+               ],
                field_pressure: :sensitive_topic
              }
     end
 
-    test "returns firm constraints for very high Mira salience" do
+    test "returns firm constraints for repeated Mira pressure" do
       snapshot = %{
         entity_id: "npc_tobin",
-        topic_salience: %{mira: :very_high},
+        topic_salience: %{mira: :high},
+        topic_pressure_counts: %{mira: 2},
         disclosure_boundaries: %{mira: :very_high},
         trust_deltas: %{"player" => -2},
         private_concerns: [

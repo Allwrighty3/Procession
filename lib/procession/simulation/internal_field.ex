@@ -13,6 +13,7 @@ defmodule Procession.Simulation.InternalField do
   @type t :: %__MODULE__{
           entity_id: entity_id(),
           topic_salience: %{optional(topic()) => level()},
+          topic_pressure_counts: %{optional(topic()) => non_neg_integer()},
           disclosure_boundaries: %{optional(topic()) => level()},
           trust_deltas: %{optional(entity_id()) => integer()},
           private_concerns: [atom()],
@@ -21,6 +22,7 @@ defmodule Procession.Simulation.InternalField do
 
   defstruct entity_id: nil,
             topic_salience: %{},
+            topic_pressure_counts: %{},
             disclosure_boundaries: %{},
             trust_deltas: %{},
             private_concerns: [],
@@ -33,6 +35,7 @@ defmodule Procession.Simulation.InternalField do
   def apply_presentation(%__MODULE__{} = field, %{target: {:person, :mira}} = presentation) do
     field
     |> record_presentation(presentation)
+    |> increase_mira_topic_pressure()
     |> increase_mira_topic_salience()
     |> increase_mira_disclosure_boundary()
     |> decrease_player_trust(presentation)
@@ -47,6 +50,7 @@ defmodule Procession.Simulation.InternalField do
     %{
       entity_id: field.entity_id,
       topic_salience: field.topic_salience,
+      topic_pressure_counts: field.topic_pressure_counts,
       disclosure_boundaries: field.disclosure_boundaries,
       trust_deltas: field.trust_deltas,
       private_concerns: Enum.reverse(field.private_concerns),
@@ -59,11 +63,20 @@ defmodule Procession.Simulation.InternalField do
   end
 
   defp increase_mira_topic_salience(field) do
-    update_in(field.topic_salience[:mira], &increase_level/1)
+    put_in(field.topic_salience[:mira], :high)
   end
 
   defp increase_mira_disclosure_boundary(field) do
-    update_in(field.disclosure_boundaries[:mira], &increase_level/1)
+    pressure_count = Map.get(field.topic_pressure_counts, :mira, 0)
+
+    boundary =
+      if pressure_count >= 2 do
+        :very_high
+      else
+        :high
+      end
+
+    put_in(field.disclosure_boundaries[:mira], boundary)
   end
 
   defp decrease_player_trust(field, %{source: source}) when is_binary(source) do
@@ -76,19 +89,22 @@ defmodule Procession.Simulation.InternalField do
   defp decrease_player_trust(field, _presentation), do: field
 
   defp update_mira_private_concern(field) do
+    pressure_count = Map.get(field.topic_pressure_counts, :mira, 0)
+
     concern =
-      case Map.get(field.topic_salience, :mira) do
-        :very_high -> :player_repeatedly_asking_about_mira
-        _ -> :player_asking_about_mira
+      if pressure_count >= 2 do
+        :player_repeatedly_asking_about_mira
+      else
+        :player_asking_about_mira
       end
 
     %{field | private_concerns: [concern | field.private_concerns]}
   end
 
-  defp increase_level(nil), do: :high
-  defp increase_level(:none), do: :low
-  defp increase_level(:low), do: :medium
-  defp increase_level(:medium), do: :high
-  defp increase_level(:high), do: :very_high
-  defp increase_level(:very_high), do: :very_high
+  defp increase_mira_topic_pressure(field) do
+    update_in(field.topic_pressure_counts[:mira], fn
+      nil -> 1
+      count -> count + 1
+    end)
+  end
 end

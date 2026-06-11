@@ -10,6 +10,7 @@ defmodule Procession.Simulation.InternalFieldTest do
       assert InternalField.snapshot(field) == %{
                entity_id: "npc_tobin",
                topic_salience: %{},
+               topic_pressure_counts: %{},
                disclosure_boundaries: %{},
                trust_deltas: %{},
                private_concerns: [],
@@ -32,10 +33,21 @@ defmodule Procession.Simulation.InternalFieldTest do
 
       snapshot = InternalField.snapshot(field)
 
+      assert snapshot.entity_id == "npc_tobin"
       assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.topic_pressure_counts[:mira] == 1
       assert snapshot.disclosure_boundaries[:mira] == :high
       assert snapshot.trust_deltas["player"] == -1
       assert snapshot.private_concerns == [:player_asking_about_mira]
+
+      assert snapshot.presentations == [
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:person, :mira},
+                 text: "Who's Mira?"
+               }
+             ]
     end
 
     test "repeated Mira-related questions intensify the private field" do
@@ -57,13 +69,30 @@ defmodule Procession.Simulation.InternalFieldTest do
 
       snapshot = InternalField.snapshot(field)
 
-      assert snapshot.topic_salience[:mira] == :very_high
+      assert snapshot.entity_id == "npc_tobin"
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.topic_pressure_counts[:mira] == 2
       assert snapshot.disclosure_boundaries[:mira] == :very_high
       assert snapshot.trust_deltas["player"] == -2
 
       assert snapshot.private_concerns == [
                :player_asking_about_mira,
                :player_repeatedly_asking_about_mira
+             ]
+
+      assert snapshot.presentations == [
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:person, :mira},
+                 text: "Who's Mira?"
+               },
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:person, :mira},
+                 text: "Is Mira your sister?"
+               }
              ]
     end
 
@@ -80,10 +109,21 @@ defmodule Procession.Simulation.InternalFieldTest do
 
       snapshot = InternalField.snapshot(field)
 
+      assert snapshot.entity_id == "npc_tobin"
       assert snapshot.topic_salience == %{}
+      assert snapshot.topic_pressure_counts == %{}
       assert snapshot.disclosure_boundaries == %{}
       assert snapshot.trust_deltas == %{}
-      assert length(snapshot.presentations) == 1
+      assert snapshot.private_concerns == []
+
+      assert snapshot.presentations == [
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:topic, :weather},
+                 text: "Nice weather?"
+               }
+             ]
     end
   end
 end

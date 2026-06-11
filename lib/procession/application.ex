@@ -11,7 +11,7 @@ defmodule Procession.Application do
       {Registry, keys: :unique, name: Procession.EntityRegistry},
       {Registry, keys: :unique, name: Procession.Simulation.InternalFieldRegistry},
       {DynamicSupervisor,
-      strategy: :one_for_one, name: Procession.Simulation.InternalFieldSupervisor},
+       strategy: :one_for_one, name: Procession.Simulation.InternalFieldSupervisor},
       {Procession.EntitySupervisor, []},
       {Procession.WorldClock, []}
     ]

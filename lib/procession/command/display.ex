@@ -129,6 +129,7 @@ defmodule Procession.Command.Display do
     """
     Internal field for #{target}:
     - topic_salience: #{inspect(Map.get(snapshot, :topic_salience, %{}))}
+    - topic_pressure_counts: #{inspect(Map.get(snapshot, :topic_pressure_counts, %{}))}
     - disclosure_boundaries: #{inspect(Map.get(snapshot, :disclosure_boundaries, %{}))}
     - trust_deltas: #{inspect(Map.get(snapshot, :trust_deltas, %{}))}
     - private_concerns: #{inspect(Map.get(snapshot, :private_concerns, []))}

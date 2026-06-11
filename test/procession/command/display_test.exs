@@ -267,6 +267,7 @@ defmodule Procession.Command.DisplayTest do
            entity_name: "Tobin",
            result: %{
              topic_salience: %{mira: :high},
+             topic_pressure_counts: %{mira: 1},
              disclosure_boundaries: %{mira: :high},
              trust_deltas: %{"player" => -1},
              private_concerns: [:player_asking_about_mira],
@@ -288,5 +289,6 @@ defmodule Procession.Command.DisplayTest do
     assert formatted =~ "- trust_deltas: %{\"player\" => -1}"
     assert formatted =~ "- private_concerns: [:player_asking_about_mira]"
     assert formatted =~ "- presentations: 1"
+    assert formatted =~ "- topic_pressure_counts: %{mira: 1}"
   end
 end

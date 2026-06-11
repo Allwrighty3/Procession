@@ -18,14 +18,17 @@ defmodule Procession.Simulation.DialogueConstraints do
 
   def from_field_snapshot(%{topic_salience: topic_salience} = snapshot)
       when is_map(topic_salience) do
-    case Map.get(topic_salience, :mira) do
-      :very_high ->
-        very_high_mira_constraints(snapshot)
+    mira_salience = Map.get(topic_salience, :mira)
+    pressure_count = get_in(snapshot, [:topic_pressure_counts, :mira]) || 0
 
-      :high ->
+    cond do
+      mira_salience == :high and pressure_count >= 2 ->
+        repeated_mira_constraints(snapshot)
+
+      mira_salience == :high ->
         high_mira_constraints(snapshot)
 
-      _ ->
+      true ->
         @default_constraints
     end
   end
@@ -44,7 +47,7 @@ defmodule Procession.Simulation.DialogueConstraints do
     }
   end
 
-  defp very_high_mira_constraints(_snapshot) do
+  defp repeated_mira_constraints(_snapshot) do
     %{
       @default_constraints
       | intent: :firm_deflection,
