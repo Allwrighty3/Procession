@@ -9,15 +9,34 @@ defmodule Procession.AI.FakeAdapter do
   @behaviour Procession.AI
 
   @impl true
+  @impl true
   def generate(prompt, opts) when is_binary(prompt) do
     constraints = Keyword.get(opts, :dialogue_constraints, %{})
+    presentation = Keyword.get(opts, :presentation, %{})
+    message_intent = Map.get(presentation, :message_intent, :general)
 
     cond do
-      prompt =~ "- Name: Tobin" and constraints[:intent] == :firm_deflection ->
+      prompt =~ "- Name: Tobin" and
+          constraints[:intent] == :firm_deflection and
+          message_intent == :ask_location ->
         {:ok, "That's not something I share with strangers."}
 
-      prompt =~ "- Name: Tobin" and constraints[:intent] == :guarded_deflection ->
+      prompt =~ "- Name: Tobin" and
+          constraints[:intent] == :firm_deflection ->
+        {:ok, "I've answered enough about Mira."}
+
+      prompt =~ "- Name: Tobin" and
+          constraints[:intent] == :guarded_deflection and
+          message_intent == :ask_public_identity ->
+        {:ok, "A merchant. Why are you asking?"}
+
+      prompt =~ "- Name: Tobin" and
+          constraints[:intent] == :guarded_deflection and
+          message_intent == :ask_relationship_denial ->
         {:ok, "No. Why are you asking?"}
+
+      prompt =~ "- Name: Tobin" and constraints[:intent] == :guarded_deflection ->
+        {:ok, "Why are you asking about Mira?"}
 
       prompt =~ "- Name: Tobin" ->
         {:ok,

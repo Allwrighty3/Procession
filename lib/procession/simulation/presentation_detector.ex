@@ -11,6 +11,7 @@ defmodule Procession.Simulation.PresentationDetector do
       source: "player",
       kind: infer_kind(message),
       target: infer_target(message),
+      message_intent: infer_message_intent(message),
       text: message
     }
   end
@@ -33,5 +34,35 @@ defmodule Procession.Simulation.PresentationDetector do
         true -> {:message, :general}
       end
     end)
+  end
+
+  defp infer_message_intent(message) do
+    downcased =
+      message
+      |> String.downcase()
+      |> String.trim()
+
+    cond do
+      String.contains?(downcased, "who is mira") ->
+        :ask_public_identity
+
+      String.contains?(downcased, "who's mira") ->
+        :ask_public_identity
+
+      String.contains?(downcased, "is mira your sister") ->
+        :ask_relationship_denial
+
+      String.contains?(downcased, "is mira your brother") ->
+        :ask_relationship_denial
+
+      String.contains?(downcased, "where is mira") ->
+        :ask_location
+
+      String.contains?(downcased, "where can i find") and String.contains?(downcased, "mira") ->
+        :ask_location
+
+      true ->
+        :general
+    end
   end
 end

@@ -192,7 +192,7 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
-      {:ok, field_snapshot, dialogue_constraints} =
+      {:ok, field_snapshot, dialogue_constraints, presentation} =
         apply_internal_field_presentation(entity_id, message)
 
       dialogue_opts =
@@ -200,6 +200,7 @@ defmodule Procession.Command do
         |> Keyword.take([:adapter, :model, :timeout])
         |> Keyword.put(:field_snapshot, field_snapshot)
         |> Keyword.put(:dialogue_constraints, dialogue_constraints)
+        |> Keyword.put(:presentation, presentation)
 
       perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
 
@@ -216,7 +217,7 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
-      {:ok, field_snapshot, dialogue_constraints} =
+      {:ok, field_snapshot, dialogue_constraints, presentation} =
         apply_internal_field_presentation(entity_id, message)
 
       dialogue_opts =
@@ -226,6 +227,7 @@ defmodule Procession.Command do
         |> Keyword.put(:memory_query, message)
         |> Keyword.put(:field_snapshot, field_snapshot)
         |> Keyword.put(:dialogue_constraints, dialogue_constraints)
+        |> Keyword.put(:presentation, presentation)
 
       perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
 
@@ -404,10 +406,10 @@ defmodule Procession.Command do
 
     case InternalFields.apply_presentation(entity_id, presentation) do
       {:ok, snapshot} ->
-        {:ok, snapshot, DialogueConstraints.from_field_snapshot(snapshot)}
+        {:ok, snapshot, DialogueConstraints.from_field_snapshot(snapshot), presentation}
 
       _error ->
-        {:ok, nil, DialogueConstraints.from_field_snapshot(nil)}
+        {:ok, nil, DialogueConstraints.from_field_snapshot(nil), presentation}
     end
   end
 
