@@ -10,6 +10,7 @@ defmodule Procession.Command do
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.EntityCapabilities
+  alias Procession.Simulation.DialogueConstraints
   alias Procession.Simulation.InternalFields
   alias Procession.Simulation.PresentationDetector
 
@@ -180,11 +181,14 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
-      apply_internal_field_presentation(entity_id, message)
+      {:ok, field_snapshot, dialogue_constraints} =
+        apply_internal_field_presentation(entity_id, message)
 
       dialogue_opts =
         opts
         |> Keyword.take([:adapter, :model, :timeout])
+        |> Keyword.put(:field_snapshot, field_snapshot)
+        |> Keyword.put(:dialogue_constraints, dialogue_constraints)
 
       perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
 
@@ -201,13 +205,16 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
-      apply_internal_field_presentation(entity_id, message)
+      {:ok, field_snapshot, dialogue_constraints} =
+        apply_internal_field_presentation(entity_id, message)
 
       dialogue_opts =
         opts
         |> Keyword.take([:adapter, :model, :timeout])
         |> Keyword.put(:grounded_context, true)
         |> Keyword.put(:memory_query, message)
+        |> Keyword.put(:field_snapshot, field_snapshot)
+        |> Keyword.put(:dialogue_constraints, dialogue_constraints)
 
       perform_opts = [entity_id: entity_id, message: message] ++ dialogue_opts
 
@@ -369,9 +376,13 @@ defmodule Procession.Command do
   defp apply_internal_field_presentation(entity_id, message) do
     presentation = PresentationDetector.from_player_message(message)
 
-    _ = InternalFields.apply_presentation(entity_id, presentation)
+    case InternalFields.apply_presentation(entity_id, presentation) do
+      {:ok, snapshot} ->
+        {:ok, snapshot, DialogueConstraints.from_field_snapshot(snapshot)}
 
-    :ok
+      _error ->
+        {:ok, nil, DialogueConstraints.from_field_snapshot(nil)}
+    end
   end
 
   defp wrap_result({:ok, result}, command) do

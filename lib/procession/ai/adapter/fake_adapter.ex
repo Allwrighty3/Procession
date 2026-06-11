@@ -9,11 +9,19 @@ defmodule Procession.AI.FakeAdapter do
   @behaviour Procession.AI
 
   @impl true
-  def generate(prompt, _opts) when is_binary(prompt) do
+  def generate(prompt, opts) when is_binary(prompt) do
+    constraints = Keyword.get(opts, :dialogue_constraints, %{})
+
     cond do
+      prompt =~ "- Name: Tobin" and constraints[:intent] == :firm_deflection ->
+        {:ok, "That's not something I share with strangers."}
+
+      prompt =~ "- Name: Tobin" and constraints[:intent] == :guarded_deflection ->
+        {:ok, "No. Why are you asking?"}
+
       prompt =~ "- Name: Tobin" ->
         {:ok,
-         "Keep your voice down. The road has been too quiet, and quiet roads usually mean someone is listening."}
+        "Keep your voice down. The road has been too quiet, and quiet roads usually mean someone is listening."}
 
       prompt =~ "- Name: Mira" ->
         {:ok, "If Tobin is finally admitting trouble, then the mine is worse than I thought."}

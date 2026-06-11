@@ -293,6 +293,28 @@ defmodule Procession.CommandTest do
       assert {:error, :entity_not_found} = Command.run(session, "ask Nobody about road")
     end
 
+    test "talk to uses guarded internal field constraints for first Mira question" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Tobin: Who is Mira?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_tobin"
+      assert result.result == "No. Why are you asking?"
+    end
+
+    test "talk to uses firm internal field constraints for repeated Mira questions" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, first_result} = Command.run(session, "talk to Tobin: Who is Mira?")
+      assert first_result.result == "No. Why are you asking?"
+
+      assert {:ok, second_result} = Command.run(session, "talk to Tobin: Is Mira your sister?")
+      assert second_result.result == "That's not something I share with strangers."
+    end
+
     test "runs talk to against an exact session-owned entity name" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, summary} = GameSession.new_game(session, "a quiet frontier town")

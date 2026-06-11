@@ -44,7 +44,8 @@ defmodule Procession.AI.NPCInteraction do
       :timeout,
       :dialogue_context,
       :grounded_context,
-      :memory_query
+      :memory_query,
+      :field_snapshot
     ])
   end
 end
