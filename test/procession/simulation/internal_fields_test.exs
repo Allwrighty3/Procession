@@ -4,11 +4,25 @@ defmodule Procession.Simulation.InternalFieldsTest do
   alias Procession.Simulation.InternalFields
 
   setup do
+    stop_internal_field_processes()
+
     on_exit(fn ->
-      Registry.select(Procession.Simulation.InternalFieldRegistry, [{{:"$1", :"$2", :_}, [], [:"$2"]}])
-      |> Enum.each(fn pid ->
-        if Process.alive?(pid), do: GenServer.stop(pid)
-      end)
+      stop_internal_field_processes()
+    end)
+  end
+
+  defp stop_internal_field_processes do
+    Procession.Simulation.InternalFieldSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn
+      {_id, pid, _type, _modules} when is_pid(pid) ->
+        DynamicSupervisor.terminate_child(
+          Procession.Simulation.InternalFieldSupervisor,
+          pid
+        )
+
+      _child ->
+        :ok
     end)
   end
 

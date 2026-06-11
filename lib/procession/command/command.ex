@@ -10,6 +10,8 @@ defmodule Procession.Command do
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.EntityCapabilities
+  alias Procession.Simulation.InternalFields
+  alias Procession.Simulation.PresentationDetector
 
   @doc """
   Runs a deterministic player command against a game session.
@@ -178,6 +180,8 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
+      apply_internal_field_presentation(entity_id, message)
+
       dialogue_opts =
         opts
         |> Keyword.take([:adapter, :model, :timeout])
@@ -197,6 +201,8 @@ defmodule Procession.Command do
 
   defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
+      apply_internal_field_presentation(entity_id, message)
+
       dialogue_opts =
         opts
         |> Keyword.take([:adapter, :model, :timeout])
@@ -359,6 +365,14 @@ defmodule Procession.Command do
   end
 
   defp names_match?(_name, _input), do: false
+
+  defp apply_internal_field_presentation(entity_id, message) do
+    presentation = PresentationDetector.from_player_message(message)
+
+    _ = InternalFields.apply_presentation(entity_id, presentation)
+
+    :ok
+  end
 
   defp wrap_result({:ok, result}, command) do
     {:ok, %{command: command, result: result}}

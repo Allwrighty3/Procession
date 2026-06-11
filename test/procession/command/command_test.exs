@@ -49,10 +49,29 @@ defmodule Procession.CommandTest do
   alias Procession.GameSession
 
   setup do
+    stop_internal_field_processes()
+
     on_exit(fn ->
+      stop_internal_field_processes()
+
       Enum.each(Procession.EntitySupervisor.list_entities(), fn {id, _pid} ->
         Procession.EntitySupervisor.stop_entity(id)
       end)
+    end)
+  end
+
+  defp stop_internal_field_processes do
+    Procession.Simulation.InternalFieldSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn
+      {_id, pid, _type, _modules} when is_pid(pid) ->
+        DynamicSupervisor.terminate_child(
+          Procession.Simulation.InternalFieldSupervisor,
+          pid
+        )
+
+      _child ->
+        :ok
     end)
   end
 
@@ -290,6 +309,64 @@ defmodule Procession.CommandTest do
               }} = Command.run(session, "talk to #{target_state.name}: Hello there")
 
       assert is_binary(response)
+    end
+
+    test "talk to applies player message presentation to the target internal field" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Tobin: Who is Mira?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_tobin"
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_tobin")
+
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.disclosure_boundaries[:mira] == :high
+      assert snapshot.trust_deltas["player"] == -1
+      assert snapshot.private_concerns == [:player_asking_about_mira]
+    end
+
+    test "repeated talk to questions intensify target internal field" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, _result} = Command.run(session, "talk to Tobin: Who is Mira?")
+      assert {:ok, _result} = Command.run(session, "talk to Tobin: Is Mira your sister?")
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_tobin")
+
+      assert snapshot.topic_salience[:mira] == :very_high
+      assert snapshot.disclosure_boundaries[:mira] == :very_high
+      assert snapshot.trust_deltas["player"] == -2
+
+      assert snapshot.private_concerns == [
+               :player_asking_about_mira,
+               :player_repeatedly_asking_about_mira
+             ]
+    end
+
+    test "grounded talk to also applies player message presentation to the target internal field" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} =
+               Command.run(
+                 session,
+                 "grounded talk to Tobin: Who is Mira?",
+                 adapter: __MODULE__.GroundedDialogueAdapter,
+                 model: "cli-test-model"
+               )
+
+      assert result.command == :grounded_talk_to
+      assert result.entity_id == "npc_tobin"
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_tobin")
+
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.disclosure_boundaries[:mira] == :high
+      assert snapshot.trust_deltas["player"] == -1
     end
 
     test "runs talk to against an exact session-owned entity id" do
