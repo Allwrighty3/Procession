@@ -52,7 +52,7 @@ defmodule Procession.Simulation.PresentationDetectorTest do
              }
     end
 
-    test "detects relationship denial questions" do
+    test "detects relationship denial questions with fallback keyword behavior" do
       assert PresentationDetector.from_player_message("Is Mira your sister?") == %{
                source: "player",
                kind: :question,
@@ -64,7 +64,7 @@ defmodule Procession.Simulation.PresentationDetectorTest do
              }
     end
 
-    test "detects location questions" do
+    test "detects location questions with fallback keyword behavior" do
       assert PresentationDetector.from_player_message("Where can I find Mira?") == %{
                source: "player",
                kind: :question,
@@ -79,10 +79,7 @@ defmodule Procession.Simulation.PresentationDetectorTest do
 
   describe "from_player_message/2" do
     test "uses known people to produce entity-backed targets" do
-      known_people = [
-        %{id: "npc_mira", name: "Mira"},
-        %{id: "npc_tobin", name: "Tobin"}
-      ]
+      known_people = known_people()
 
       assert PresentationDetector.from_player_message("Who is Mira?", known_people: known_people) == %{
                source: "player",
@@ -92,6 +89,78 @@ defmodule Procession.Simulation.PresentationDetectorTest do
                topic_key: :mira,
                message_intent: :ask_public_identity,
                text: "Who is Mira?"
+             }
+    end
+
+    test "infers public identity intent for any known person" do
+      known_people = known_people()
+
+      assert PresentationDetector.from_player_message("Who is Tobin?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_tobin"},
+               target_name: "Tobin",
+               topic_key: :tobin,
+               message_intent: :ask_public_identity,
+               text: "Who is Tobin?"
+             }
+
+      assert PresentationDetector.from_player_message("Who's Elin?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_elin"},
+               target_name: "Elin",
+               topic_key: :elin,
+               message_intent: :ask_public_identity,
+               text: "Who's Elin?"
+             }
+    end
+
+    test "infers location intent for any known person" do
+      known_people = known_people()
+
+      assert PresentationDetector.from_player_message("Where is Tobin?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_tobin"},
+               target_name: "Tobin",
+               topic_key: :tobin,
+               message_intent: :ask_location,
+               text: "Where is Tobin?"
+             }
+
+      assert PresentationDetector.from_player_message("Where can I find Elin?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_elin"},
+               target_name: "Elin",
+               topic_key: :elin,
+               message_intent: :ask_location,
+               text: "Where can I find Elin?"
+             }
+    end
+
+    test "infers relationship denial intent for any known person" do
+      known_people = known_people()
+
+      assert PresentationDetector.from_player_message("Is Mira your sister?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_mira"},
+               target_name: "Mira",
+               topic_key: :mira,
+               message_intent: :ask_relationship_denial,
+               text: "Is Mira your sister?"
+             }
+
+      assert PresentationDetector.from_player_message("Is Tobin your brother?", known_people: known_people) == %{
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_tobin"},
+               target_name: "Tobin",
+               topic_key: :tobin,
+               message_intent: :ask_relationship_denial,
+               text: "Is Tobin your brother?"
              }
     end
 
@@ -110,5 +179,13 @@ defmodule Procession.Simulation.PresentationDetectorTest do
                text: "Who is Mira?"
              }
     end
+  end
+
+  defp known_people do
+    [
+      %{id: "npc_mira", name: "Mira"},
+      %{id: "npc_tobin", name: "Tobin"},
+      %{id: "npc_elin", name: "Elin"}
+    ]
   end
 end
