@@ -13,6 +13,7 @@ defmodule Procession.Command do
   alias Procession.Simulation.DialogueConstraints
   alias Procession.Simulation.InternalFields
   alias Procession.Simulation.PresentationDetector
+  alias Procession.Simulation.RelationshipTopicPolicy
 
   @doc """
   Runs a deterministic player command against a game session.
@@ -412,7 +413,7 @@ defmodule Procession.Command do
       )
 
     context = [
-      speaker_topic_policies: speaker_topic_policies(entity_id)
+      speaker_topic_policies: speaker_topic_policies(session, entity_id)
     ]
 
     case InternalFields.apply_presentation(entity_id, presentation, context) do
@@ -457,7 +458,18 @@ defmodule Procession.Command do
     end)
   end
 
-  defp speaker_topic_policies(entity_id) do
+  defp speaker_topic_policies(session, entity_id) do
+    relationship_policies =
+      session
+      |> session_relationships()
+      |> RelationshipTopicPolicy.from_relationships(entity_id)
+
+    metadata_policies = speaker_metadata_topic_policies(entity_id)
+
+    Map.merge(relationship_policies, metadata_policies)
+  end
+
+  defp speaker_metadata_topic_policies(entity_id) do
     if EntitySupervisor.exists?(entity_id) do
       try do
         entity = Entity.get_state(entity_id)
@@ -511,4 +523,17 @@ defmodule Procession.Command do
   end
 
   defp enrich_look_result(error), do: error
+
+  defp session_relationships(session) do
+    case GameSession.summary(session) do
+      {:ok, %{world: %{relationships: relationships}}} when is_list(relationships) ->
+        relationships
+
+      {:ok, %{relationships: relationships}} when is_list(relationships) ->
+        relationships
+
+      _ ->
+        []
+    end
+  end
 end
