@@ -146,5 +146,65 @@ defmodule Procession.Simulation.InternalFieldTest do
       assert snapshot.topic_pressure_counts[:mira] == 1
       assert snapshot.disclosure_boundaries[:mira] == :high
     end
+
+    test "non-Mira topic keys use general field mechanics" do
+      field =
+        "npc_mira"
+        |> InternalField.new()
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :question,
+          target: {:person, "npc_tobin"},
+          target_name: "Tobin",
+          topic_key: :tobin,
+          message_intent: :general,
+          text: "What does Tobin know?"
+        })
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :question,
+          target: {:person, "npc_tobin"},
+          target_name: "Tobin",
+          topic_key: :tobin,
+          message_intent: :general,
+          text: "Where is Tobin?"
+        })
+
+      snapshot = InternalField.snapshot(field)
+
+      assert snapshot.topic_salience[:tobin] == :high
+      assert snapshot.topic_pressure_counts[:tobin] == 2
+      assert snapshot.disclosure_boundaries[:tobin] == :very_high
+      assert snapshot.trust_deltas["player"] == -2
+
+      assert snapshot.private_concerns == [
+              :player_asking_about_tobin,
+              :player_repeatedly_asking_about_tobin
+            ]
+    end
+
+    test "general topic presentations are recorded without field pressure" do
+      field =
+        "npc_tobin"
+        |> InternalField.new()
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :statement,
+          target: {:message, :general},
+          target_name: nil,
+          topic_key: :general,
+          message_intent: :general,
+          text: "Hello there"
+        })
+
+      snapshot = InternalField.snapshot(field)
+
+      assert snapshot.topic_salience == %{}
+      assert snapshot.topic_pressure_counts == %{}
+      assert snapshot.disclosure_boundaries == %{}
+      assert snapshot.trust_deltas == %{}
+      assert snapshot.private_concerns == []
+      assert length(snapshot.presentations) == 1
+    end
   end
 end
