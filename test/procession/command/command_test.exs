@@ -503,6 +503,109 @@ defmodule Procession.CommandTest do
       assert result.presentation.topic_key == :tobin
     end
 
+    test "talk to can infer world and scope for SQLite-backed policy context from the session" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      conn = WorldStoreFixture.open_migrated_store!()
+
+      :sys.replace_state(session, fn state ->
+        %{
+          state
+          | world: %{
+              id: "world_test",
+              name: "Test World"
+            },
+            active_scope: "scope_market"
+        }
+      end)
+
+      assert {:ok, result} =
+              Command.run(
+                session,
+                "talk to Mira: Who is Tobin?",
+                world_store_conn: conn
+              )
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.topic_key == :tobin
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_mira")
+
+      assert snapshot.topic_salience[:tobin] == :high
+      assert snapshot.topic_pressure_counts[:tobin] == 1
+      assert snapshot.disclosure_boundaries[:tobin] == :high
+      assert snapshot.trust_deltas["player"] == -1
+
+      assert snapshot.private_concerns == [
+              :player_asking_about_tobin
+            ]
+    end
+
+    test "talk to prefers explicit world and scope opts over session world context" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      conn = WorldStoreFixture.open_migrated_store!()
+
+      :sys.replace_state(session, fn state ->
+        %{
+          state
+          | world: %{
+              id: "wrong_world",
+              name: "Wrong World"
+            },
+            active_scope: "wrong_scope"
+        }
+      end)
+
+      assert {:ok, result} =
+              Command.run(
+                session,
+                "talk to Mira: Who is Tobin?",
+                world_store_conn: conn,
+                world_id: "world_test",
+                scope_id: "scope_market"
+              )
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.topic_key == :tobin
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_mira")
+
+      assert snapshot.topic_salience[:tobin] == :high
+      assert snapshot.topic_pressure_counts[:tobin] == 1
+      assert snapshot.disclosure_boundaries[:tobin] == :high
+      assert snapshot.private_concerns == [
+              :player_asking_about_tobin
+            ]
+    end
+
+    test "talk to ignores SQLite policy context when world and scope cannot be resolved" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      conn = WorldStoreFixture.open_migrated_store!()
+
+      :sys.replace_state(session, fn state ->
+        %{
+          state
+          | world: nil,
+            active_scope: nil
+        }
+      end)
+
+      assert {:ok, result} =
+              Command.run(
+                session,
+                "talk to Mira: Who is Tobin?",
+                world_store_conn: conn
+              )
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.topic_key == :tobin
+    end
+
     test "talk to supports generalized internal field loop for non-Mira topics" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")

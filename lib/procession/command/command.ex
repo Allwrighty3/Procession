@@ -467,8 +467,8 @@ defmodule Procession.Command do
       |> RelationshipTopicPolicy.from_relationships(entity_id)
 
     world_policies =
-      opts
-      |> world_policy_context(entity_id)
+      session
+      |> world_policy_context(opts, entity_id)
       |> Keyword.get(:topic_policies, %{})
 
     metadata_policies = speaker_metadata_topic_policies(entity_id)
@@ -546,34 +546,69 @@ defmodule Procession.Command do
     end
   end
 
-  defp world_policy_context(opts, entity_id) do
+  defp world_policy_context(session, opts, entity_id) do
     conn = Keyword.get(opts, :world_store_conn)
-    world_id = Keyword.get(opts, :world_id)
-    scope_id = Keyword.get(opts, :scope_id)
 
-    cond do
-      is_nil(conn) ->
+    with true <- not is_nil(conn),
+        true <- is_binary(entity_id),
+        {:ok, session_context} <- session_world_context(session),
+        {:ok, world_id} <- world_id_from_context(opts, session_context),
+        {:ok, scope_id} <- scope_id_from_context(opts, session_context) do
+      PolicyContext.for_entity(
+        ContextLoader,
+        conn,
+        world_id,
+        scope_id,
+        entity_id
+      )
+    else
+      _ ->
         PolicyContext.empty_context()
-
-      not is_binary(world_id) ->
-        PolicyContext.empty_context()
-
-      not is_binary(scope_id) ->
-        PolicyContext.empty_context()
-
-      not is_binary(entity_id) ->
-        PolicyContext.empty_context()
-
-      true ->
-        PolicyContext.for_entity(
-          ContextLoader,
-          conn,
-          world_id,
-          scope_id,
-          entity_id
-        )
     end
   end
+
+  defp session_world_context(session) do
+    case GameSession.summary(session) do
+      {:ok, summary} when is_map(summary) ->
+        {:ok, summary}
+
+      _ ->
+        :error
+    end
+  end
+
+  defp world_id_from_context(opts, session_context) do
+    opts
+    |> Keyword.get(:world_id)
+    |> case do
+      world_id when is_binary(world_id) ->
+        {:ok, world_id}
+
+      _ ->
+        session_context
+        |> Map.get(:world)
+        |> world_id_from_world()
+    end
+  end
+
+  defp scope_id_from_context(opts, session_context) do
+    opts
+    |> Keyword.get(:scope_id)
+    |> case do
+      scope_id when is_binary(scope_id) ->
+        {:ok, scope_id}
+
+      _ ->
+        case Map.get(session_context, :active_scope) do
+          scope_id when is_binary(scope_id) -> {:ok, scope_id}
+          _ -> :error
+        end
+    end
+  end
+
+  defp world_id_from_world(%{id: world_id}) when is_binary(world_id), do: {:ok, world_id}
+  defp world_id_from_world(%{world_id: world_id}) when is_binary(world_id), do: {:ok, world_id}
+  defp world_id_from_world(_world), do: :error
 
   defp merge_topic_policy_maps(base_policies, override_policies)
       when is_map(base_policies) and is_map(override_policies) do
