@@ -455,6 +455,73 @@ defmodule Procession.CommandTest do
       assert snapshot.private_concerns == [:player_asking_about_mira]
     end
 
+    test "talk to supports generalized internal field loop for non-Mira topics" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, identity_result} = Command.run(session, "talk to Mira: Who is Tobin?")
+
+      assert identity_result.command == :talk_to
+      assert identity_result.entity_id == "npc_mira"
+      assert identity_result.entity_name == "Mira"
+      assert identity_result.result == "Tobin is a merchant. Why are you asking?"
+
+      assert identity_result.presentation.target == {:person, "npc_tobin"}
+      assert identity_result.presentation.target_name == "Tobin"
+      assert identity_result.presentation.topic_key == :tobin
+      assert identity_result.presentation.message_intent == :ask_public_identity
+
+      assert identity_result.presentation.target_public_facts == %{
+              role: "merchant",
+              temperament: "nervous"
+            }
+
+      assert identity_result.dialogue_constraints.intent == :guarded_deflection
+      assert identity_result.dialogue_constraints.response_shape == :public_identity_then_question
+      assert identity_result.dialogue_constraints.topic_key == :tobin
+      assert identity_result.dialogue_constraints.target_name == "Tobin"
+
+      assert identity_result.dialogue_constraints.target_public_facts == %{
+              role: "merchant",
+              temperament: "nervous"
+            }
+
+      assert {:ok, location_result} = Command.run(session, "talk to Mira: Where is Tobin?")
+
+      assert location_result.command == :talk_to
+      assert location_result.entity_id == "npc_mira"
+      assert location_result.entity_name == "Mira"
+      assert location_result.result == "I don't share where Tobin is with strangers."
+
+      assert location_result.presentation.target == {:person, "npc_tobin"}
+      assert location_result.presentation.target_name == "Tobin"
+      assert location_result.presentation.topic_key == :tobin
+      assert location_result.presentation.message_intent == :ask_location
+
+      assert location_result.dialogue_constraints.intent == :firm_deflection
+      assert location_result.dialogue_constraints.response_shape == :location_refusal
+      assert location_result.dialogue_constraints.topic_key == :tobin
+      assert location_result.dialogue_constraints.target_name == "Tobin"
+
+      assert {:ok,
+              %{
+                command: :internal_field,
+                entity_id: "npc_mira",
+                entity_name: "Mira",
+                result: field_snapshot
+              }} = Command.run(session, "field for Mira")
+
+      assert field_snapshot.topic_salience[:tobin] == :high
+      assert field_snapshot.topic_pressure_counts[:tobin] == 2
+      assert field_snapshot.disclosure_boundaries[:tobin] == :very_high
+      assert field_snapshot.trust_deltas["player"] == -2
+
+      assert field_snapshot.private_concerns == [
+              :player_asking_about_tobin,
+              :player_repeatedly_asking_about_tobin
+            ]
+    end
+
     test "repeated talk to questions intensify target internal field" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
