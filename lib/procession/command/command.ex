@@ -39,6 +39,7 @@ defmodule Procession.Command do
   defp parse("wait"), do: {:ok, :wait}
   defp parse("look at"), do: {:error, :missing_target}
   defp parse("events for"), do: {:error, :missing_target}
+  defp parse("field for"), do: {:error, :missing_target}
   defp parse("go to"), do: {:error, :missing_target}
   defp parse("travel to"), do: {:error, :missing_target}
   defp parse("grounded talk to"), do: {:error, :missing_target}
@@ -92,6 +93,16 @@ defmodule Procession.Command do
       {:error, :missing_target}
     else
       {:ok, {:recent_events, target}}
+    end
+  end
+
+  defp parse("field for " <> target) do
+    target = String.trim(target)
+
+    if target == "" do
+      {:error, :missing_target}
+    else
+      {:ok, {:internal_field, target}}
     end
   end
 
@@ -239,6 +250,21 @@ defmodule Procession.Command do
         entity_id: entity_id,
         entity_name: entity_display_name(entity_id)
       })
+    end
+  end
+
+  defp execute({:ok, {:internal_field, target}}, session, _opts) do
+    with {:ok, entity_id} <- resolve_entity(session, target) do
+      snapshot = Procession.Simulation.InternalFields.snapshot(entity_id)
+
+      {:ok,
+       %{
+         command: :internal_field,
+         target: target,
+         entity_id: entity_id,
+         entity_name: entity_display_name(entity_id),
+         result: snapshot
+       }}
     end
   end
 

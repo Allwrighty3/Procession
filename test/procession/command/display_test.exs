@@ -257,4 +257,36 @@ defmodule Procession.Command.DisplayTest do
 
     assert text =~ "Local entities: npc_tobin"
   end
+
+  test "formats internal field snapshots" do
+    formatted =
+      Procession.Command.Display.format(
+        {:ok,
+         %{
+           command: :internal_field,
+           entity_name: "Tobin",
+           result: %{
+             topic_salience: %{mira: :high},
+             disclosure_boundaries: %{mira: :high},
+             trust_deltas: %{"player" => -1},
+             private_concerns: [:player_asking_about_mira],
+             presentations: [
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:person, :mira},
+                 text: "Who is Mira?"
+               }
+             ]
+           }
+         }}
+      )
+
+    assert formatted =~ "Internal field for Tobin:"
+    assert formatted =~ "- topic_salience: %{mira: :high}"
+    assert formatted =~ "- disclosure_boundaries: %{mira: :high}"
+    assert formatted =~ "- trust_deltas: %{\"player\" => -1}"
+    assert formatted =~ "- private_concerns: [:player_asking_about_mira]"
+    assert formatted =~ "- presentations: 1"
+  end
 end

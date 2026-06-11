@@ -578,6 +578,40 @@ defmodule Procession.CommandTest do
       assert result.entity_id == "npc_mira"
       assert result.result == "AI adapter response from command path."
     end
+
+    test "field for returns the target internal field snapshot" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, _talk_result} = Command.run(session, "talk to Tobin: Who is Mira?")
+
+      assert {:ok,
+              %{
+                command: :internal_field,
+                entity_id: "npc_tobin",
+                entity_name: "Tobin",
+                result: snapshot
+              }} = Command.run(session, "field for Tobin")
+
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.disclosure_boundaries[:mira] == :high
+      assert snapshot.trust_deltas["player"] == -1
+      assert snapshot.private_concerns == [:player_asking_about_mira]
+    end
+
+    test "field for returns missing_target when malformed" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+
+      assert {:error, :missing_target} = Command.run(session, "field for")
+      assert {:error, :missing_target} = Command.run(session, "field for   ")
+    end
+
+    test "field for returns entity_not_found for unknown target" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:error, :entity_not_found} = Command.run(session, "field for Nobody")
+    end
   end
 
   describe "travel commands" do

@@ -22,6 +22,7 @@ defmodule Procession.CLI do
   - go to Briar Village
   - ask Mira about mine
   - events for Mira
+  - field for Tobin
   - commands
   - help
   - quit

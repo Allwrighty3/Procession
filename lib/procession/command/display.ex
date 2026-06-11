@@ -123,6 +123,20 @@ defmodule Procession.Command.Display do
     |> Enum.join("\n")
   end
 
+  def format({:ok, %{command: :internal_field, result: snapshot} = command}) do
+    target = display_target(command)
+
+    """
+    Internal field for #{target}:
+    - topic_salience: #{inspect(Map.get(snapshot, :topic_salience, %{}))}
+    - disclosure_boundaries: #{inspect(Map.get(snapshot, :disclosure_boundaries, %{}))}
+    - trust_deltas: #{inspect(Map.get(snapshot, :trust_deltas, %{}))}
+    - private_concerns: #{inspect(Map.get(snapshot, :private_concerns, []))}
+    - presentations: #{length(Map.get(snapshot, :presentations, []))}
+    """
+    |> String.trim()
+  end
+
   def format({:ok, %{command: :talk_to, result: response} = command}) do
     target = display_target(command)
     "#{target} says: #{response}"
