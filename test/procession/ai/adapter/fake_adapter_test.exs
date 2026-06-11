@@ -35,7 +35,7 @@ defmodule Procession.AI.FakeAdapterTest do
     end
 
     test "renders location refusal response shape for any speaker" do
-      assert {:ok, "That's not something I share with strangers."} =
+      assert {:ok, "I don't share where Mira is with strangers."} =
                FakeAdapter.generate("- Name: Elin",
                  dialogue_constraints: %{
                    response_shape: :location_refusal,

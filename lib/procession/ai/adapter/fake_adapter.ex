@@ -23,7 +23,7 @@ defmodule Procession.AI.FakeAdapter do
         {:ok, "No. Why are you asking?"}
 
       response_shape == :location_refusal ->
-        {:ok, "That's not something I share with strangers."}
+        {:ok, "I don't share where #{target_name} is with strangers."}
 
       response_shape == :repeated_topic_boundary ->
         {:ok, "I've answered enough about #{target_name}."}
