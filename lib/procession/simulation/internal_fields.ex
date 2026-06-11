@@ -1,0 +1,75 @@
+defmodule Procession.Simulation.InternalFields do
+  @moduledoc """
+  Public access layer for live internal field processes.
+
+  This module starts, locates, and routes calls to one internal field process
+  per active individual. It does not own field rules; those stay in
+  Procession.Simulation.InternalField.
+  """
+
+  alias Procession.Simulation.InternalFieldProcess
+
+  @registry Procession.Simulation.InternalFieldRegistry
+  @supervisor Procession.Simulation.InternalFieldSupervisor
+
+  def ensure_started(entity_id) when is_binary(entity_id) do
+    case Registry.lookup(@registry, entity_id) do
+      [{pid, _metadata}] ->
+        {:ok, pid}
+
+      [] ->
+        start_field(entity_id)
+    end
+  end
+
+  def apply_presentation(entity_id, presentation)
+      when is_binary(entity_id) and is_map(presentation) do
+    with {:ok, _pid} <- ensure_started(entity_id) do
+      entity_id
+      |> via_tuple()
+      |> InternalFieldProcess.apply_presentation(presentation)
+    end
+  end
+
+  def snapshot(entity_id) when is_binary(entity_id) do
+    with {:ok, _pid} <- ensure_started(entity_id) do
+      entity_id
+      |> via_tuple()
+      |> InternalFieldProcess.snapshot()
+    end
+  end
+
+  defp start_field(entity_id) do
+    child_spec = %{
+      id: {:internal_field, entity_id},
+      start:
+        {InternalFieldProcess, :start_link,
+         [
+           [
+             entity_id: entity_id,
+             name: via_tuple(entity_id)
+           ]
+         ]},
+      restart: :temporary,
+      type: :worker
+    }
+
+    case DynamicSupervisor.start_child(@supervisor, child_spec) do
+      {:ok, pid} ->
+        {:ok, pid}
+
+      {:error, {:already_started, pid}} ->
+        {:ok, pid}
+
+      {:error, {:shutdown, {:failed_to_start_child, _child_id, {:already_started, pid}}}} ->
+        {:ok, pid}
+
+      error ->
+        error
+    end
+  end
+
+  defp via_tuple(entity_id) do
+    {:via, Registry, {@registry, entity_id}}
+  end
+end

@@ -9,6 +9,9 @@ defmodule Procession.Application do
   def start(_type, _args) do
     children = [
       {Registry, keys: :unique, name: Procession.EntityRegistry},
+      {Registry, keys: :unique, name: Procession.Simulation.InternalFieldRegistry},
+      {DynamicSupervisor,
+      strategy: :one_for_one, name: Procession.Simulation.InternalFieldSupervisor},
       {Procession.EntitySupervisor, []},
       {Procession.WorldClock, []}
     ]
