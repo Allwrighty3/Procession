@@ -14,6 +14,8 @@ defmodule Procession.Command do
   alias Procession.Simulation.InternalFields
   alias Procession.Simulation.PresentationDetector
   alias Procession.Simulation.RelationshipTopicPolicy
+  alias Procession.World.ContextLoader
+  alias Procession.World.PolicyContext
 
   @doc """
   Runs a deterministic player command against a game session.
@@ -194,7 +196,7 @@ defmodule Procession.Command do
   defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       {:ok, field_snapshot, dialogue_constraints, presentation} =
-        apply_internal_field_presentation(session, entity_id, message)
+        apply_internal_field_presentation(session, entity_id, message, opts)
 
       dialogue_opts =
         opts
@@ -221,7 +223,7 @@ defmodule Procession.Command do
   defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       {:ok, field_snapshot, dialogue_constraints, presentation} =
-        apply_internal_field_presentation(session, entity_id, message)
+        apply_internal_field_presentation(session, entity_id, message, opts)
 
       dialogue_opts =
         opts
@@ -406,14 +408,14 @@ defmodule Procession.Command do
 
   defp names_match?(_name, _input), do: false
 
-  defp apply_internal_field_presentation(session, entity_id, message) do
+  defp apply_internal_field_presentation(session, entity_id, message, opts) do
     presentation =
       PresentationDetector.from_player_message(message,
         known_people: known_people(session)
       )
 
     context = [
-      speaker_topic_policies: speaker_topic_policies(session, entity_id)
+      speaker_topic_policies: speaker_topic_policies(session, entity_id, opts)
     ]
 
     case InternalFields.apply_presentation(entity_id, presentation, context) do
@@ -458,15 +460,22 @@ defmodule Procession.Command do
     end)
   end
 
-  defp speaker_topic_policies(session, entity_id) do
+  defp speaker_topic_policies(session, entity_id, opts) do
     relationship_policies =
       session
       |> session_relationships()
       |> RelationshipTopicPolicy.from_relationships(entity_id)
 
+    world_policies =
+      opts
+      |> world_policy_context(entity_id)
+      |> Keyword.get(:topic_policies, %{})
+
     metadata_policies = speaker_metadata_topic_policies(entity_id)
 
-    Map.merge(relationship_policies, metadata_policies)
+    relationship_policies
+    |> merge_topic_policy_maps(world_policies)
+    |> merge_topic_policy_maps(metadata_policies)
   end
 
   defp speaker_metadata_topic_policies(entity_id) do
@@ -536,4 +545,50 @@ defmodule Procession.Command do
         []
     end
   end
+
+  defp world_policy_context(opts, entity_id) do
+    conn = Keyword.get(opts, :world_store_conn)
+    world_id = Keyword.get(opts, :world_id)
+    scope_id = Keyword.get(opts, :scope_id)
+
+    cond do
+      is_nil(conn) ->
+        PolicyContext.empty_context()
+
+      not is_binary(world_id) ->
+        PolicyContext.empty_context()
+
+      not is_binary(scope_id) ->
+        PolicyContext.empty_context()
+
+      not is_binary(entity_id) ->
+        PolicyContext.empty_context()
+
+      true ->
+        PolicyContext.for_entity(
+          ContextLoader,
+          conn,
+          world_id,
+          scope_id,
+          entity_id
+        )
+    end
+  end
+
+  defp merge_topic_policy_maps(base_policies, override_policies)
+      when is_map(base_policies) and is_map(override_policies) do
+    Map.merge(base_policies, override_policies, fn _topic_key, base_policy, override_policy ->
+      Map.merge(base_policy, override_policy)
+    end)
+  end
+
+  defp merge_topic_policy_maps(base_policies, _override_policies) when is_map(base_policies) do
+    base_policies
+  end
+
+  defp merge_topic_policy_maps(_base_policies, override_policies) when is_map(override_policies) do
+    override_policies
+  end
+
+  defp merge_topic_policy_maps(_base_policies, _override_policies), do: %{}
 end

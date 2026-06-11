@@ -47,6 +47,7 @@ defmodule Procession.CommandTest do
 
   alias Procession.Command
   alias Procession.GameSession
+  alias Procession.WorldStoreFixture
 
   setup do
     stop_internal_field_processes()
@@ -459,6 +460,47 @@ defmodule Procession.CommandTest do
       assert snapshot.disclosure_boundaries[:mira] == :high
       assert snapshot.trust_deltas["player"] == -1
       assert snapshot.private_concerns == [:player_asking_about_mira]
+    end
+
+    test "talk to can use SQLite-backed scoped world policy context" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      conn = WorldStoreFixture.open_migrated_store!()
+
+      assert {:ok, result} =
+              Command.run(
+                session,
+                "talk to Mira: Who is Tobin?",
+                world_store_conn: conn,
+                world_id: "world_test",
+                scope_id: "scope_market"
+              )
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.topic_key == :tobin
+
+      snapshot = Procession.Simulation.InternalFields.snapshot("npc_mira")
+
+      assert snapshot.topic_salience[:tobin] == :high
+      assert snapshot.topic_pressure_counts[:tobin] == 1
+      assert snapshot.disclosure_boundaries[:tobin] == :high
+      assert snapshot.trust_deltas["player"] == -1
+
+      assert snapshot.private_concerns == [
+              :player_asking_about_tobin
+            ]
+    end
+
+    test "talk to still works without SQLite world policy context" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Mira: Who is Tobin?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+      assert result.presentation.topic_key == :tobin
     end
 
     test "talk to supports generalized internal field loop for non-Mira topics" do
