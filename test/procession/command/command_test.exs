@@ -409,6 +409,34 @@ defmodule Procession.CommandTest do
       assert is_binary(response)
     end
 
+    test "talk to can render relationship denial for non-Mira topics" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Mira: Is Tobin your brother?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_mira"
+
+      assert result.presentation.target == {:person, "npc_tobin"}
+      assert result.presentation.target_name == "Tobin"
+      assert result.presentation.topic_key == :tobin
+      assert result.presentation.message_intent == :ask_relationship_denial
+
+      assert result.dialogue_constraints.intent == :guarded_deflection
+      assert result.dialogue_constraints.response_shape == :relationship_denial_then_question
+      assert result.dialogue_constraints.allowed_facts == [:narrow_relationship_denial]
+      assert result.dialogue_constraints.topic_key == :tobin
+      assert result.dialogue_constraints.target_name == "Tobin"
+
+      assert result.dialogue_constraints.target_public_facts == %{
+              role: "merchant",
+              temperament: "nervous"
+            }
+
+      assert result.result == "No. Why are you asking?"
+    end
+
     test "talk to applies player message presentation to the target internal field" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")

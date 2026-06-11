@@ -44,8 +44,7 @@ defmodule Procession.Simulation.DialogueConstraints do
       topic_salience_level == :high and message_intent == :ask_public_identity ->
         public_identity_constraints(topic_key, target_name, target_public_facts)
 
-      topic_key == :mira and topic_salience_level == :high and
-          message_intent == :ask_relationship_denial ->
+      topic_salience_level == :high and message_intent == :ask_relationship_denial ->
         relationship_denial_constraints(topic_key, target_name, target_public_facts)
 
       topic_salience_level == :high ->

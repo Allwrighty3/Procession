@@ -264,6 +264,35 @@ defmodule Procession.Simulation.DialogueConstraintsTest do
         target_public_facts: %{role: "merchant"}
       )
     end
+
+    test "returns relationship denial constraints for non-Mira topics" do
+      snapshot = tobin_snapshot(pressure_count: 1)
+
+      constraints =
+        DialogueConstraints.from_field_snapshot(snapshot, %{
+          topic_key: :tobin,
+          target_name: "Tobin",
+          target_public_facts: %{role: "merchant"},
+          message_intent: :ask_relationship_denial
+        })
+
+      assert_constraints(constraints,
+        intent: :guarded_deflection,
+        response_shape: :relationship_denial_then_question,
+        disclosure_level: :minimal,
+        tone: [:cautious, :neighborly],
+        allowed_facts: [:narrow_relationship_denial],
+        forbidden_topics: [
+          :tobin_location,
+          :tobin_private_history,
+          :tobin_hidden_relationship
+        ],
+        field_pressure: :sensitive_topic,
+        topic_key: :tobin,
+        target_name: "Tobin",
+        target_public_facts: %{role: "merchant"}
+      )
+    end
   end
 
   describe "from_field_snapshot/1" do
