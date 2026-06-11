@@ -6,21 +6,21 @@ defmodule Procession.AI.FakeAdapterTest do
   describe "generate/2" do
     test "renders public identity response shape for any speaker" do
       assert {:ok, "Mira is an innkeeper. Why are you asking?"} =
-                FakeAdapter.generate("- Name: Tobin",
-                  dialogue_constraints: %{
-                    response_shape: :public_identity_then_question,
-                    target_name: "Mira",
-                    target_public_facts: %{role: "innkeeper"}
-                  }
-                )
+               FakeAdapter.generate("- Name: Tobin",
+                 dialogue_constraints: %{
+                   response_shape: :public_identity_then_question,
+                   target_name: "Mira",
+                   target_public_facts: %{role: "innkeeper"}
+                 }
+               )
 
       assert {:ok, "Tobin is a merchant. Why are you asking?"} =
                FakeAdapter.generate("- Name: Mira",
-                  dialogue_constraints: %{
-                    response_shape: :public_identity_then_question,
-                    target_name: "Tobin",
-                    target_public_facts: %{role: "merchant"}
-                  }
+                 dialogue_constraints: %{
+                   response_shape: :public_identity_then_question,
+                   target_name: "Tobin",
+                   target_public_facts: %{role: "merchant"}
+                 }
                )
     end
 
@@ -90,12 +90,12 @@ defmodule Procession.AI.FakeAdapterTest do
 
     test "renders public identity fallback when role facts are missing" do
       assert {:ok, "Mira. Why are you asking?"} =
-              FakeAdapter.generate("- Name: Tobin",
-                dialogue_constraints: %{
-                  response_shape: :public_identity_then_question,
-                  target_name: "Mira"
-                }
-              )
+               FakeAdapter.generate("- Name: Tobin",
+                 dialogue_constraints: %{
+                   response_shape: :public_identity_then_question,
+                   target_name: "Mira"
+                 }
+               )
     end
   end
 end

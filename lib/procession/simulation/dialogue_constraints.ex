@@ -41,13 +41,12 @@ defmodule Procession.Simulation.DialogueConstraints do
       topic_salience_level == :high and pressure_count >= 2 ->
         repeated_topic_constraints(topic_key, target_name, target_public_facts)
 
-      topic_key == :mira and topic_salience_level == :high and
-          message_intent == :ask_public_identity ->
-        mira_public_identity_constraints(target_name, target_public_facts)
+      topic_salience_level == :high and message_intent == :ask_public_identity ->
+        public_identity_constraints(topic_key, target_name, target_public_facts)
 
       topic_key == :mira and topic_salience_level == :high and
           message_intent == :ask_relationship_denial ->
-        mira_relationship_denial_constraints(target_name, target_public_facts)
+        relationship_denial_constraints(topic_key, target_name, target_public_facts)
 
       topic_salience_level == :high ->
         sensitive_topic_constraints(topic_key, target_name, target_public_facts)
@@ -59,7 +58,7 @@ defmodule Procession.Simulation.DialogueConstraints do
 
   def from_field_snapshot(_snapshot, _presentation), do: @default_constraints
 
-  defp mira_public_identity_constraints(target_name, target_public_facts) do
+  defp public_identity_constraints(topic_key, target_name, target_public_facts) do
     %{
       @default_constraints
       | intent: :guarded_deflection,
@@ -67,15 +66,15 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :minimal,
         tone: [:cautious, :neighborly],
         allowed_facts: [:narrow_public_identity],
-        forbidden_topics: forbidden_private_topics(:mira),
+        forbidden_topics: forbidden_private_topics(topic_key),
         field_pressure: :sensitive_topic,
-        topic_key: :mira,
+        topic_key: topic_key,
         target_name: target_name,
         target_public_facts: target_public_facts
     }
   end
 
-  defp mira_relationship_denial_constraints(target_name, target_public_facts) do
+  defp relationship_denial_constraints(topic_key, target_name, target_public_facts) do
     %{
       @default_constraints
       | intent: :guarded_deflection,
@@ -83,9 +82,9 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :minimal,
         tone: [:cautious, :neighborly],
         allowed_facts: [:narrow_relationship_denial],
-        forbidden_topics: forbidden_private_topics(:mira),
+        forbidden_topics: forbidden_private_topics(topic_key),
         field_pressure: :sensitive_topic,
-        topic_key: :mira,
+        topic_key: topic_key,
         target_name: target_name,
         target_public_facts: target_public_facts
     }
@@ -115,7 +114,8 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :none,
         tone: [:guarded, :firm],
         allowed_facts: [],
-        forbidden_topics: forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
+        forbidden_topics:
+          forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
         field_pressure: :repeated_sensitive_topic,
         topic_key: topic_key,
         target_name: target_name,
@@ -131,7 +131,8 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :none,
         tone: [:guarded, :firm],
         allowed_facts: [],
-        forbidden_topics: forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
+        forbidden_topics:
+          forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
         field_pressure: :sensitive_location_request,
         topic_key: topic_key,
         target_name: target_name,

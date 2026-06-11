@@ -129,8 +129,7 @@ defmodule Procession.Simulation.PresentationDetectorTest do
         text: "Who is Tobin?"
       )
 
-      elin =
-        PresentationDetector.from_player_message("Who's Elin?", known_people: known_people)
+      elin = PresentationDetector.from_player_message("Who's Elin?", known_people: known_people)
 
       assert_presentation(elin,
         source: "player",

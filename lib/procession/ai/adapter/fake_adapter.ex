@@ -18,6 +18,7 @@ defmodule Procession.AI.FakeAdapter do
     cond do
       response_shape == :public_identity_then_question ->
         {:ok, "#{public_identity_for(target_name, target_public_facts)} Why are you asking?"}
+
       response_shape == :relationship_denial_then_question ->
         {:ok, "No. Why are you asking?"}
 

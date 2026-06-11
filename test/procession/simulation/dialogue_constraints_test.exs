@@ -235,6 +235,35 @@ defmodule Procession.Simulation.DialogueConstraintsTest do
         normal_constraints()
       )
     end
+
+    test "returns public identity constraints for non-Mira topics with public facts" do
+      snapshot = tobin_snapshot(pressure_count: 1)
+
+      constraints =
+        DialogueConstraints.from_field_snapshot(snapshot, %{
+          topic_key: :tobin,
+          target_name: "Tobin",
+          target_public_facts: %{role: "merchant"},
+          message_intent: :ask_public_identity
+        })
+
+      assert_constraints(constraints,
+        intent: :guarded_deflection,
+        response_shape: :public_identity_then_question,
+        disclosure_level: :minimal,
+        tone: [:cautious, :neighborly],
+        allowed_facts: [:narrow_public_identity],
+        forbidden_topics: [
+          :tobin_location,
+          :tobin_private_history,
+          :tobin_hidden_relationship
+        ],
+        field_pressure: :sensitive_topic,
+        topic_key: :tobin,
+        target_name: "Tobin",
+        target_public_facts: %{role: "merchant"}
+      )
+    end
   end
 
   describe "from_field_snapshot/1" do

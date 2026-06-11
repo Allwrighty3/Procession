@@ -384,11 +384,11 @@ defmodule Procession.CommandTest do
       assert result.presentation.message_intent == :ask_public_identity
 
       assert result.dialogue_constraints.intent == :guarded_deflection
-      assert result.dialogue_constraints.response_shape == :ask_why
+      assert result.dialogue_constraints.response_shape == :public_identity_then_question
       assert result.dialogue_constraints.topic_key == :tobin
       assert result.dialogue_constraints.target_name == "Tobin"
 
-      assert result.result == "Why are you asking about Tobin?"
+      assert result.result == "Tobin is a merchant. Why are you asking?"
     end
 
     test "runs talk to against an exact session-owned entity name" do
