@@ -34,14 +34,15 @@ defmodule Procession.Simulation.InternalField do
     %__MODULE__{entity_id: entity_id}
   end
 
-  def apply_presentation(%__MODULE__{} = field, presentation) when is_map(presentation) do
+  def apply_presentation(%__MODULE__{} = field, presentation, context \\ [])
+      when is_map(presentation) and is_list(context) do
     topic_key = topic_key_for(presentation)
 
     policy =
       TopicPolicy.for_topic(topic_key,
         entity_id: field.entity_id,
         presentation: presentation,
-        topic_policies: Map.get(presentation, :speaker_topic_policies, %{})
+        topic_policies: Keyword.get(context, :speaker_topic_policies, %{})
       )
 
     if TopicPolicy.track?(policy) do

@@ -407,11 +407,15 @@ defmodule Procession.Command do
 
   defp apply_internal_field_presentation(session, entity_id, message) do
     presentation =
-      message
-      |> PresentationDetector.from_player_message(known_people: known_people(session))
-      |> Map.put(:speaker_topic_policies, speaker_topic_policies(entity_id))
+      PresentationDetector.from_player_message(message,
+        known_people: known_people(session)
+      )
 
-    case InternalFields.apply_presentation(entity_id, presentation) do
+    context = [
+      speaker_topic_policies: speaker_topic_policies(entity_id)
+    ]
+
+    case InternalFields.apply_presentation(entity_id, presentation, context) do
       {:ok, snapshot} ->
         constraints = DialogueConstraints.from_field_snapshot(snapshot, presentation)
 

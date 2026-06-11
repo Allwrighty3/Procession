@@ -107,6 +107,44 @@ defmodule Procession.Simulation.InternalFieldsTest do
     end
   end
 
+  describe "apply_presentation/3" do
+    test "apply_presentation/3 passes policy context to the field process" do
+      entity_id = "npc_context_policy_test"
+
+      presentation = %{
+        source: "player",
+        kind: :question,
+        target: {:person, "npc_tobin"},
+        target_name: "Tobin",
+        target_public_facts: %{role: "merchant"},
+        topic_key: :tobin,
+        message_intent: :ask_public_identity,
+        text: "Who is Tobin?"
+      }
+
+      assert {:ok, snapshot} =
+              InternalFields.apply_presentation(entity_id, presentation,
+                speaker_topic_policies: %{
+                  tobin: %{
+                    track?: false,
+                    sensitivity: :neutral,
+                    base_salience: :none,
+                    first_boundary: :none,
+                    repeated_boundary: :none,
+                    trust_delta_on_press: 0
+                  }
+                }
+              )
+
+      assert snapshot.presentations == [presentation]
+      assert snapshot.topic_salience == %{}
+      assert snapshot.topic_pressure_counts == %{}
+      assert snapshot.disclosure_boundaries == %{}
+      assert snapshot.trust_deltas == %{}
+      assert snapshot.private_concerns == []
+    end
+  end
+
   describe "snapshot/1" do
     test "returns the current snapshot for the entity field" do
       assert {:ok, _snapshot} =

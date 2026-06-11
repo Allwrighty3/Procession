@@ -330,34 +330,20 @@ defmodule Procession.CommandTest do
       assert result.entity_id == "npc_tobin"
       assert result.result == "Mira is an innkeeper. Why are you asking?"
 
-      assert result.presentation == %{
-               source: "player",
-               kind: :question,
-               target: {:person, "npc_mira"},
-               target_name: "Mira",
-               topic_key: :mira,
-               message_intent: :ask_public_identity,
-               text: "Who is Mira?",
-               target_public_facts: %{role: "innkeeper", temperament: "watchful"},
-               speaker_topic_policies: %{
-                 mira: %{
-                   track?: true,
-                   sensitivity: :relationship_sensitive,
-                   base_salience: :high,
-                   first_boundary: :high,
-                   repeated_boundary: :very_high,
-                   trust_delta_on_press: -1
-                 },
-                 weather: %{
-                   track?: false,
-                   sensitivity: :neutral,
-                   base_salience: :none,
-                   first_boundary: :none,
-                   repeated_boundary: :none,
-                   trust_delta_on_press: 0
-                 }
-               }
-             }
+      assert result.presentation.source == "player"
+      assert result.presentation.kind == :question
+      assert result.presentation.target == {:person, "npc_mira"}
+      assert result.presentation.target_name == "Mira"
+
+      assert result.presentation.target_public_facts == %{
+              role: "innkeeper",
+              temperament: "watchful"
+            }
+
+      assert result.presentation.topic_key == :mira
+      assert result.presentation.message_intent == :ask_public_identity
+      assert result.presentation.text == "Who is Mira?"
+      refute Map.has_key?(result.presentation, :speaker_topic_policies)
 
       assert result.dialogue_constraints.intent == :guarded_deflection
       assert result.dialogue_constraints.response_shape == :public_identity_then_question
@@ -365,8 +351,7 @@ defmodule Procession.CommandTest do
       assert result.dialogue_constraints.field_pressure == :sensitive_topic
       assert result.dialogue_constraints.topic_key == :mira
       assert result.dialogue_constraints.target_name == "Mira"
-      assert result.presentation.speaker_topic_policies.mira.track? == true
-      assert result.presentation.speaker_topic_policies.weather.track? == false
+      refute Map.has_key?(result.presentation, :speaker_topic_policies)
     end
 
     test "talk to uses guarded internal field constraints for first Mira question" do

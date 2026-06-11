@@ -14,7 +14,7 @@ defmodule Procession.Simulation.InternalFields do
 
   def ensure_started(entity_id) when is_binary(entity_id) do
     case Registry.lookup(@registry, entity_id) do
-      [{pid, _metadata}] ->
+      [{pid, _metadata}] when is_pid(pid) ->
         {:ok, pid}
 
       [] ->
@@ -22,37 +22,50 @@ defmodule Procession.Simulation.InternalFields do
     end
   end
 
-  def apply_presentation(entity_id, presentation)
-      when is_binary(entity_id) and is_map(presentation) do
-    call_field_process(entity_id, fn ->
+  def apply_presentation(entity_id, presentation, context \\ [])
+      when is_binary(entity_id) and is_map(presentation) and is_list(context) do
+    call_with_ensured_field(entity_id, fn ->
       entity_id
       |> via_tuple()
-      |> InternalFieldProcess.apply_presentation(presentation)
+      |> InternalFieldProcess.apply_presentation(presentation, context)
     end)
   end
 
   def snapshot(entity_id) when is_binary(entity_id) do
-    call_field_process(entity_id, fn ->
+    call_with_ensured_field(entity_id, fn ->
       entity_id
       |> via_tuple()
       |> InternalFieldProcess.snapshot()
     end)
   end
 
-  defp call_field_process(entity_id, fun) when is_function(fun, 0) do
+  defp call_with_ensured_field(entity_id, fun) when is_function(fun, 0) do
     with {:ok, _pid} <- ensure_started(entity_id) do
-      fun.()
+      safe_call(fun)
     end
-  catch
-    :exit, {:noproc, _reason} ->
-      with {:ok, _pid} <- ensure_started(entity_id) do
-        fun.()
-      end
+    |> case do
+      {:ok, result} ->
+        result
 
-    :exit, {{:nodedown, _node}, _reason} ->
-      with {:ok, _pid} <- ensure_started(entity_id) do
-        fun.()
-      end
+      {:retry, _reason} ->
+        with {:ok, _pid} <- ensure_started(entity_id) do
+          safe_call(fun)
+        end
+        |> case do
+          {:ok, result} -> result
+          {:retry, reason} -> exit(reason)
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp safe_call(fun) do
+    {:ok, fun.()}
+  catch
+    :exit, reason ->
+      {:retry, reason}
   end
 
   defp start_field(entity_id) do

@@ -17,8 +17,8 @@ defmodule Procession.Simulation.InternalFieldProcess do
     GenServer.start_link(__MODULE__, entity_id, genserver_opts)
   end
 
-  def apply_presentation(server, presentation) when is_map(presentation) do
-    GenServer.call(server, {:apply_presentation, presentation})
+  def apply_presentation(process, presentation, context \\ []) do
+    GenServer.call(process, {:apply_presentation, presentation, context})
   end
 
   def snapshot(server) do
@@ -31,9 +31,13 @@ defmodule Procession.Simulation.InternalFieldProcess do
   end
 
   @impl true
+  def handle_call({:apply_presentation, presentation, context}, _from, field) do
+    updated_field = InternalField.apply_presentation(field, presentation, context)
+    {:reply, {:ok, InternalField.snapshot(updated_field)}, updated_field}
+  end
+
   def handle_call({:apply_presentation, presentation}, _from, field) do
     updated_field = InternalField.apply_presentation(field, presentation)
-
     {:reply, {:ok, InternalField.snapshot(updated_field)}, updated_field}
   end
 
