@@ -68,5 +68,46 @@ defmodule Procession.Simulation.TopicPolicyTest do
       assert TopicPolicy.boundary(policy, 2) == :very_high
       assert TopicPolicy.trust_delta(policy) == -1
     end
+
+    test "uses context topic policy before static fallback policy" do
+      policy =
+        TopicPolicy.for_topic(:tobin,
+          topic_policies: %{
+            tobin: %{
+              track?: false,
+              sensitivity: :neutral,
+              base_salience: :none,
+              first_boundary: :none,
+              repeated_boundary: :none,
+              trust_delta_on_press: 0
+            }
+          }
+        )
+
+      refute TopicPolicy.track?(policy)
+      assert TopicPolicy.salience(policy) == :none
+      assert TopicPolicy.boundary(policy, 1) == :none
+      assert TopicPolicy.boundary(policy, 2) == :none
+      assert TopicPolicy.trust_delta(policy) == 0
+    end
+
+    test "normalizes partial context topic policy with default topic behavior" do
+      policy =
+        TopicPolicy.for_topic(:roadwardens,
+          topic_policies: %{
+            roadwardens: %{
+              track?: true,
+              trust_delta_on_press: -2
+            }
+          }
+        )
+
+      assert TopicPolicy.track?(policy)
+      assert TopicPolicy.salience(policy) == :high
+      assert TopicPolicy.boundary(policy, 1) == :high
+      assert TopicPolicy.boundary(policy, 2) == :very_high
+      assert TopicPolicy.trust_delta(policy) == -2
+      assert TopicPolicy.concern(policy, :roadwardens, 1) == :player_asking_about_roadwardens
+    end
   end
 end

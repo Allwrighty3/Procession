@@ -68,11 +68,34 @@ defmodule Procession.Simulation.TopicPolicy do
   def for_topic(topic_key, context \\ [])
 
   def for_topic(topic_key, context) when is_atom(topic_key) and is_list(context) do
-    @policies
-    |> Map.get(topic_key, default_policy_for(topic_key))
+    context
+    |> context_topic_policy(topic_key)
+    |> case do
+      nil ->
+        Map.get(@policies, topic_key, default_policy_for(topic_key))
+
+      policy ->
+        normalize_policy(topic_key, policy)
+    end
   end
 
   def for_topic(_topic_key, _context), do: Map.fetch!(@policies, :general)
+
+  defp context_topic_policy(context, topic_key) do
+    context
+    |> Keyword.get(:topic_policies, %{})
+    |> Map.get(topic_key)
+  end
+
+  defp normalize_policy(:general, policy) when is_map(policy) do
+    Map.merge(Map.fetch!(@policies, :general), policy)
+  end
+
+  defp normalize_policy(topic_key, policy) when is_map(policy) do
+    topic_key
+    |> default_policy_for()
+    |> Map.merge(policy)
+  end
 
   def track?(policy), do: Map.get(policy, :track?, false)
 

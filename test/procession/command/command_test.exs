@@ -338,7 +338,25 @@ defmodule Procession.CommandTest do
                topic_key: :mira,
                message_intent: :ask_public_identity,
                text: "Who is Mira?",
-               target_public_facts: %{role: "innkeeper", temperament: "watchful"}
+               target_public_facts: %{role: "innkeeper", temperament: "watchful"},
+               speaker_topic_policies: %{
+                 mira: %{
+                   track?: true,
+                   sensitivity: :relationship_sensitive,
+                   base_salience: :high,
+                   first_boundary: :high,
+                   repeated_boundary: :very_high,
+                   trust_delta_on_press: -1
+                 },
+                 weather: %{
+                   track?: false,
+                   sensitivity: :neutral,
+                   base_salience: :none,
+                   first_boundary: :none,
+                   repeated_boundary: :none,
+                   trust_delta_on_press: 0
+                 }
+               }
              }
 
       assert result.dialogue_constraints.intent == :guarded_deflection
@@ -347,6 +365,8 @@ defmodule Procession.CommandTest do
       assert result.dialogue_constraints.field_pressure == :sensitive_topic
       assert result.dialogue_constraints.topic_key == :mira
       assert result.dialogue_constraints.target_name == "Mira"
+      assert result.presentation.speaker_topic_policies.mira.track? == true
+      assert result.presentation.speaker_topic_policies.weather.track? == false
     end
 
     test "talk to uses guarded internal field constraints for first Mira question" do

@@ -40,7 +40,8 @@ defmodule Procession.Simulation.InternalField do
     policy =
       TopicPolicy.for_topic(topic_key,
         entity_id: field.entity_id,
-        presentation: presentation
+        presentation: presentation,
+        topic_policies: Map.get(presentation, :speaker_topic_policies, %{})
       )
 
     if TopicPolicy.track?(policy) do

@@ -407,9 +407,9 @@ defmodule Procession.Command do
 
   defp apply_internal_field_presentation(session, entity_id, message) do
     presentation =
-      PresentationDetector.from_player_message(message,
-        known_people: known_people(session)
-      )
+      message
+      |> PresentationDetector.from_player_message(known_people: known_people(session))
+      |> Map.put(:speaker_topic_policies, speaker_topic_policies(entity_id))
 
     case InternalFields.apply_presentation(entity_id, presentation) do
       {:ok, snapshot} ->
@@ -451,6 +451,23 @@ defmodule Procession.Command do
         []
       end
     end)
+  end
+
+  defp speaker_topic_policies(entity_id) do
+    if EntitySupervisor.exists?(entity_id) do
+      try do
+        entity = Entity.get_state(entity_id)
+
+        entity
+        |> Map.get(:metadata, %{})
+        |> Map.get(:topic_policies, %{})
+      catch
+        :exit, _reason ->
+          %{}
+      end
+    else
+      %{}
+    end
   end
 
   defp public_facts_for(entity) do

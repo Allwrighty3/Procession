@@ -243,5 +243,40 @@ defmodule Procession.Simulation.InternalFieldTest do
                }
              ]
     end
+
+    test "speaker topic policy metadata can override static tracked topic behavior" do
+      field =
+        "npc_mira"
+        |> InternalField.new()
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :question,
+          target: {:person, "npc_tobin"},
+          target_name: "Tobin",
+          target_public_facts: %{role: "merchant"},
+          topic_key: :tobin,
+          speaker_topic_policies: %{
+            tobin: %{
+              track?: false,
+              sensitivity: :neutral,
+              base_salience: :none,
+              first_boundary: :none,
+              repeated_boundary: :none,
+              trust_delta_on_press: 0
+            }
+          },
+          message_intent: :ask_public_identity,
+          text: "Who is Tobin?"
+        })
+
+      snapshot = InternalField.snapshot(field)
+
+      assert snapshot.topic_salience == %{}
+      assert snapshot.topic_pressure_counts == %{}
+      assert snapshot.disclosure_boundaries == %{}
+      assert snapshot.trust_deltas == %{}
+      assert snapshot.private_concerns == []
+      assert length(snapshot.presentations) == 1
+    end
   end
 end
