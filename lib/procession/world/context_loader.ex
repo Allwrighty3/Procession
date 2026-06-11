@@ -6,6 +6,8 @@ defmodule Procession.World.ContextLoader do
   It does not start processes, mutate internal fields, or apply behavior.
   """
 
+  @behaviour Procession.World.PolicyContext
+
   alias Procession.Simulation.RelationshipTopicPolicy
   alias Procession.World.SQLiteStore
 
