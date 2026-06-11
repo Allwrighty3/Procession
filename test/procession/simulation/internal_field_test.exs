@@ -178,9 +178,9 @@ defmodule Procession.Simulation.InternalFieldTest do
       assert snapshot.trust_deltas["player"] == -2
 
       assert snapshot.private_concerns == [
-              :player_asking_about_tobin,
-              :player_repeatedly_asking_about_tobin
-            ]
+               :player_asking_about_tobin,
+               :player_repeatedly_asking_about_tobin
+             ]
     end
 
     test "general topic presentations are recorded without field pressure" do

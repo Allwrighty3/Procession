@@ -13,11 +13,11 @@ defmodule Procession.AI.FakeAdapter do
     constraints = Keyword.get(opts, :dialogue_constraints, %{})
     response_shape = Map.get(constraints, :response_shape)
     target_name = Map.get(constraints, :target_name) || "that"
+    target_public_facts = Map.get(constraints, :target_public_facts, %{})
 
     cond do
       response_shape == :public_identity_then_question ->
-        {:ok, "#{target_name} is a merchant. Why are you asking?"}
-
+        {:ok, "#{public_identity_for(target_name, target_public_facts)} Why are you asking?"}
       response_shape == :relationship_denial_then_question ->
         {:ok, "No. Why are you asking?"}
 
@@ -44,5 +44,29 @@ defmodule Procession.AI.FakeAdapter do
 
   def generate(_prompt, _opts) do
     {:error, :invalid_prompt}
+  end
+
+  defp public_identity_for(target_name, public_facts) do
+    role = Map.get(public_facts, :role)
+
+    cond do
+      is_binary(role) and role != "" ->
+        "#{target_name} is #{article_for(role)} #{role}."
+
+      target_name != "that" ->
+        "#{target_name}."
+
+      true ->
+        "That person."
+    end
+  end
+
+  defp article_for(role) do
+    first =
+      role
+      |> String.downcase()
+      |> String.first()
+
+    if first in ["a", "e", "i", "o", "u"], do: "an", else: "a"
   end
 end

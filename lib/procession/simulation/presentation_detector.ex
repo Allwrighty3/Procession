@@ -11,12 +11,14 @@ defmodule Procession.Simulation.PresentationDetector do
 
     matched_person = find_known_person(message, known_people)
     target_name = person_name(matched_person)
+    target_public_facts = person_public_facts(matched_person)
 
     %{
       source: "player",
       kind: infer_kind(message),
       target: infer_target(message, matched_person),
       target_name: target_name,
+      target_public_facts: target_public_facts,
       topic_key: infer_topic_key(message, matched_person),
       message_intent: infer_message_intent(message, target_name),
       text: message
@@ -59,6 +61,12 @@ defmodule Procession.Simulation.PresentationDetector do
 
   defp person_name(%{name: name}) when is_binary(name), do: name
   defp person_name(_matched_person), do: nil
+
+  defp person_public_facts(%{public_facts: public_facts}) when is_map(public_facts) do
+    public_facts
+  end
+
+  defp person_public_facts(_matched_person), do: %{}
 
   defp infer_topic_key(_message, %{id: "npc_mira"}), do: :mira
   defp infer_topic_key(_message, %{id: "npc_tobin"}), do: :tobin

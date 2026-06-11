@@ -298,12 +298,12 @@ defmodule Procession.CommandTest do
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
 
       assert {:ok, result} =
-              Command.run(
-                session,
-                "grounded talk to Tobin: Who is Mira?",
-                adapter: __MODULE__.GroundedDialogueAdapter,
-                model: "cli-test-model"
-              )
+               Command.run(
+                 session,
+                 "grounded talk to Tobin: Who is Mira?",
+                 adapter: __MODULE__.GroundedDialogueAdapter,
+                 model: "cli-test-model"
+               )
 
       assert result.command == :grounded_talk_to
       assert result.entity_id == "npc_tobin"
@@ -327,17 +327,18 @@ defmodule Procession.CommandTest do
 
       assert result.command == :talk_to
       assert result.entity_id == "npc_tobin"
-      assert result.result == "Mira is a merchant. Why are you asking?"
+      assert result.result == "Mira is an innkeeper. Why are you asking?"
 
       assert result.presentation == %{
-                source: "player",
-                kind: :question,
-                target: {:person, "npc_mira"},
-                target_name: "Mira",
-                topic_key: :mira,
-                message_intent: :ask_public_identity,
-                text: "Who is Mira?"
-              }
+               source: "player",
+               kind: :question,
+               target: {:person, "npc_mira"},
+               target_name: "Mira",
+               topic_key: :mira,
+               message_intent: :ask_public_identity,
+               text: "Who is Mira?",
+               target_public_facts: %{role: "innkeeper", temperament: "watchful"}
+             }
 
       assert result.dialogue_constraints.intent == :guarded_deflection
       assert result.dialogue_constraints.response_shape == :public_identity_then_question
@@ -355,7 +356,7 @@ defmodule Procession.CommandTest do
 
       assert result.command == :talk_to
       assert result.entity_id == "npc_tobin"
-      assert result.result == "Mira is a merchant. Why are you asking?"
+      assert result.result == "Mira is an innkeeper. Why are you asking?"
     end
 
     test "talk to uses firm internal field constraints for repeated Mira questions" do
@@ -363,7 +364,7 @@ defmodule Procession.CommandTest do
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
 
       assert {:ok, first_result} = Command.run(session, "talk to Tobin: Who is Mira?")
-      assert first_result.result == "Mira is a merchant. Why are you asking?"
+      assert first_result.result == "Mira is an innkeeper. Why are you asking?"
 
       assert {:ok, second_result} = Command.run(session, "talk to Tobin: Is Mira your sister?")
       assert second_result.result == "I've answered enough about Mira."
@@ -423,7 +424,7 @@ defmodule Procession.CommandTest do
       assert snapshot.topic_pressure_counts[:mira] == 1
       assert snapshot.disclosure_boundaries[:mira] == :high
       assert snapshot.trust_deltas["player"] == -1
-      assert snapshot.private_concerns == [:player_asking_about_mira]\
+      assert snapshot.private_concerns == [:player_asking_about_mira]
     end
 
     test "repeated talk to questions intensify target internal field" do

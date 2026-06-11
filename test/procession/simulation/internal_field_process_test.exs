@@ -26,7 +26,7 @@ defmodule Procession.Simulation.InternalFieldProcessTest do
              })
 
     assert after_second.topic_salience[:mira] == :high
-assert after_second.topic_pressure_counts[:mira] == 2
+    assert after_second.topic_pressure_counts[:mira] == 2
     assert after_second.disclosure_boundaries[:mira] == :very_high
     assert after_second.trust_deltas["player"] == -2
 

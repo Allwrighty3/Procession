@@ -433,7 +433,13 @@ defmodule Procession.Command do
           entity = Entity.get_state(entity_id)
 
           if Map.get(entity, :type) == :npc do
-            [%{id: entity.id, name: entity.name}]
+            [
+              %{
+                id: entity.id,
+                name: entity.name,
+                public_facts: public_facts_for(entity)
+              }
+            ]
           else
             []
           end
@@ -445,6 +451,17 @@ defmodule Procession.Command do
         []
       end
     end)
+  end
+
+  defp public_facts_for(entity) do
+    traits = Map.get(entity, :traits, %{})
+
+    %{
+      role: Map.get(traits, :role),
+      temperament: Map.get(traits, :temperament)
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
   end
 
   defp wrap_result({:ok, result}, command) do
