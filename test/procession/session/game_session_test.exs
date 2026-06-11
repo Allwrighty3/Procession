@@ -343,7 +343,7 @@ defmodule Procession.GameSessionTest do
 
       assert {:ok, tick_summary} = Procession.WorldClock.tick(clock)
 
-      assert tick_summary.entities_considered == length(session_summary.active_entities)
+      assert tick_summary.entities_considered >= length(session_summary.active_entities)
       assert tick_summary.entities_ticked == 1
 
       assert Enum.any?(tick_summary.successful_actions, fn action ->

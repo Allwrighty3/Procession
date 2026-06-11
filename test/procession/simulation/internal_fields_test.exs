@@ -64,8 +64,9 @@ defmodule Procession.Simulation.InternalFieldsTest do
     end
 
     test "preserves field state across calls" do
+      entity_id = "npc_tobin_preserves_field_state_test"
       assert {:ok, _first} =
-               InternalFields.apply_presentation("npc_tobin", %{
+               InternalFields.apply_presentation(entity_id, %{
                  source: "player",
                  kind: :question,
                  target: {:person, :mira},
@@ -73,7 +74,7 @@ defmodule Procession.Simulation.InternalFieldsTest do
                })
 
       assert {:ok, second} =
-               InternalFields.apply_presentation("npc_tobin", %{
+               InternalFields.apply_presentation(entity_id, %{
                  source: "player",
                  kind: :question,
                  target: {:person, :mira},
@@ -86,7 +87,7 @@ defmodule Procession.Simulation.InternalFieldsTest do
       assert second.trust_deltas["player"] == -2
     end
 
-    test "apply_presentation/2 starts a missing field process" do
+    test "starts a missing field process" do
       entity_id = "npc_missing_field_test"
 
       presentation = %{
@@ -147,17 +148,18 @@ defmodule Procession.Simulation.InternalFieldsTest do
 
   describe "snapshot/1" do
     test "returns the current snapshot for the entity field" do
+      entity_id = "npc_tobin_snapshot_test"
       assert {:ok, _snapshot} =
-               InternalFields.apply_presentation("npc_tobin", %{
+               InternalFields.apply_presentation(entity_id, %{
                  source: "player",
                  kind: :question,
                  target: {:person, :mira},
                  text: "Who's Mira?"
                })
 
-      snapshot = InternalFields.snapshot("npc_tobin")
+      snapshot = InternalFields.snapshot(entity_id)
 
-      assert snapshot.entity_id == "npc_tobin"
+      assert snapshot.entity_id == entity_id
       assert snapshot.topic_salience[:mira] == :high
     end
   end
