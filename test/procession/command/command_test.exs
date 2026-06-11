@@ -314,6 +314,9 @@ defmodule Procession.CommandTest do
       assert result.dialogue_constraints.response_shape == :public_identity_then_question
       assert result.dialogue_constraints.disclosure_level == :minimal
       assert result.dialogue_constraints.field_pressure == :sensitive_topic
+      assert result.presentation.target == {:person, "npc_mira"}
+      assert result.presentation.target_name == "Mira"
+      assert result.presentation.topic_key == :mira
     end
 
     test "talk to returns presentation and dialogue constraints metadata" do
@@ -327,12 +330,14 @@ defmodule Procession.CommandTest do
       assert result.result == "A merchant. Why are you asking?"
 
       assert result.presentation == %{
-              source: "player",
-              kind: :question,
-              target: {:person, :mira},
-              message_intent: :ask_public_identity,
-              text: "Who is Mira?"
-            }
+                source: "player",
+                kind: :question,
+                target: {:person, "npc_mira"},
+                target_name: "Mira",
+                topic_key: :mira,
+                message_intent: :ask_public_identity,
+                text: "Who is Mira?"
+              }
 
       assert result.dialogue_constraints.intent == :guarded_deflection
       assert result.dialogue_constraints.response_shape == :public_identity_then_question

@@ -193,7 +193,7 @@ defmodule Procession.Command do
   defp execute({:ok, {:talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       {:ok, field_snapshot, dialogue_constraints, presentation} =
-        apply_internal_field_presentation(entity_id, message)
+        apply_internal_field_presentation(session, entity_id, message)
 
       dialogue_opts =
         opts
@@ -220,7 +220,7 @@ defmodule Procession.Command do
   defp execute({:ok, {:grounded_talk_to, target, message}}, session, opts) do
     with {:ok, entity_id} <- resolve_entity(session, target) do
       {:ok, field_snapshot, dialogue_constraints, presentation} =
-        apply_internal_field_presentation(entity_id, message)
+        apply_internal_field_presentation(session, entity_id, message)
 
       dialogue_opts =
         opts
@@ -405,8 +405,11 @@ defmodule Procession.Command do
 
   defp names_match?(_name, _input), do: false
 
-  defp apply_internal_field_presentation(entity_id, message) do
-    presentation = PresentationDetector.from_player_message(message)
+  defp apply_internal_field_presentation(session, entity_id, message) do
+    presentation =
+      PresentationDetector.from_player_message(message,
+        known_people: known_people(session)
+      )
 
     case InternalFields.apply_presentation(entity_id, presentation) do
       {:ok, snapshot} ->
@@ -419,6 +422,29 @@ defmodule Procession.Command do
 
         {:ok, nil, constraints, presentation}
     end
+  end
+
+  defp known_people(session) do
+    session
+    |> GameSession.active_entities()
+    |> Enum.flat_map(fn entity_id ->
+      if EntitySupervisor.exists?(entity_id) do
+        try do
+          entity = Entity.get_state(entity_id)
+
+          if Map.get(entity, :type) == :npc do
+            [%{id: entity.id, name: entity.name}]
+          else
+            []
+          end
+        catch
+          :exit, _reason ->
+            []
+        end
+      else
+        []
+      end
+    end)
   end
 
   defp wrap_result({:ok, result}, command) do

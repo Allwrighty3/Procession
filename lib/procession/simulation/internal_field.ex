@@ -32,18 +32,19 @@ defmodule Procession.Simulation.InternalField do
     %__MODULE__{entity_id: entity_id}
   end
 
-  def apply_presentation(%__MODULE__{} = field, %{target: {:person, :mira}} = presentation) do
-    field
-    |> record_presentation(presentation)
-    |> increase_mira_topic_pressure()
-    |> increase_mira_topic_salience()
-    |> increase_mira_disclosure_boundary()
-    |> decrease_player_trust(presentation)
-    |> update_mira_private_concern()
-  end
-
-  def apply_presentation(%__MODULE__{} = field, presentation) when is_map(presentation) do
-    record_presentation(field, presentation)
+  def apply_presentation(%__MODULE__{} = field, presentation)
+      when is_map(presentation) do
+    if mira_presentation?(presentation) do
+      field
+      |> record_presentation(presentation)
+      |> increase_mira_topic_pressure()
+      |> increase_mira_topic_salience()
+      |> increase_mira_disclosure_boundary()
+      |> decrease_player_trust(presentation)
+      |> update_mira_private_concern()
+    else
+      record_presentation(field, presentation)
+    end
   end
 
   def snapshot(%__MODULE__{} = field) do
@@ -107,4 +108,8 @@ defmodule Procession.Simulation.InternalField do
       count -> count + 1
     end)
   end
+
+  defp mira_presentation?(%{topic_key: :mira}), do: true
+  defp mira_presentation?(%{target: {:person, :mira}}), do: true
+  defp mira_presentation?(_presentation), do: false
 end

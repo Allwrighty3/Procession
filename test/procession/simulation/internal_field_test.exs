@@ -125,5 +125,26 @@ defmodule Procession.Simulation.InternalFieldTest do
                }
              ]
     end
+
+    test "entity-backed Mira presentations use topic key for field modulation" do
+      field =
+        "npc_tobin"
+        |> InternalField.new()
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :question,
+          target: {:person, "npc_mira"},
+          target_name: "Mira",
+          topic_key: :mira,
+          message_intent: :ask_public_identity,
+          text: "Who is Mira?"
+        })
+
+      snapshot = InternalField.snapshot(field)
+
+      assert snapshot.topic_salience[:mira] == :high
+      assert snapshot.topic_pressure_counts[:mira] == 1
+      assert snapshot.disclosure_boundaries[:mira] == :high
+    end
   end
 end
