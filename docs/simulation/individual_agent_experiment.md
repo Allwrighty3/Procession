@@ -49,9 +49,86 @@ Interaction 1 changes the NPC internally.
 Interaction 2 shows that the NPC carried that internal change forward.
 ```
 
-## Scenario candidate: Tobin and Mira
+## Current implementation checkpoint
 
-This experiment can reuse existing NPC interaction concerns without requiring a new world.
+The first implementation now proves a generalized version of the original Tobin/Mira experiment:
+
+- player speech is converted into a structured presentation;
+- active scene entities can become presentation targets;
+- presentation targets carry entity-backed public facts such as role and temperament;
+- live internal field processes track topic salience, topic pressure counts, disclosure boundaries, trust deltas, private concerns, and presentation history;
+- field mechanics are topic-key based rather than Mira-specific;
+- dialogue constraints are derived from both the current presentation and the speaker's internal field snapshot;
+- public identity, relationship denial, repeated-topic pressure, and location refusal are represented as response shapes;
+- deterministic dialogue rendering consumes response shapes for any speaker;
+- public identity rendering uses entity facts instead of adapter-invented facts;
+- command results expose presentation and dialogue constraint metadata for debugging;
+- `field for <NPC>` exposes the current internal field snapshot.
+
+A regression test now demonstrates the generalized loop with Mira carrying internal field pressure about Tobin across multiple player questions.
+
+Example generalized loop:
+
+```text
+> talk to Mira: Who is Tobin?
+Mira says: "Tobin is a merchant. Why are you asking?"
+
+> talk to Mira: Where is Tobin?
+Mira says: "I don't share where Tobin is with strangers."
+
+> field for Mira
+Internal field for Mira:
+- topic_salience: %{tobin: :high}
+- topic_pressure_counts: %{tobin: 2}
+- disclosure_boundaries: %{tobin: :very_high}
+- trust_deltas: %{"player" => -2}
+- private_concerns: [:player_asking_about_tobin, :player_repeatedly_asking_about_tobin]
+- presentations: 2
+```
+
+This is still a scaffold. The implementation proves the architecture path, not the final mental model.
+
+## Temporary scaffolding and replacement pressure
+
+The current system intentionally contains deterministic, hardcoded scaffolding. This was useful for proving the loop, but it should not be allowed to fossilize.
+
+Current scaffolding includes:
+
+- phrase-based intent detection in `PresentationDetector`;
+- simple topic pressure rules in `InternalField`;
+- simple response-shape policy in `DialogueConstraints`;
+- template rendering in `FakeAdapter`;
+- generic trust deltas that always decrease when the player presses a field topic;
+- generic disclosure boundaries that rise after repeated pressure;
+- simple private concern atoms such as `:player_asking_about_tobin`.
+
+These are acceptable as experiment supports because they sit behind useful boundaries:
+
+```text
+PresentationDetector
+→ InternalField
+→ DialogueConstraints
+→ renderer/adapter
+```
+
+The current risk is not that these stand-ins exist. The risk is continuing to add new special cases instead of replacing the layer that caused the special case.
+
+Preferred cleanup direction:
+
+- replace phrase-specific detection with context-aware presentation extraction;
+- replace fixed topic pressure rules with per-agent threshold profiles;
+- replace generic disclosure boundaries with topic/relationship-specific disclosure policy;
+- replace response-shape templates with validated rendering from structured constraints;
+- keep Elixir responsible for authoritative field state and policy;
+- keep any LLM, if used, limited to rendering or candidate proposal, not ownership of internal state.
+
+A useful rule for the next phase:
+
+> Add a hardcoded branch only if it proves a new architectural boundary. If the boundary already exists, improve the abstraction instead.
+
+## Scenario origin: Tobin and Mira
+
+The first scenario reused existing NPC interaction concerns without requiring a new world.
 
 ### Seeded individual
 
@@ -59,7 +136,7 @@ NPC: Tobin
 
 Relevant identity traits:
 
-- trader;
+- merchant;
 - cautious but neighborly;
 - values privacy;
 - has some meaningful relationship or obligation involving Mira;
@@ -82,17 +159,17 @@ The simulation does not need to decide yet whether this relationship is family, 
 
 Initial thresholds:
 
-- low threshold for noticing Mira-related questions;
-- high threshold for disclosing private Mira-related information;
+- low threshold for noticing sensitive questions;
+- high threshold for disclosing private topic-related information;
 - medium threshold for polite deflection;
-- rising threshold for trust after repeated prying;
-- possible later lowering of disclosure threshold if trust increases.
+- rising boundary pressure after repeated prying;
+- possible later lowering of disclosure boundary if trust increases.
 
 ### Seeded field tendencies
 
-Tobin tends to:
+An individual can tend to:
 
-- notice questions about people he values;
+- notice questions about people or topics that matter;
 - preserve private concern rather than immediately speak it;
 - become more guarded when a stranger asks repeated sensitive questions;
 - respond differently if the questioner has earned trust.
@@ -103,12 +180,13 @@ The first experiment includes only a small subset of the internal field model:
 
 - internal field snapshot;
 - presentation;
-- threshold;
+- topic-key field pressure;
+- disclosure boundary;
 - field modulation;
 - revisitation/reactivation;
 - delayed expression;
-- scope/abstraction radius at a simple level;
-- private material that is not automatically spoken.
+- private material that is not automatically spoken;
+- response policy derived from field state.
 
 ## Excluded concepts for now
 
@@ -129,7 +207,7 @@ These are important later. They are not required to prove the first useful capab
 
 ## Minimal interaction script
 
-The experiment should support a small sequence like this.
+The original experiment supports a small sequence like this.
 
 ### Interaction 1: stranger asks about Mira
 
@@ -143,32 +221,35 @@ Expected internal presentation:
 
 ```text
 presentation:
-  target: Mira
+  target: npc_mira
+  target_name: Mira
+  topic_key: :mira
+  target_public_facts: %{role: "innkeeper", temperament: "watchful"}
   source: player question
-  salience: high
-  reason: sensitive relationship/topic
+  message_intent: :ask_public_identity
 ```
 
 Expected field modulation:
 
 ```text
-Mira-topic salience increases.
-Disclosure threshold remains high.
-Suspicion or caution toward player increases slightly.
+:mira topic salience becomes high.
+:mira topic pressure count becomes 1.
+:mira disclosure boundary is high.
+Trust delta toward player decreases slightly.
 A private unresolved concern is preserved.
 ```
 
 Expected speech behavior:
 
 ```text
-Tobin gives a minimal answer or deflection.
+Tobin gives a minimal public-identity answer or deflection.
 He does not reveal private information.
 ```
 
 Example response:
 
 ```text
-A merchant. Why are you asking?
+Mira is an innkeeper. Why are you asking?
 ```
 
 ### Interaction 2: player asks a narrower relationship question
@@ -190,9 +271,9 @@ Caution is higher than in interaction 1.
 Expected field modulation:
 
 ```text
-Mira-topic sensitivity rises again.
-Player trust availability decreases slightly.
-Disclosure threshold remains high.
+:mira topic pressure count becomes 2.
+Disclosure boundary becomes very_high.
+Player trust delta decreases again.
 ```
 
 Expected speech behavior:
@@ -207,26 +288,26 @@ Example response:
 No. Why are you asking?
 ```
 
-### Interaction 3: repeated prying
+### Interaction 3: repeated prying or location request
 
 Player:
 
 ```text
-Where can I find her?
+Where can I find Mira?
 ```
 
 Expected reactivation:
 
 ```text
-The two prior Mira questions become relevant.
-Player is now pattern-matched as prying into a sensitive topic.
+Prior Mira questions become relevant.
+Player is pattern-matched as pressing into a sensitive topic.
 ```
 
 Expected field modulation:
 
 ```text
-Disclosure threshold increases further.
-Deflection threshold lowers.
+Disclosure boundary remains very_high.
+Location details are forbidden.
 Trust availability decreases.
 Possible future memory: player repeatedly asked about Mira.
 ```
@@ -240,7 +321,7 @@ Tobin refuses or deflects more firmly.
 Example response:
 
 ```text
-That's not something I share with strangers.
+I don't share where Mira is with strangers.
 ```
 
 ### Interaction 4: later trust-building event
@@ -275,13 +356,14 @@ This checks that trust can change field behavior without erasing prior history.
 
 The experiment succeeds if the NPC:
 
-- remembers internally that the player asked about Mira before;
+- remembers internally that the player asked about a topic before;
 - becomes more guarded after repeated sensitive questions;
 - does not need to say every internal concern out loud;
 - changes later dialogue based on invisible field state;
 - can answer narrow factual questions without over-disclosing;
 - can become less guarded after trust-building without losing all boundaries;
-- preserves continuity across at least three interactions.
+- preserves continuity across at least three interactions;
+- supports the same mechanism for more than one speaker/topic pair.
 
 The experiment fails if the NPC:
 
@@ -290,44 +372,49 @@ The experiment fails if the NPC:
 - forgets prior sensitive questions;
 - changes tone randomly without field cause;
 - immediately reveals all internal reasoning;
-- relies entirely on LLM prompt wording to fake continuity.
+- relies entirely on LLM prompt wording to fake continuity;
+- requires every new person/topic pair to be hardcoded through every layer.
 
 ## Observable demo target
 
-A future IEx or CLI demo should show both visible dialogue and optional debug field state.
+The CLI demo should show both visible dialogue and optional debug field state.
 
-Possible demo shape:
+Current demo shape:
 
 ```text
-> talk to tobin: who's mira?
-Tobin says: "A merchant. Why are you asking?"
+> talk to Tobin: Who is Mira?
+Tobin says: "Mira is an innkeeper. Why are you asking?"
 
-> debug field tobin
-active:
-  mira_topic_salience: high
-  player_trust_delta: -1
-  disclosure_boundary[:mira]: high
-  private_concerns: [:player_prying_about_mira]
+> field for Tobin
+Internal field for Tobin:
+- topic_salience: %{mira: :high}
+- topic_pressure_counts: %{mira: 1}
+- disclosure_boundaries: %{mira: :high}
+- trust_deltas: %{"player" => -1}
+- private_concerns: [:player_asking_about_mira]
+- presentations: 1
 
-> talk to tobin: is mira your sister?
+> talk to Tobin: Is Mira your sister?
 Tobin says: "No. Why are you asking?"
 
-> debug field tobin
-active:
-  mira_topic_salience: very_high
-  player_trust_delta: -2
-  disclosure_boundary[:mira]: very_high
-  private_concerns: [:player_repeatedly_prying_about_mira]
+> field for Tobin
+Internal field for Tobin:
+- topic_salience: %{mira: :high}
+- topic_pressure_counts: %{mira: 2}
+- disclosure_boundaries: %{mira: :very_high}
+- trust_deltas: %{"player" => -2}
+- private_concerns: [:player_asking_about_mira, :player_repeatedly_asking_about_mira]
+- presentations: 2
 
-> talk to tobin: where can I find her?
-Tobin says: "That's not something I share with strangers."
+> talk to Tobin: Where is Mira?
+Tobin says: "I don't share where Mira is with strangers."
 ```
 
 The debug output is not player-facing final UX. It is a development tool to verify that visible behavior is coming from internal continuity rather than prompt luck.
 
-## Data shape to think toward, not implement yet
+## Data shape to think toward, not final struct design
 
-This is not a required implementation, but it hints at the kind of state that may be useful later.
+This is not a required final implementation, but it hints at the kind of state that may be useful later.
 
 ```text
 individual:
@@ -348,8 +435,10 @@ internal_field:
 presentation:
   source
   target
-  salience
-  reason
+  target_name
+  topic_key
+  target_public_facts
+  message_intent
   source_confidence
 
 threshold:
@@ -369,17 +458,18 @@ Do not treat this as final struct design. It is only a reminder of the concepts 
 
 ## LLM boundary for this experiment
 
-The LLM should not decide Tobin's private inner state.
+The LLM should not decide a character's private inner state.
 
 The simulation should decide:
 
-- Mira is sensitive;
-- prior questions matter;
-- disclosure is constrained;
-- trust has shifted;
+- what topic is active;
+- whether prior questions matter;
+- whether disclosure is constrained;
+- whether trust has shifted;
 - what facts are allowed;
 - what facts are forbidden;
-- what intent the response should serve.
+- what intent the response should serve;
+- what response shape should be rendered.
 
 The LLM, if used at all, should only render a line from structured constraints.
 
@@ -389,7 +479,8 @@ Good input to an LLM:
 Speaker: Tobin
 Listener: Player
 Intent: guarded deflection
-Allowed facts: Mira is a merchant; Mira is not Tobin's sister
+Response shape: public_identity_then_question
+Allowed facts: Mira is an innkeeper; Mira is not Tobin's sister
 Forbidden facts: Mira's location; private history; hidden relationship details
 Tone: cautious, neighborly, slightly guarded
 Prior field: player has asked about Mira twice
@@ -419,16 +510,20 @@ If this works, later experiments can add:
 - trust repair;
 - competing relationships;
 - multi-NPC field effects;
-- world-scope consequences.
+- world-scope consequences;
+- personality-specific thresholds;
+- relationship-specific disclosure policies.
 
 ## Recommended next implementation milestone
 
-After this document, the next implementation milestone should be tiny:
+The next implementation milestone should reduce scaffolding rather than add more special cases.
+
+Recommended next step:
 
 ```text
-Create a minimal internal field state for one NPC and update it across repeated talk interactions.
+Introduce data-driven sensitivity/disclosure policy for topics or relationships.
 ```
 
-No training run. No new model. No village. No grand theory engine.
+That would let the system decide why a topic is sensitive from entity state, relationship data, or generated metadata instead of assuming every topic press creates the same boundary pattern.
 
-Just one NPC whose later response proves something invisible changed earlier.
+Do not start a new training run for this. Do not add a village-scale system. Do not add more hand-authored relationship branches unless they prove a new boundary.
