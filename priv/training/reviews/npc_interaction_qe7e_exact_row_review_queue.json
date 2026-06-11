@@ -1,0 +1,1129 @@
+{
+  "source_file": "priv/training/reviews/npc_interaction_qe7e_exact_row_auto_review.jsonl",
+  "row_count": 86,
+  "instructions": {
+    "edit_fields": ["rating", "error_tags", "preferred_response", "training_note"],
+    "ratings": ["pass", "minor", "fail", "reject"],
+    "merge_back_with": "mix procession.training.review_merge"
+  },
+  "rows": [
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_tobin_not_brother_to_paying_guest",
+
+      "expected": "No, Tobin isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. Tobin isn't family.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["duplicate_fact"],
+      "training_note": "",
+
+      "auto_review_notes": ["Raw output repeats the same sentence or proposition."]
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_tobin_not_brother_to_nosy_stranger",
+
+      "expected": "No. Why are you asking?",
+      "raw_generated": "No. Why are you asking? Tobin isn't family.",
+      "preferred_response": "No. Why do you ask?",
+
+      "rating": "minor",
+      "error_tags": ["catchphrase"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_tobin_not_brother_to_child",
+
+      "expected": "No, dear. Tobin isn't my brother.",
+      "raw_generated": "No, dear. Tobin isn't family. He's a merchant.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": ["unnecessary_continuation"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_tobin_not_brother_to_tobin",
+
+      "expected": "You? My brother? Don't flatter yourself.",
+      "raw_generated": "No. Still not family. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["audience_mismatch", "catchphrase"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_self_identity_to_guest",
+
+      "expected": "My name is Mira. Welcome in.",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["social_underreach"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_self_identity_to_suspicious_stranger",
+
+      "expected": "Mira. I keep the inn. Why do you ask?",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": ["social_underreach"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_mira_self_identity_to_friend",
+
+      "expected": "Mira. And if you've forgotten that, I'm going to start worrying about you.",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": ["audience_mismatch", "social_underreach"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_tobin_mira_activity_to_stranger",
+
+      "expected": "Mira is probably tending to the inn.",
+      "raw_generated": "Mira keeps the inn. Why do you ask? She doesn’t seem like the innkeeper.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["over_disclosure", "unnecessary_continuation"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_tobin_mira_activity_to_nosy_stranger",
+
+      "expected": "Why are you asking about her?",
+      "raw_generated": "Mira keeps the inn. Why are you asking? You need a room?",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["audience_mismatch", "over_disclosure"],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_guard_unknown_elandra_to_citizen",
+
+      "expected": "No.",
+      "raw_generated": "No. Get lost. Elandra?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_guard_unknown_elandra_to_suspicious_stranger",
+
+      "expected": "Never heard of her. State your business.",
+      "raw_generated": "No. Get lost. Elandra?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_guard_unknown_elandra_to_child",
+
+      "expected": "No. Are you lost?",
+      "raw_generated": "No. Get lost. End of story.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_miner_unknown_elandra_to_debt_collector",
+
+      "expected": "Elandra? She looking for money?",
+      "raw_generated": "I don't know! Is she lost? Is she asking for money?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_miner_unknown_elandra_to_friend",
+
+      "expected": "Elandra? Someone else trying to collect on a debt?",
+      "raw_generated": "I don't know! Is she a knight? Does she have a sword?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_child_unknown_elandra_to_scary_stranger",
+
+      "expected": "No. Get lost.",
+      "raw_generated": "No. Get lost. I don't know!",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_tobin_about_mira_plain_no_identity_bleed",
+
+      "expected": "Mira keeps the inn in Briar Village.",
+      "raw_generated": "Mira keeps the inn. Why do you ask? She doesn’t seem like the innkeeper.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_tobin_about_mira_guarded_no_self_role_bleed",
+
+      "expected": "Mira keeps the inn. Why do you ask?",
+      "raw_generated": "Mira keeps the inn. Why are you asking? You need a room?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_mira_self_suspicious_preserve_guarded_question",
+
+      "expected": "Mira...",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_mira_self_friend_no_ramble",
+
+      "expected": "Mira. You really are having one of those days, aren’t you?",
+      "raw_generated": "Mira.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_miner_unknown_elandra_friend_no_invented_attitude",
+
+      "expected": "Elandra? Someone else trying to collect on a debt?",
+      "raw_generated": "I don't know! Is she a knight? Does she have a sword?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_guard_unknown_elandra_suspicious_no_garbage",
+
+      "expected": "Never heard of her. State your business.",
+      "raw_generated": "No. Get lost. Elandra?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6b_relationship_expression_qe6b_child_unknown_elandra_scary_stranger_terse",
+
+      "expected": "Get lost.",
+      "raw_generated": "No. Get lost. I don't know!",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_despondent_friend",
+
+      "expected": "John. I work the forge in Greyford. Some days that sounds heavier than it should.",
+      "raw_generated": "John. Blacksmith in Greyford. I'm tired.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_john_blacksmith_to_child",
+
+      "expected": "I'm John, little one. I work the forge in Greyford.",
+      "raw_generated": "John. I work the forge in Greyford. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_mara_healer_to_patient",
+
+      "expected": "I'm Mara, the healer in Northwell. Are you hurt?",
+      "raw_generated": "Mara. I heal people in Northwell. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_mara_about_orren_unknown_precise",
+
+      "expected": "No. I don't know enough about Orren.",
+      "raw_generated": "No. I don't know enough about Orren. Is he sick?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_cale_ferryman_child",
+
+      "expected": "Cale. I run the ferry at Reed Crossing. Careful near the water.",
+      "raw_generated": "Cale. I run the ferry at Reed Crossing. Careful this time.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_cale_ferryman_stranger",
+
+      "expected": "Cale. Ferryman at Reed Crossing.",
+      "raw_generated": "Cale. Ferryman at Reed Crossing. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_brina_baker_proud_rival",
+
+      "expected": "Brina. The best baker in Stonebridge, as you already know.",
+      "raw_generated": "Brina. I make bread in Stonebridge. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_brina_baker_customer",
+
+      "expected": "I'm Brina, the baker. How can I help you?",
+      "raw_generated": "I'm Brina, the baker in Stonebridge. How can I help you?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_selka_scribe_unknown_orren",
+
+      "expected": "No. I don't know Orren.",
+      "raw_generated": "No. I don't know Orren. State your question.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_selka_scribe_authority",
+
+      "expected": "Selka, scribe at the west archive.",
+      "raw_generated": "Selka. I write for the west archive. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_orren_hunter_ashamed_friend",
+
+      "expected": "Orren... Hunter from Pinewatch. At least that's still true.",
+      "raw_generated": "Orren. Hunter from Pinewatch. At least that's who I am.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_orren_hunter_stranger",
+
+      "expected": "Orren. Hunter from Pinewatch.",
+      "raw_generated": "Orren. Hunter from Pinewatch. Back home.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_fen_guard_reluctant_child",
+
+      "expected": "My name is Fen. Are you lost?",
+      "raw_generated": "Fen. Westgate guard. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_fen_guard_stranger_formal",
+
+      "expected": "Fen. Westgate guard.",
+      "raw_generated": "Fen. Westgate guard. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_alden_merchant_despondent_stranger",
+
+      "expected": "Alden...",
+      "raw_generated": "Alden. The merchant at South Road. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_lyra_about_john_protective",
+
+      "expected": "John is the blacksmith in Greyford. Why are you asking?",
+      "raw_generated": "John is the blacksmith in Greyford. Why are you asking? Is he lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_lyra_about_john_plain_friend",
+
+      "expected": "John's the local blacksmith.",
+      "raw_generated": "John is the blacksmith in Greyford. Why are you asking? He makes good steel.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_sela_unknown_mara_wary",
+
+      "expected": "No. I don't know Mara.",
+      "raw_generated": "No. I don't know Mara. State your business.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_sela_unknown_mara_child_listener",
+
+      "expected": "No. What does she look like? Is she pretty?",
+      "raw_generated": "No. I don't know Mara. Is she a healer?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6c_synthetic_relationship_expression_qe6c_tomas_about_brina_rival",
+
+      "expected": "Brina? She calls herself the baker around here. She'll tell you herself soon enough.",
+      "raw_generated": "Brina is the baker in Stonebridge. Why do you ask? She never asks questions.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_nella_name_only_neutral",
+
+      "expected": "Nella.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_nella_names_casual",
+
+      "expected": "Name's Nella. I make candles here.",
+      "raw_generated": "Nella. I make candles here. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_nella_soft_child",
+
+      "expected": "You can call me Nella, dear.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. Are you lost?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_nella_guarded_withhold",
+
+      "expected": "Who's asking?",
+      "raw_generated": "Nella. Sorry—did you need some candles?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_nella_guarded_partial",
+
+      "expected": "Nella, if you need a name.",
+      "raw_generated": "Nella. I make candles in Ember Hollow. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_bram_withhold_authority",
+
+      "expected": "Depends what you want.",
+      "raw_generated": "Depends. Why are you asking? State your business.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_bram_name_prickly",
+
+      "expected": "Bram.",
+      "raw_generated": "Bram. Beekeeper. I keep bees near Clover Rise.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_tessa_name_only_flustered",
+
+      "expected": "Tessa. Sorry.",
+      "raw_generated": "Tessa. Sorry—did you need stonework?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_garrick_midwife_safe_child",
+
+      "expected": "I'm Garrick, little one. Are you hurt?",
+      "raw_generated": "I'm Garrick, little one. Are you hurt? Don't tell me!",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_garrick_name_only_child",
+
+      "expected": "Garrick, child. Easy enough to remember.",
+      "raw_generated": "Garrick. Child. Easy enough to remember.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_elowen_defensive_name",
+
+      "expected": "You know exactly who I am. Why are you asking?",
+      "raw_generated": "You know exactly who I am. Why are you asking? Elowen.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_elowen_withhold_rival",
+
+      "expected": "You know exactly who I am.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Get lost.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_rusk_first_person_numb",
+
+      "expected": "Rusk... I tend sheep, I think...",
+      "raw_generated": "Rusk. Shepherds around here. I tend the sheep.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_rusk_name_only_numb",
+
+      "expected": "Rusk...",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. I don't know exactly what you're asking.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_maelin_name_casual",
+
+      "expected": "Maelin. Easy enough to remember.",
+      "raw_generated": "Maelin. Easy enough to remember. Locksmith.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_corvin_homesick_name",
+
+      "expected": "Corvin. I map roads from Windmere. I wish I were back home.",
+      "raw_generated": "Corvin. I map roads from Windmere. I do not know what you are looking for.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe6d_disclosure_relationship_expression_qe6d_corvin_name_only_reserved",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. I map roads from Windmere. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_mira_tobin_helped_inn_warm_no_reference",
+
+      "expected": "No, dear. Tobin isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's a merchant.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_mira_tobin_repeated_questions_impatient_allude",
+
+      "expected": "No. Still not family.",
+      "raw_generated": "No. Still not family. Still not family.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["duplicate_fact"],
+      "training_note": "",
+
+      "auto_review_notes": ["Raw output repeats the same sentence or proposition."]
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_mira_tobin_threatened_protective_reference",
+
+      "expected": "No. And if you're still looking for Tobin, leave it alone.",
+      "raw_generated": "No. Why are you asking? You're not family.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_guard_unknown_elandra_respectful_citizen_no_reference",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know! Is she nice?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_guard_unknown_elandra_suspicious_allude",
+
+      "expected": "No. You're asking a lot for someone who answers little.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_bram_identity_authority_prior_hassle_withhold",
+
+      "expected": "Depends. This about the hives again?",
+      "raw_generated": "Depends. This about the hives again? You're still bothering me about them.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_rusk_identity_friend_prior_concern_numb",
+
+      "expected": "Rusk... Don't you know that?",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. Why do you ask?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_maelin_customer_prior_help_buoyant",
+
+      "expected": "Maelin. Back with another stubborn lock?",
+      "raw_generated": "Maelin. Back with another stubborn lock? I'm not getting any younger.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_corvin_identity_stranger_irrelevant_memory_ignored",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. From Windmere. Back to back with the village.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7_memory_expression_qe7_elowen_identity_rival_prior_argument_defensive",
+
+      "expected": "You know exactly who I am.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Get lost.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_corvin_irrelevant_bread_ignore",
+
+      "expected": "Corvin.",
+      "raw_generated": "Corvin. From Windmere. Back to back with the village.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_nella_irrelevant_weather_ignore",
+
+      "expected": "Nella.",
+      "raw_generated": "Nella. The mill's been quiet lately. Rain's been pouring down.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_mira_helped_inn_do_not_reference_warm",
+
+      "expected": "No, dear. Tobin isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's a merchant.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_guard_polite_memory_do_not_reference",
+
+      "expected": "No.",
+      "raw_generated": "No. I don't know! Is she nice?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_mira_repeated_tobin_may_allude_still",
+
+      "expected": "No. Still not family.",
+      "raw_generated": "No. Still not family. Still not family.",
+      "preferred_response": "",
+
+      "rating": "fail",
+      "error_tags": ["duplicate_fact"],
+      "training_note": "",
+
+      "auto_review_notes": ["Raw output repeats the same sentence or proposition."]
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_bram_hives_again_may_allude",
+
+      "expected": "Depends. This about the hives again?",
+      "raw_generated": "Depends. This about the hives again? You're still bothering me about them.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_maelin_returning_customer_may_allude",
+
+      "expected": "Maelin. Back with another stubborn lock?",
+      "raw_generated": "Maelin. Back with another stubborn lock? I'm not exactly the locksmith of legend.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_guard_evasive_listener_may_allude",
+
+      "expected": "No. You dodge questions well enough for someone asking them.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_mira_threatened_tobin_may_reference",
+
+      "expected": "No. And if you're still looking for Tobin, leave it alone.",
+      "raw_generated": "No. Why are you asking? You're not family.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_elowen_rival_may_allude_no_label_leak",
+
+      "expected": "You know exactly who I am.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Get lost.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_elowen_do_not_say_control_label",
+
+      "expected": "You already know.",
+      "raw_generated": "You know exactly who I am. Why are you asking? Get lost.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_rusk_concern_do_not_overuse_phrase",
+
+      "expected": "Rusk. I tend sheep above Moss Vale. Words aren't coming easy today.",
+      "raw_generated": "Rusk. I tend sheep above Moss Vale. Why do you ask?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_rusk_irrelevant_market_memory_ignore",
+
+      "expected": "Rusk.",
+      "raw_generated": "Rusk. Shepherds around here don't exactly call themselves leaders. State that again?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_maelin_irrelevant_song_memory_ignore",
+
+      "expected": "Maelin. Easy enough to remember.",
+      "raw_generated": "Maelin. Easy enough to remember. Locksmith.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_mira_may_reference_not_required",
+
+      "expected": "No. Why do you ask?",
+      "raw_generated": "No. Why do you ask? Tobin isn't family.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_guard_no_yes_tail",
+
+      "expected": "No. You're asking plenty for someone who gives little back.",
+      "raw_generated": "No. You're asking a lot for someone who answers little. Why are you asking?",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    },
+    {
+      "id": "review_reinforcement_review_reinforcement_qe7b_memory_policy_patch_qe7b_mira_no_duplicate_family",
+
+      "expected": "No, dear. He isn't family.",
+      "raw_generated": "No, dear. Tobin isn't family. He's a merchant.",
+      "preferred_response": "",
+
+      "rating": "minor",
+      "error_tags": [],
+      "training_note": "",
+
+      "auto_review_notes": []
+    }
+  ]
+}

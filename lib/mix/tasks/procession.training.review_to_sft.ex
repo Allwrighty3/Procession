@@ -175,7 +175,7 @@ defmodule Mix.Tasks.Procession.Training.ReviewToSft do
       true ->
         {:ok,
          %{
-           "id" => "review_reinforcement_#{id}",
+           "id" => reinforcement_id(id),
            "prompt" => prompt,
            "completion" => expected,
            "text" => prompt <> "\n" <> expected,
@@ -255,4 +255,7 @@ defmodule Mix.Tasks.Procession.Training.ReviewToSft do
       {:error, :duplicate_sft_row_ids}
     end
   end
+
+  defp reinforcement_id("review_reinforcement_" <> _rest = id), do: id
+  defp reinforcement_id(id), do: "review_reinforcement_#{id}"
 end
