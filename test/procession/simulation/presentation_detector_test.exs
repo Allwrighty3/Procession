@@ -34,6 +34,21 @@ defmodule Procession.Simulation.PresentationDetectorTest do
       )
     end
 
+    test "detects weather as a neutral topic" do
+      presentation = PresentationDetector.from_player_message("How is the weather?")
+
+      assert_presentation(presentation,
+        source: "player",
+        kind: :question,
+        target: {:topic, :weather},
+        target_name: nil,
+        target_public_facts: %{},
+        topic_key: :weather,
+        message_intent: :general,
+        text: "How is the weather?"
+      )
+    end
+
     test "detects general statements" do
       presentation = PresentationDetector.from_player_message("Hello there")
 

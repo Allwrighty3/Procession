@@ -45,6 +45,15 @@ defmodule Procession.Simulation.TopicPolicy do
       first_concern: :player_asking_about_elin,
       repeated_concern: :player_repeatedly_asking_about_elin
     },
+    weather: %{
+      track?: false,
+      base_salience: :none,
+      first_boundary: :none,
+      repeated_boundary: :none,
+      trust_delta_on_press: 0,
+      first_concern: nil,
+      repeated_concern: nil
+    },
     general: %{
       track?: false,
       base_salience: :none,

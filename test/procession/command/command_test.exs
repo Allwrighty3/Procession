@@ -322,6 +322,7 @@ defmodule Procession.CommandTest do
     test "talk to returns presentation and dialogue constraints metadata" do
       {:ok, session} = GameSession.start_link(session_id: "session_test")
       {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+      assert {:ok, _pid} = Procession.Simulation.InternalFields.ensure_started("npc_tobin")
 
       assert {:ok, result} = Command.run(session, "talk to Tobin: Who is Mira?")
 
@@ -520,6 +521,37 @@ defmodule Procession.CommandTest do
               :player_asking_about_tobin,
               :player_repeatedly_asking_about_tobin
             ]
+    end
+
+    test "talk to records neutral topics without internal field pressure" do
+      {:ok, session} = GameSession.start_link(session_id: "session_test")
+      {:ok, _summary} = GameSession.new_game(session, "a quiet frontier town")
+
+      assert {:ok, result} = Command.run(session, "talk to Tobin: How is the weather?")
+
+      assert result.command == :talk_to
+      assert result.entity_id == "npc_tobin"
+      assert result.presentation.target == {:topic, :weather}
+      assert result.presentation.topic_key == :weather
+      assert result.presentation.message_intent == :general
+
+      assert result.dialogue_constraints.intent == :normal_response
+      assert result.dialogue_constraints.response_shape == :open_response
+      assert result.dialogue_constraints.field_pressure == :none
+
+      assert {:ok,
+              %{
+                command: :internal_field,
+                entity_id: "npc_tobin",
+                result: field_snapshot
+              }} = Command.run(session, "field for Tobin")
+
+      assert field_snapshot.topic_salience == %{}
+      assert field_snapshot.topic_pressure_counts == %{}
+      assert field_snapshot.disclosure_boundaries == %{}
+      assert field_snapshot.trust_deltas == %{}
+      assert field_snapshot.private_concerns == []
+      assert length(field_snapshot.presentations) == 1
     end
 
     test "repeated talk to questions intensify target internal field" do

@@ -206,5 +206,42 @@ defmodule Procession.Simulation.InternalFieldTest do
       assert snapshot.private_concerns == []
       assert length(snapshot.presentations) == 1
     end
+
+    test "untracked topic policies record presentations without field pressure" do
+      field =
+        "npc_tobin"
+        |> InternalField.new()
+        |> InternalField.apply_presentation(%{
+          source: "player",
+          kind: :question,
+          target: {:topic, :weather},
+          target_name: nil,
+          target_public_facts: %{},
+          topic_key: :weather,
+          message_intent: :general,
+          text: "How is the weather?"
+        })
+
+      snapshot = InternalField.snapshot(field)
+
+      assert snapshot.topic_salience == %{}
+      assert snapshot.topic_pressure_counts == %{}
+      assert snapshot.disclosure_boundaries == %{}
+      assert snapshot.trust_deltas == %{}
+      assert snapshot.private_concerns == []
+
+      assert snapshot.presentations == [
+              %{
+                source: "player",
+                kind: :question,
+                target: {:topic, :weather},
+                target_name: nil,
+                target_public_facts: %{},
+                topic_key: :weather,
+                message_intent: :general,
+                text: "How is the weather?"
+              }
+            ]
+    end
   end
 end

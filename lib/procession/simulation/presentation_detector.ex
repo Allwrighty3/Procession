@@ -55,6 +55,8 @@ defmodule Procession.Simulation.PresentationDetector do
     cond do
       String.contains?(downcased, "mira") -> {:person, :mira}
       String.contains?(downcased, "tobin") -> {:person, :tobin}
+      String.contains?(downcased, "elin") -> {:person, :elin}
+      String.contains?(downcased, "weather") -> {:topic, :weather}
       true -> {:message, :general}
     end
   end
@@ -79,6 +81,7 @@ defmodule Procession.Simulation.PresentationDetector do
       String.contains?(downcased, "mira") -> :mira
       String.contains?(downcased, "tobin") -> :tobin
       String.contains?(downcased, "elin") -> :elin
+      String.contains?(downcased, "weather") -> :weather
       true -> :general
     end
   end
