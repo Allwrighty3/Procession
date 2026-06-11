@@ -49,5 +49,22 @@ defmodule Procession.Simulation.TopicPolicyTest do
       assert TopicPolicy.concern(policy, :weather, 1) == :player_asking_about_weather
       assert TopicPolicy.concern(policy, :weather, 2) == :player_repeatedly_asking_about_weather
     end
+
+    test "accepts context without changing current static policy behavior" do
+      policy =
+        TopicPolicy.for_topic(:tobin,
+          entity_id: "npc_mira",
+          presentation: %{
+            topic_key: :tobin,
+            target_name: "Tobin"
+          }
+        )
+
+      assert TopicPolicy.track?(policy)
+      assert TopicPolicy.salience(policy) == :high
+      assert TopicPolicy.boundary(policy, 1) == :high
+      assert TopicPolicy.boundary(policy, 2) == :very_high
+      assert TopicPolicy.trust_delta(policy) == -1
+    end
   end
 end
