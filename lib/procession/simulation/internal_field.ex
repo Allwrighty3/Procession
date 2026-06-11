@@ -6,6 +6,8 @@ defmodule Procession.Simulation.InternalField do
   dialogue rendering, memory storage, or player-facing behavior.
   """
 
+  alias Procession.Simulation.TopicPolicy
+
   @type entity_id :: String.t()
   @type topic :: atom()
   @type level :: :none | :low | :medium | :high | :very_high
@@ -34,15 +36,16 @@ defmodule Procession.Simulation.InternalField do
 
   def apply_presentation(%__MODULE__{} = field, presentation) when is_map(presentation) do
     topic_key = topic_key_for(presentation)
+    policy = TopicPolicy.for_topic(topic_key)
 
-    if field_topic?(topic_key) do
+    if TopicPolicy.track?(policy) do
       field
       |> record_presentation(presentation)
       |> increase_topic_pressure(topic_key)
-      |> set_topic_salience(topic_key, :high)
-      |> update_disclosure_boundary(topic_key)
-      |> decrease_player_trust(presentation)
-      |> update_private_concern(topic_key)
+      |> set_topic_salience(topic_key, TopicPolicy.salience(policy))
+      |> update_disclosure_boundary(topic_key, policy)
+      |> apply_trust_delta(presentation, TopicPolicy.trust_delta(policy))
+      |> update_private_concern(topic_key, policy)
     else
       record_presentation(field, presentation)
     end
@@ -69,10 +72,6 @@ defmodule Procession.Simulation.InternalField do
   defp topic_key_for(%{target: {:person, :tobin}}), do: :tobin
   defp topic_key_for(_presentation), do: :general
 
-  defp field_topic?(:general), do: false
-  defp field_topic?(topic_key) when is_atom(topic_key), do: true
-  defp field_topic?(_topic_key), do: false
-
   defp increase_topic_pressure(field, topic_key) do
     update_in(field.topic_pressure_counts[topic_key], fn
       nil -> 1
@@ -84,44 +83,31 @@ defmodule Procession.Simulation.InternalField do
     put_in(field.topic_salience[topic_key], level)
   end
 
-  defp update_disclosure_boundary(field, topic_key) do
+  defp update_disclosure_boundary(field, topic_key, policy) do
     pressure_count = Map.get(field.topic_pressure_counts, topic_key, 0)
-
-    boundary =
-      if pressure_count >= 2 do
-        :very_high
-      else
-        :high
-      end
+    boundary = TopicPolicy.boundary(policy, pressure_count)
 
     put_in(field.disclosure_boundaries[topic_key], boundary)
   end
 
-  defp decrease_player_trust(field, %{source: source}) when is_binary(source) do
+  defp apply_trust_delta(field, %{source: source}, delta)
+      when is_binary(source) and is_integer(delta) and delta != 0 do
     update_in(field.trust_deltas[source], fn
-      nil -> -1
-      value -> value - 1
+      nil -> delta
+      value -> value + delta
     end)
   end
 
-  defp decrease_player_trust(field, _presentation), do: field
+  defp apply_trust_delta(field, _presentation, _delta), do: field
 
-  defp update_private_concern(field, topic_key) do
+  defp update_private_concern(field, topic_key, policy) do
     pressure_count = Map.get(field.topic_pressure_counts, topic_key, 0)
+    concern = TopicPolicy.concern(policy, topic_key, pressure_count)
 
-    concern =
-      if pressure_count >= 2 do
-        repeated_concern_for(topic_key)
-      else
-        first_concern_for(topic_key)
-      end
-
-    %{field | private_concerns: [concern | field.private_concerns]}
+    if is_nil(concern) do
+      field
+    else
+      %{field | private_concerns: [concern | field.private_concerns]}
+    end
   end
-
-  defp first_concern_for(:mira), do: :player_asking_about_mira
-  defp first_concern_for(topic_key), do: :"player_asking_about_#{topic_key}"
-
-  defp repeated_concern_for(:mira), do: :player_repeatedly_asking_about_mira
-  defp repeated_concern_for(topic_key), do: :"player_repeatedly_asking_about_#{topic_key}"
 end
