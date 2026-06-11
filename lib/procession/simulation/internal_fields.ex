@@ -24,19 +24,35 @@ defmodule Procession.Simulation.InternalFields do
 
   def apply_presentation(entity_id, presentation)
       when is_binary(entity_id) and is_map(presentation) do
-    with {:ok, _pid} <- ensure_started(entity_id) do
+    call_field_process(entity_id, fn ->
       entity_id
       |> via_tuple()
       |> InternalFieldProcess.apply_presentation(presentation)
-    end
+    end)
   end
 
   def snapshot(entity_id) when is_binary(entity_id) do
-    with {:ok, _pid} <- ensure_started(entity_id) do
+    call_field_process(entity_id, fn ->
       entity_id
       |> via_tuple()
       |> InternalFieldProcess.snapshot()
+    end)
+  end
+
+  defp call_field_process(entity_id, fun) when is_function(fun, 0) do
+    with {:ok, _pid} <- ensure_started(entity_id) do
+      fun.()
     end
+  catch
+    :exit, {:noproc, _reason} ->
+      with {:ok, _pid} <- ensure_started(entity_id) do
+        fun.()
+      end
+
+    :exit, {{:nodedown, _node}, _reason} ->
+      with {:ok, _pid} <- ensure_started(entity_id) do
+        fun.()
+      end
   end
 
   defp start_field(entity_id) do

@@ -431,9 +431,9 @@ defmodule Procession.CommandTest do
       assert result.dialogue_constraints.target_name == "Tobin"
 
       assert result.dialogue_constraints.target_public_facts == %{
-              role: "merchant",
-              temperament: "nervous"
-            }
+               role: "merchant",
+               temperament: "nervous"
+             }
 
       assert result.result == "No. Why are you asking?"
     end
@@ -473,9 +473,9 @@ defmodule Procession.CommandTest do
       assert identity_result.presentation.message_intent == :ask_public_identity
 
       assert identity_result.presentation.target_public_facts == %{
-              role: "merchant",
-              temperament: "nervous"
-            }
+               role: "merchant",
+               temperament: "nervous"
+             }
 
       assert identity_result.dialogue_constraints.intent == :guarded_deflection
       assert identity_result.dialogue_constraints.response_shape == :public_identity_then_question
@@ -483,9 +483,9 @@ defmodule Procession.CommandTest do
       assert identity_result.dialogue_constraints.target_name == "Tobin"
 
       assert identity_result.dialogue_constraints.target_public_facts == %{
-              role: "merchant",
-              temperament: "nervous"
-            }
+               role: "merchant",
+               temperament: "nervous"
+             }
 
       assert {:ok, location_result} = Command.run(session, "talk to Mira: Where is Tobin?")
 
@@ -518,9 +518,9 @@ defmodule Procession.CommandTest do
       assert field_snapshot.trust_deltas["player"] == -2
 
       assert field_snapshot.private_concerns == [
-              :player_asking_about_tobin,
-              :player_repeatedly_asking_about_tobin
-            ]
+               :player_asking_about_tobin,
+               :player_repeatedly_asking_about_tobin
+             ]
     end
 
     test "talk to records neutral topics without internal field pressure" do

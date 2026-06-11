@@ -35,7 +35,9 @@ defmodule Procession.Simulation.TopicPolicyTest do
       assert TopicPolicy.boundary(policy, 2) == :very_high
       assert TopicPolicy.trust_delta(policy) == -1
       assert TopicPolicy.concern(policy, :roadwardens, 1) == :player_asking_about_roadwardens
-      assert TopicPolicy.concern(policy, :roadwardens, 2) == :player_repeatedly_asking_about_roadwardens
+
+      assert TopicPolicy.concern(policy, :roadwardens, 2) ==
+               :player_repeatedly_asking_about_roadwardens
     end
 
     test "returns untracked policy for neutral weather topics" do

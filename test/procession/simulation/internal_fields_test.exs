@@ -85,6 +85,26 @@ defmodule Procession.Simulation.InternalFieldsTest do
       assert second.disclosure_boundaries[:mira] == :very_high
       assert second.trust_deltas["player"] == -2
     end
+
+    test "apply_presentation/2 starts a missing field process" do
+      entity_id = "npc_missing_field_test"
+
+      presentation = %{
+        source: "player",
+        kind: :question,
+        target: {:topic, :weather},
+        target_name: nil,
+        target_public_facts: %{},
+        topic_key: :weather,
+        message_intent: :general,
+        text: "How is the weather?"
+      }
+
+      assert {:ok, snapshot} = InternalFields.apply_presentation(entity_id, presentation)
+
+      assert snapshot.entity_id == entity_id
+      assert snapshot.presentations == [presentation]
+    end
   end
 
   describe "snapshot/1" do

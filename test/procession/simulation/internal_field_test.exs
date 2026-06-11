@@ -231,17 +231,17 @@ defmodule Procession.Simulation.InternalFieldTest do
       assert snapshot.private_concerns == []
 
       assert snapshot.presentations == [
-              %{
-                source: "player",
-                kind: :question,
-                target: {:topic, :weather},
-                target_name: nil,
-                target_public_facts: %{},
-                topic_key: :weather,
-                message_intent: :general,
-                text: "How is the weather?"
-              }
-            ]
+               %{
+                 source: "player",
+                 kind: :question,
+                 target: {:topic, :weather},
+                 target_name: nil,
+                 target_public_facts: %{},
+                 topic_key: :weather,
+                 message_intent: :general,
+                 text: "How is the weather?"
+               }
+             ]
     end
   end
 end

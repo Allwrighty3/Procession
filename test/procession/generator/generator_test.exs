@@ -23,6 +23,38 @@ defmodule Procession.GeneratorTest do
       assert blueprint.prompt == "a frontier village near a haunted mine"
     end
 
+    test "generated NPCs include topic policy metadata" do
+      assert {:ok, blueprint} = Generator.generate_world("anything")
+
+      mira = Enum.find(blueprint.npcs, &(&1.id == "npc_mira"))
+      tobin = Enum.find(blueprint.npcs, &(&1.id == "npc_tobin"))
+      elin = Enum.find(blueprint.npcs, &(&1.id == "npc_elin"))
+
+      assert mira.metadata.topic_policies.tobin == %{
+              track?: true,
+              sensitivity: :relationship_sensitive,
+              base_salience: :high,
+              first_boundary: :high,
+              repeated_boundary: :very_high,
+              trust_delta_on_press: -1
+            }
+
+      assert mira.metadata.topic_policies.weather.track? == false
+      assert mira.metadata.topic_policies.weather.sensitivity == :neutral
+
+      assert tobin.metadata.topic_policies.mira == %{
+              track?: true,
+              sensitivity: :relationship_sensitive,
+              base_salience: :high,
+              first_boundary: :high,
+              repeated_boundary: :very_high,
+              trust_delta_on_press: -1
+            }
+
+      assert tobin.metadata.topic_policies.weather.track? == false
+      assert elin.metadata.topic_policies.weather.track? == false
+    end
+
     test "generated blueprint has the expected top-level shape" do
       assert {:ok, blueprint} = Procession.Generator.generate_world("anything")
 

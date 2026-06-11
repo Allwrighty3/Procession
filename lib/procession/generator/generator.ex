@@ -58,7 +58,27 @@ defmodule Procession.Generator do
            name: "Mira",
            type: :npc,
            location: "loc_briar_village",
-           traits: %{role: "innkeeper", temperament: "watchful"}
+           traits: %{role: "innkeeper", temperament: "watchful"},
+           metadata: %{
+             topic_policies: %{
+               tobin: %{
+                 track?: true,
+                 sensitivity: :relationship_sensitive,
+                 base_salience: :high,
+                 first_boundary: :high,
+                 repeated_boundary: :very_high,
+                 trust_delta_on_press: -1
+               },
+               weather: %{
+                 track?: false,
+                 sensitivity: :neutral,
+                 base_salience: :none,
+                 first_boundary: :none,
+                 repeated_boundary: :none,
+                 trust_delta_on_press: 0
+               }
+             }
+           }
          },
          %{
            id: "npc_tobin",
@@ -67,6 +87,24 @@ defmodule Procession.Generator do
            location: "loc_crossroads",
            traits: %{role: "merchant", temperament: "nervous"},
            metadata: %{
+             topic_policies: %{
+               mira: %{
+                 track?: true,
+                 sensitivity: :relationship_sensitive,
+                 base_salience: :high,
+                 first_boundary: :high,
+                 repeated_boundary: :very_high,
+                 trust_delta_on_press: -1
+               },
+               weather: %{
+                 track?: false,
+                 sensitivity: :neutral,
+                 base_salience: :none,
+                 first_boundary: :none,
+                 repeated_boundary: :none,
+                 trust_delta_on_press: 0
+               }
+             },
              behaviors: [
                %{
                  trigger: :world_tick,
@@ -85,7 +123,19 @@ defmodule Procession.Generator do
            name: "Elin",
            type: :npc,
            location: "loc_silent_mine",
-           traits: %{role: "scout", temperament: "reckless"}
+           traits: %{role: "scout", temperament: "reckless"},
+           metadata: %{
+             topic_policies: %{
+               weather: %{
+                 track?: false,
+                 sensitivity: :neutral,
+                 base_salience: :none,
+                 first_boundary: :none,
+                 repeated_boundary: :none,
+                 trust_delta_on_press: 0
+               }
+             }
+           }
          }
        ],
        factions: [

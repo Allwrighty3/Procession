@@ -36,6 +36,7 @@ defmodule Procession.Simulation.InternalField do
 
   def apply_presentation(%__MODULE__{} = field, presentation) when is_map(presentation) do
     topic_key = topic_key_for(presentation)
+
     policy =
       TopicPolicy.for_topic(topic_key,
         entity_id: field.entity_id,
@@ -95,7 +96,7 @@ defmodule Procession.Simulation.InternalField do
   end
 
   defp apply_trust_delta(field, %{source: source}, delta)
-      when is_binary(source) and is_integer(delta) and delta != 0 do
+       when is_binary(source) and is_integer(delta) and delta != 0 do
     update_in(field.trust_deltas[source], fn
       nil -> delta
       value -> value + delta
