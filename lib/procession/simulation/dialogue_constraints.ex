@@ -14,32 +14,41 @@ defmodule Procession.Simulation.DialogueConstraints do
     tone: [:neutral],
     allowed_facts: [],
     forbidden_topics: [],
-    field_pressure: :none
+    field_pressure: :none,
+    topic_key: :general,
+    target_name: nil
   }
 
   def from_field_snapshot(snapshot, presentation \\ %{})
 
   def from_field_snapshot(%{topic_salience: topic_salience} = snapshot, presentation)
       when is_map(topic_salience) and is_map(presentation) do
-    mira_salience = Map.get(topic_salience, :mira)
-    pressure_count = get_in(snapshot, [:topic_pressure_counts, :mira]) || 0
+    topic_key = Map.get(presentation, :topic_key, :general)
+    target_name = Map.get(presentation, :target_name)
+    topic_salience_level = Map.get(topic_salience, topic_key)
+    pressure_count = get_in(snapshot, [:topic_pressure_counts, topic_key]) || 0
     message_intent = Map.get(presentation, :message_intent, :general)
 
     cond do
-      mira_salience == :high and message_intent == :ask_location ->
-        mira_location_refusal_constraints(snapshot)
+      topic_key == :general ->
+        @default_constraints
 
-      mira_salience == :high and pressure_count >= 2 ->
-        repeated_mira_constraints(snapshot)
+      topic_salience_level == :high and message_intent == :ask_location ->
+        location_refusal_constraints(topic_key, target_name)
 
-      mira_salience == :high and message_intent == :ask_public_identity ->
-        mira_public_identity_constraints(snapshot)
+      topic_salience_level == :high and pressure_count >= 2 ->
+        repeated_topic_constraints(topic_key, target_name)
 
-      mira_salience == :high and message_intent == :ask_relationship_denial ->
-        mira_relationship_denial_constraints(snapshot)
+      topic_key == :mira and topic_salience_level == :high and
+          message_intent == :ask_public_identity ->
+        mira_public_identity_constraints(target_name)
 
-      mira_salience == :high ->
-        high_mira_constraints(snapshot)
+      topic_key == :mira and topic_salience_level == :high and
+          message_intent == :ask_relationship_denial ->
+        mira_relationship_denial_constraints(target_name)
+
+      topic_salience_level == :high ->
+        sensitive_topic_constraints(topic_key, target_name)
 
       true ->
         @default_constraints
@@ -48,7 +57,7 @@ defmodule Procession.Simulation.DialogueConstraints do
 
   def from_field_snapshot(_snapshot, _presentation), do: @default_constraints
 
-  defp mira_public_identity_constraints(_snapshot) do
+  defp mira_public_identity_constraints(target_name) do
     %{
       @default_constraints
       | intent: :guarded_deflection,
@@ -56,12 +65,14 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :minimal,
         tone: [:cautious, :neighborly],
         allowed_facts: [:narrow_public_identity],
-        forbidden_topics: [:mira_location, :mira_private_history, :mira_hidden_relationship],
-        field_pressure: :sensitive_topic
+        forbidden_topics: forbidden_private_topics(:mira),
+        field_pressure: :sensitive_topic,
+        topic_key: :mira,
+        target_name: target_name
     }
   end
 
-  defp mira_relationship_denial_constraints(_snapshot) do
+  defp mira_relationship_denial_constraints(target_name) do
     %{
       @default_constraints
       | intent: :guarded_deflection,
@@ -69,12 +80,14 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :minimal,
         tone: [:cautious, :neighborly],
         allowed_facts: [:narrow_relationship_denial],
-        forbidden_topics: [:mira_location, :mira_private_history, :mira_hidden_relationship],
-        field_pressure: :sensitive_topic
+        forbidden_topics: forbidden_private_topics(:mira),
+        field_pressure: :sensitive_topic,
+        topic_key: :mira,
+        target_name: target_name
     }
   end
 
-  defp high_mira_constraints(_snapshot) do
+  defp sensitive_topic_constraints(topic_key, target_name) do
     %{
       @default_constraints
       | intent: :guarded_deflection,
@@ -82,12 +95,14 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :minimal,
         tone: [:cautious, :neighborly],
         allowed_facts: [],
-        forbidden_topics: [:mira_location, :mira_private_history, :mira_hidden_relationship],
-        field_pressure: :sensitive_topic
+        forbidden_topics: forbidden_private_topics(topic_key),
+        field_pressure: :sensitive_topic,
+        topic_key: topic_key,
+        target_name: target_name
     }
   end
 
-  defp repeated_mira_constraints(_snapshot) do
+  defp repeated_topic_constraints(topic_key, target_name) do
     %{
       @default_constraints
       | intent: :firm_deflection,
@@ -95,17 +110,14 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :none,
         tone: [:guarded, :firm],
         allowed_facts: [],
-        forbidden_topics: [
-          :mira_location,
-          :mira_private_history,
-          :mira_hidden_relationship,
-          :mira_current_activity
-        ],
-        field_pressure: :repeated_sensitive_topic
+        forbidden_topics: forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
+        field_pressure: :repeated_sensitive_topic,
+        topic_key: topic_key,
+        target_name: target_name
     }
   end
 
-  defp mira_location_refusal_constraints(_snapshot) do
+  defp location_refusal_constraints(topic_key, target_name) do
     %{
       @default_constraints
       | intent: :firm_deflection,
@@ -113,13 +125,18 @@ defmodule Procession.Simulation.DialogueConstraints do
         disclosure_level: :none,
         tone: [:guarded, :firm],
         allowed_facts: [],
-        forbidden_topics: [
-          :mira_location,
-          :mira_private_history,
-          :mira_hidden_relationship,
-          :mira_current_activity
-        ],
-        field_pressure: :sensitive_location_request
+        forbidden_topics: forbidden_private_topics(topic_key) ++ [:"#{topic_key}_current_activity"],
+        field_pressure: :sensitive_location_request,
+        topic_key: topic_key,
+        target_name: target_name
     }
+  end
+
+  defp forbidden_private_topics(topic_key) when is_atom(topic_key) do
+    [
+      :"#{topic_key}_location",
+      :"#{topic_key}_private_history",
+      :"#{topic_key}_hidden_relationship"
+    ]
   end
 end

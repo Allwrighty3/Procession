@@ -343,6 +343,8 @@ defmodule Procession.CommandTest do
       assert result.dialogue_constraints.response_shape == :public_identity_then_question
       assert result.dialogue_constraints.disclosure_level == :minimal
       assert result.dialogue_constraints.field_pressure == :sensitive_topic
+      assert result.dialogue_constraints.topic_key == :mira
+      assert result.dialogue_constraints.target_name == "Mira"
     end
 
     test "talk to uses guarded internal field constraints for first Mira question" do
