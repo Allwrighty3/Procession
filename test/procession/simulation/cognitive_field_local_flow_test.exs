@@ -48,6 +48,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
         |> CognitiveField.traverse([:a, :m, :x])
         |> CognitiveField.traverse([:b, :n, :y])
       end)
+      |> CognitiveField.add_transition(:m, :x, residue: 0.30)
       |> CognitiveField.add_transition(:m, :bridge, residue: 0.95)
       |> CognitiveField.add_transition(:bridge, :n, residue: 0.95)
 
