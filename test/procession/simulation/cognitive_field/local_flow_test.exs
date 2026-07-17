@@ -59,26 +59,35 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
       )
 
     assert result.winner == :lower_exit
-    assert result.flows[{:entry, :lower}] > result.flows[{:entry, :upper}]
+
+    assert Map.get(result.flows, {:entry, :lower}, 0.0) >
+             Map.get(result.flows, {:entry, :upper}, 0.0)
   end
 
   test "enacting local flow reinforces the route selected by local dynamics" do
     field = competing_field()
 
+    trained =
+      Enum.reduce(1..20, field, fn _, acc ->
+        CognitiveField.traverse(acc, [:entry, :lower, :lower_exit])
+      end)
+
     result =
-      LocalFlow.run(field, %{entry: 1.0}, [:upper_exit, :lower_exit],
+      LocalFlow.run(trained, %{entry: 1.0}, [:upper_exit, :lower_exit],
         attenuation: 0.9,
         threshold: 0.01,
         exit_threshold: 0.1,
-        seed: 12
+        sharpness: 3.0
       )
 
-    enacted = LocalFlow.enact(field, result)
+    enacted = LocalFlow.enact(trained, result)
     path = LocalFlow.dominant_path(result)
     [from, to | _] = path
 
+    assert result.winner == :lower_exit
+
     assert CognitiveField.resistance(enacted, from, to) <
-             CognitiveField.resistance(field, from, to)
+             CognitiveField.resistance(trained, from, to)
   end
 
   test "simultaneous entries combine at a shared node" do
