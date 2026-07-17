@@ -50,7 +50,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
 
   defp run(_field, active, exits, max_ticks, _threshold, _transfer, _temperature, tick, flows, exit_activation, snapshots)
        when tick >= max_ticks do
-    finish(active, exits, tick, flows, exit_activation, snapshots, :max_ticks)
+    finish(active, exits, flows, exit_activation, snapshots, :max_ticks)
   end
 
   defp run(field, active, exits, max_ticks, threshold, transfer, temperature, tick, flows, exit_activation, snapshots) do
@@ -59,7 +59,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
     continuing = Map.reject(continuing, fn {_node, value} -> value < threshold end)
 
     if map_size(continuing) == 0 do
-      finish(%{}, exits, tick, flows, exit_activation, [active | snapshots], :settled)
+      finish(%{}, exits, flows, exit_activation, [active | snapshots], :settled)
     else
       {next, tick_flows} = spread(field, continuing, transfer, temperature, threshold)
 
@@ -113,7 +113,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
     end)
   end
 
-  defp finish(active, _exits, ticks, flows, exit_activation, snapshots, status) do
+  defp finish(active, _exits, flows, exit_activation, snapshots, status) do
     %Trace{
       initial: snapshots |> List.last() |> then(&(&1 || active)),
       ticks: Enum.reverse([active | snapshots]),
