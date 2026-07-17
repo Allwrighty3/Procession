@@ -213,12 +213,13 @@ defmodule Procession.Simulation.CognitiveField do
     rehearse(field, trajectory.path, opts)
   end
 
-  def rehearse(%__MODULE__{} = field, %Trajectory{} = trajectory) do
-    rehearse(field, trajectory.path, [])
-  end
-
   def rehearse(%__MODULE__{} = field, path, opts) when is_list(path) and is_list(opts) do
     traverse(field, path, Keyword.put_new(opts, :deposit, 0.018))
+  end
+
+  @spec rehearse(t(), [node_id()] | Trajectory.t()) :: t()
+  def rehearse(%__MODULE__{} = field, %Trajectory{} = trajectory) do
+    rehearse(field, trajectory.path, [])
   end
 
   def rehearse(%__MODULE__{} = field, path) when is_list(path) do
@@ -236,7 +237,7 @@ defmodule Procession.Simulation.CognitiveField do
     magnitude = Keyword.get(opts, :magnitude, 0.08)
     fraction = opts |> Keyword.get(:fraction, 0.30) |> min(1.0) |> max(0.0)
     edges = Enum.chunk_every(path, 2, 1, :discard)
-    disturbed_count = max(1, ceil(length(edges) * fraction))
+    disturbed_count = max(1, trunc(Float.ceil(length(edges) * fraction)))
 
     disturbed =
       edges
