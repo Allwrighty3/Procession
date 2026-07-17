@@ -48,7 +48,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
     path != [] and path not in trained_paths
   end
 
-  defp run(_field, active, exits, max_ticks, threshold, _transfer, _temperature, tick, flows, exit_activation, snapshots)
+  defp run(_field, active, exits, max_ticks, _threshold, _transfer, _temperature, tick, flows, exit_activation, snapshots)
        when tick >= max_ticks do
     finish(active, exits, tick, flows, exit_activation, snapshots, :max_ticks)
   end
