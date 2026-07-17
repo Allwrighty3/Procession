@@ -13,6 +13,17 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
   defmodule Result do
     @moduledoc "Diagnostic record of one local-flow episode."
 
+    @type t :: %__MODULE__{
+            initial_activation: map(),
+            exits: MapSet.t(),
+            winner: term() | nil,
+            exit_activation: map(),
+            flows: map(),
+            history: [map()],
+            ticks: non_neg_integer(),
+            seed: integer()
+          }
+
     @enforce_keys [
       :initial_activation,
       :exits,
@@ -51,8 +62,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
     * `:sharpness` - preference for low-resistance edges, default `2.0`
     * `:seed` - deterministic tie-breaking seed
   """
-  @spec run(CognitiveField.t(), activation(), MapSet.t(term()) | [term()], keyword()) ::
-          Result.t()
+  @spec run(CognitiveField.t(), activation(), MapSet.t() | [term()], keyword()) :: Result.t()
   def run(%CognitiveField{} = field, activation, exits, opts \\ [])
       when is_map(activation) and is_list(opts) do
     exits = MapSet.new(exits)
@@ -96,9 +106,11 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
 
   @doc "Deposits residue along the strongest locally traversed route to the winner."
   @spec enact(CognitiveField.t(), Result.t(), keyword()) :: CognitiveField.t()
+  def enact(field, result, opts \\ [])
+
   def enact(%CognitiveField{} = field, %Result{winner: nil}, _opts), do: field
 
-  def enact(%CognitiveField{} = field, %Result{} = result, opts \\ []) do
+  def enact(%CognitiveField{} = field, %Result{} = result, opts) do
     case dominant_path(result) do
       [] -> field
       [_single] -> field
@@ -123,7 +135,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
   end
 
   @doc "Fraction of total flow that used edges new to the supplied training set."
-  @spec novel_flow_fraction(Result.t(), MapSet.t(edge())) :: float()
+  @spec novel_flow_fraction(Result.t(), MapSet.t()) :: float()
   def novel_flow_fraction(%Result{} = result, trained_edges) do
     total = Enum.reduce(result.flows, 0.0, fn {_edge, flow}, acc -> acc + flow end)
 
@@ -165,7 +177,8 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
          history,
          tick
        ) do
-    {moving, reached} = Enum.split_with(current, fn {node, _} -> not MapSet.member?(exits, node) end)
+    {moving, reached} =
+      Enum.split_with(current, fn {node, _} -> not MapSet.member?(exits, node) end)
 
     next_exit_activation =
       Enum.reduce(reached, exit_activation, fn {node, magnitude}, acc ->
@@ -180,7 +193,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlow do
         if total_weight == 0.0 do
           {activation_acc, flow_acc}
         else
-          Enum.reduce(outgoing, {activation_acc, flow_acc}, fn {{from, to} = edge, weight},
+          Enum.reduce(outgoing, {activation_acc, flow_acc}, fn {{_from, to} = edge, weight},
                                                               {node_acc, edge_acc} ->
             transmitted = magnitude * attenuation * weight / total_weight
 
