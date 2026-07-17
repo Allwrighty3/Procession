@@ -39,8 +39,8 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
       |> CognitiveField.add_transition(:m, :x)
       |> CognitiveField.add_transition(:b, :n)
       |> CognitiveField.add_transition(:n, :y)
-      |> CognitiveField.add_transition(:m, :bridge)
-      |> CognitiveField.add_transition(:bridge, :n)
+      |> CognitiveField.add_transition(:m, :bridge, residue: 0.95)
+      |> CognitiveField.add_transition(:bridge, :n, residue: 0.95)
 
     trained =
       Enum.reduce(1..35, field, fn _, acc ->
@@ -48,7 +48,6 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
         |> CognitiveField.traverse([:a, :m, :x])
         |> CognitiveField.traverse([:b, :n, :y])
       end)
-      |> CognitiveField.traverse([:m, :bridge, :n], deposit: 0.03)
 
     trace =
       LocalFlow.propagate(
@@ -76,9 +75,9 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
       |> CognitiveField.add_transition(:b, :join, residue: 0.7)
       |> CognitiveField.add_transition(:join, :exit, residue: 0.7)
 
-    a = LocalFlow.propagate(field, %{a: 0.08}, exits: [:exit], threshold: 0.05)
-    b = LocalFlow.propagate(field, %{b: 0.08}, exits: [:exit], threshold: 0.05)
-    both = LocalFlow.propagate(field, %{a: 0.08, b: 0.08}, exits: [:exit], threshold: 0.05)
+    a = LocalFlow.propagate(field, %{a: 0.06}, exits: [:exit], threshold: 0.05)
+    b = LocalFlow.propagate(field, %{b: 0.06}, exits: [:exit], threshold: 0.05)
+    both = LocalFlow.propagate(field, %{a: 0.06, b: 0.06}, exits: [:exit], threshold: 0.05)
 
     assert Map.get(a.exit_activation, :exit, 0.0) == 0.0
     assert Map.get(b.exit_activation, :exit, 0.0) == 0.0
