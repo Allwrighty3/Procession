@@ -33,21 +33,23 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
   end
 
   test "developed fragments support a complete route that was never trained" do
-    field =
+    base =
       CognitiveField.new()
       |> CognitiveField.add_transition(:a, :m)
       |> CognitiveField.add_transition(:m, :x)
       |> CognitiveField.add_transition(:b, :n)
       |> CognitiveField.add_transition(:n, :y)
-      |> CognitiveField.add_transition(:m, :bridge, residue: 0.95)
-      |> CognitiveField.add_transition(:bridge, :n, residue: 0.95)
+      |> CognitiveField.add_transition(:m, :bridge)
+      |> CognitiveField.add_transition(:bridge, :n)
 
     trained =
-      Enum.reduce(1..35, field, fn _, acc ->
+      Enum.reduce(1..35, base, fn _, acc ->
         acc
         |> CognitiveField.traverse([:a, :m, :x])
         |> CognitiveField.traverse([:b, :n, :y])
       end)
+      |> CognitiveField.add_transition(:m, :bridge, residue: 0.95)
+      |> CognitiveField.add_transition(:bridge, :n, residue: 0.95)
 
     trace =
       LocalFlow.propagate(
