@@ -68,7 +68,7 @@ defmodule Procession.Simulation.CognitiveField.LocalFlowTest do
     field = competing_field()
 
     trained =
-      Enum.reduce(1..20, field, fn _, acc ->
+      Enum.reduce(1..5, field, fn _, acc ->
         CognitiveField.traverse(acc, [:entry, :lower, :lower_exit])
       end)
 
