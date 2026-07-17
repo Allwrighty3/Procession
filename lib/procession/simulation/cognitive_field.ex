@@ -105,32 +105,21 @@ defmodule Procession.Simulation.CognitiveField do
   end
 
   @doc """
-  Propagates from one entry toward one explicitly requested exit.
+  Propagates through the current field.
 
-  This retained operation is useful for diagnostics and comparison. Game-facing
-  experiments should prefer autonomous propagation with an exit set.
+  Passing a node as the third argument performs target-directed diagnostic
+  propagation. Passing keyword options performs autonomous propagation and
+  requires a non-empty `:exits` list. Autonomous options may also include
+  temporary `:activation`, `:activation_bias`, `:temperature`, and `:seed`.
   """
-  @spec propagate(t(), node_id(), node_id()) ::
-          {:ok, %{path: [node_id()], resistance: float()}} | {:error, :unreachable}
+  @spec propagate(t(), node_id(), node_id() | keyword()) ::
+          {:ok, %{path: [node_id()], resistance: float()}}
+          | {:ok, Trajectory.t()}
+          | {:error, :unreachable | :no_exits}
   def propagate(%__MODULE__{} = field, entry, exit) when not is_list(exit) do
     shortest_path(field, entry, exit, %{}, 0.0)
   end
 
-  @doc """
-  Propagates from an entry and chooses among possible boundary exits.
-
-  Options:
-
-    * `:exits` - required non-empty exit list
-    * `:activation` - temporary node activation map
-    * `:activation_bias` - how strongly active nodes lower local resistance
-    * `:temperature` - competition softness; lower values favor easy routes
-    * `:seed` - deterministic variation seed
-
-  The caller provides possible exits, not the desired exit.
-  """
-  @spec propagate(t(), node_id(), keyword()) ::
-          {:ok, Trajectory.t()} | {:error, :unreachable | :no_exits}
   def propagate(%__MODULE__{} = field, entry, opts) when is_list(opts) do
     exits = Keyword.get(opts, :exits, [])
 
