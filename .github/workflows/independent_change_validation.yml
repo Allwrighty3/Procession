@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/maintenance-activation-coupling
+  pull_request:
   workflow_dispatch:
 
 permissions:
