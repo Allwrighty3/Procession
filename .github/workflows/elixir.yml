@@ -63,19 +63,7 @@ jobs:
         run: mix procession.metrics.closed_grid_world --samples 100 --ticks 320 | tee closed-grid-world-metrics.txt
 
       - name: Run long parent-guided development metrics
-        run: |
-          mix run -e '
-          alias Procession.Simulation.ParentGuidedDevelopmentExperiment, as: Experiment
-          summary = Experiment.compare(ticks: 1500, seeds: Enum.to_list(1..20), resource_regen: 0.002)
-          report = [
-            "Parent-guided developmental world metrics",
-            "samples=20 ticks=1500 seeds=1..20",
-            "",
-            Experiment.report(summary)
-          ] |> Enum.join("\n")
-          File.write!("parent-guided-development-metrics.txt", report <> "\n")
-          IO.puts(report)
-          '
+        run: mix procession.metrics.parent_guided_development --samples 20 --ticks 1500 | tee parent-guided-development-metrics.txt
 
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
