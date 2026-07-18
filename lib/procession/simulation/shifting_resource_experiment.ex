@@ -3,10 +3,9 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
   Tests whether consequence-sensitive plasticity helps a self-maintaining pattern
   track a replenishment source whose location changes over time.
 
-  The world contains no food, hunger, survival goal, planner, or correct-action
-  lookup. Maintenance shortfall activates three competing exits. Their world
-  effects change position, and only the resulting change in future intake
-  determines whether a selected route is strengthened or disturbed.
+  The world contains no hunger, survival goal, planner, or correct-action lookup.
+  Maintenance shortfall activates competing exits. Their effects change position,
+  and the resulting change in intake determines how selected routes change.
   """
 
   alias Procession.Simulation.CognitiveField
@@ -36,18 +35,24 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
 
   defmodule TrialSummary do
     @moduledoc false
-    @enforce_keys [:variant, :lifetimes, :median_lifetime, :survived, :survival_rate,
-                   :median_intake, :median_adjustments, :median_obsolete_actions,
-                   :median_changes_survived]
-    defstruct [:variant, :lifetimes, :median_lifetime, :survived, :survival_rate,
-               :median_intake, :median_adjustments, :median_obsolete_actions,
-               :median_changes_survived]
+    @enforce_keys [
+      :variant,
+      :lifetimes,
+      :median_lifetime,
+      :survived,
+      :survival_rate,
+      :median_intake,
+      :median_adjustments,
+      :median_obsolete_actions,
+      :median_changes_survived
+    ]
+    defstruct @enforce_keys
   end
 
   defmodule Comparison do
     @moduledoc false
     @enforce_keys [:ticks, :seeds, :summaries]
-    defstruct [:ticks, :seeds, :summaries]
+    defstruct @enforce_keys
   end
 
   def variants, do: @variants
@@ -63,14 +68,13 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     unless variant in @variants, do: raise(ArgumentError, "unknown variant: #{inspect(variant)}")
 
     ticks = Keyword.get(opts, :ticks, 180)
-    initial_position = Keyword.get(opts, :initial_position, 5)
 
     initial = %State{
       variant: variant,
       seed: Keyword.get(opts, :seed, 1),
       store: Keyword.get(opts, :initial_store, 0.55),
       integrity: Keyword.get(opts, :initial_integrity, 1.0),
-      position: initial_position,
+      position: Keyword.get(opts, :initial_position, 5),
       source_position: source_position(1, opts),
       field: new_field()
     }
@@ -91,7 +95,11 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
 
     summaries =
       Map.new(@variants, fn variant ->
-        states = Enum.map(seeds, &run(Keyword.merge(opts, variant: variant, seed: &1, ticks: ticks)))
+        states =
+          Enum.map(seeds, fn seed ->
+            run(Keyword.merge(opts, variant: variant, seed: seed, ticks: ticks))
+          end)
+
         lifetimes = Enum.map(states, & &1.tick)
         survived = Enum.count(lifetimes, &(&1 >= ticks))
 
@@ -116,6 +124,7 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     rows =
       Enum.map_join(@variants, "\n", fn variant ->
         summary = Map.fetch!(comparison.summaries, variant)
+
         "#{variant}: median_life=#{format(summary.median_lifetime)} " <>
           "survived=#{summary.survived}/#{length(comparison.seeds)} " <>
           "intake=#{format(summary.median_intake)} " <>
@@ -148,9 +157,18 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
   end
 
   def missing_couplings do
-    [:real_physiology, :multiple_resources, :continuous_space, :distance_sensing,
-     :obstacles, :damage_types, :repair, :other_entities, :development,
-     :semantic_cognition]
+    [
+      :real_physiology,
+      :multiple_resources,
+      :continuous_space,
+      :distance_sensing,
+      :obstacles,
+      :damage_types,
+      :repair,
+      :other_entities,
+      :development,
+      :semantic_cognition
+    ]
   end
 
   defp advance(state, tick, opts) do
@@ -163,7 +181,11 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
 
     maintenance_result =
       FlowNetwork.run(maintenance_network(), %{available: spend_limit}, [:maintenance],
-        threshold: 0.0001, attenuation: 0.995, permeability_scale: 0.05, max_ticks: 2)
+        threshold: 0.0001,
+        attenuation: 0.995,
+        permeability_scale: 0.05,
+        max_ticks: 2
+      )
 
     maintenance = Map.get(maintenance_result.transferred, :maintenance, 0.0)
     spent = maintenance + maintenance_result.unresolved
@@ -176,7 +198,6 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     delta = intake_after - intake_before
     action_cost = action_cost(action, opts)
     funded_cost = min(after_maintenance, action_cost)
-
     next_field = update_field(state, action, activation_result, delta, opts)
 
     integrity =
@@ -213,9 +234,11 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
         persisted: persisted,
         field: next_field,
         total_intake: state.total_intake + intake_before,
-        successful_adjustments: state.successful_adjustments + if(improved, do: 1, else: 0),
+        successful_adjustments:
+          state.successful_adjustments + if(improved, do: 1, else: 0),
         obsolete_actions: state.obsolete_actions + if(worsened, do: 1, else: 0),
-        source_changes_survived: state.source_changes_survived + if(source_changed and persisted, do: 1, else: 0),
+        source_changes_survived:
+          state.source_changes_survived + if(source_changed and persisted, do: 1, else: 0),
         history: [snapshot | state.history]
     }
   end
@@ -225,7 +248,8 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     |> FlowNetwork.add_transition(:available, :maintenance, resistance: 0.18)
   end
 
-  defp choose_action(%State{variant: :uncoupled}, _strain, _tick, _opts), do: {:remain, nil}
+  defp choose_action(%State{variant: :uncoupled}, _strain, _tick, _opts),
+    do: {:remain, nil}
 
   defp choose_action(state, strain, tick, opts) do
     if strain < Keyword.get(opts, :minimum_strain, 0.01) do
@@ -233,9 +257,11 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     else
       result =
         PermeableFlow.run(state.field, %{strain: max(strain, 0.06)}, @actions,
-          threshold: 0.0001, attenuation: 0.995,
+          threshold: 0.0001,
+          attenuation: 0.995,
           permeability_scale: Keyword.get(opts, :activation_permeability_scale, 0.32),
-          max_ticks: 2)
+          max_ticks: 2
+        )
 
       {weighted_action(result.exit_activation, {state.seed, tick}), result}
     end
@@ -245,32 +271,37 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     weights = Enum.map(@actions, &{&1, max(0.0, Map.get(exit_activation, &1, 0.0))})
     total = Enum.reduce(weights, 0.0, fn {_action, weight}, acc -> acc + weight end)
 
-    if total <= 0.0 do
-      :remain
-    else
-      pick(weights, deterministic_unit(seed) * total)
-    end
+    if total <= 0.0,
+      do: :remain,
+      else: pick(weights, deterministic_unit(seed) * total)
   end
 
   defp pick([{action, _weight}], _threshold), do: action
-  defp pick([{action, weight} | rest], threshold) when threshold <= weight, do: action
+  defp pick([{action, weight} | _rest], threshold) when threshold <= weight, do: action
   defp pick([{_action, weight} | rest], threshold), do: pick(rest, threshold - weight)
 
-  defp update_field(%State{variant: :reactive, field: field}, _action, _result, _delta, _opts), do: field
-  defp update_field(%State{variant: :uncoupled, field: field}, _action, _result, _delta, _opts), do: field
+  defp update_field(%State{variant: variant, field: field}, _action, _result, _delta, _opts)
+       when variant in [:uncoupled, :reactive],
+       do: field
 
   defp update_field(%State{variant: :maladaptive, field: field}, action, result, _delta, opts)
-       when not is_nil(result) do
-    reinforce_selected(field, action, result, opts)
-  end
+       when not is_nil(result),
+       do: reinforce_selected(field, action, result, opts)
 
   defp update_field(%State{variant: :adaptive, field: field}, action, result, delta, opts)
        when not is_nil(result) do
     cond do
-      delta > 1.0e-9 -> reinforce_selected(field, action, result, opts)
-      delta < -1.0e-9 -> CognitiveField.disturb_terminal(field, [:strain, action],
-                           magnitude: Keyword.get(opts, :contradiction_magnitude, 0.14), fraction: 1.0)
-      true -> field
+      delta > 1.0e-9 ->
+        reinforce_selected(field, action, result, opts)
+
+      delta < -1.0e-9 ->
+        CognitiveField.disturb_terminal(field, [:strain, action],
+          magnitude: Keyword.get(opts, :contradiction_magnitude, 0.14),
+          fraction: 1.0
+        )
+
+      true ->
+        field
     end
   end
 
@@ -286,7 +317,8 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     FlowLearning.apply(field, selected,
       deposit: Keyword.get(opts, :learning_deposit, 0.16),
       decay_slowing: Keyword.get(opts, :learning_decay_slowing, 0.12),
-      decay_scale: 0.0)
+      decay_scale: 0.0
+    )
   end
 
   defp source_position(tick, opts) do
@@ -302,7 +334,10 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
   end
 
   defp apply_action(position, :left, _opts), do: max(0, position - 1)
-  defp apply_action(position, :right, opts), do: min(Keyword.get(opts, :world_max, 10), position + 1)
+
+  defp apply_action(position, :right, opts),
+    do: min(Keyword.get(opts, :world_max, 10), position + 1)
+
   defp apply_action(position, :remain, _opts), do: position
 
   defp action_cost(:remain, opts), do: Keyword.get(opts, :remain_cost, 0.003)
@@ -312,21 +347,28 @@ defmodule Procession.Simulation.ShiftingResourceExperiment do
     if maintenance >= requirement do
       min(1.0, integrity + Keyword.get(opts, :recovery_rate, 0.003))
     else
-      max(0.0, integrity - Keyword.get(opts, :integrity_loss, 0.05) *
-        ((requirement - maintenance) / requirement))
+      max(
+        0.0,
+        integrity -
+          Keyword.get(opts, :integrity_loss, 0.05) *
+            ((requirement - maintenance) / requirement)
+      )
     end
   end
 
   defp apply_action_shortfall(integrity, shortfall, opts) when shortfall > 0.0,
     do: max(0.0, integrity - shortfall * Keyword.get(opts, :action_shortfall_scale, 0.8))
+
   defp apply_action_shortfall(integrity, _shortfall, _opts), do: integrity
 
   defp deterministic_unit(seed), do: :erlang.phash2(seed, 1_000_000) / 1_000_000
 
   defp median([]), do: 0.0
+
   defp median(values) do
     sorted = Enum.sort(values)
     middle = div(length(sorted), 2)
+
     if rem(length(sorted), 2) == 1,
       do: Enum.at(sorted, middle) * 1.0,
       else: (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
