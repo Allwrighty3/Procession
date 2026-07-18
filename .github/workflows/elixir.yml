@@ -36,14 +36,7 @@ jobs:
         run: mix deps.get
 
       - name: Compile with warnings as errors
-        run: mix compile --warnings-as-errors 2>&1 | tee compile-output.txt; exit ${PIPESTATUS[0]}
+        run: mix compile --warnings-as-errors
 
       - name: Run tests
         run: mix test
-
-      - name: Upload compiler output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compile-output
-          path: compile-output.txt
