@@ -152,7 +152,7 @@ defmodule Procession.Simulation.MovementPredictabilityExperiment do
     FlowNetwork.new() |> FlowNetwork.add_transition(:available, :maintenance, resistance: 0.18)
   end
 
-  defp choose_action(state, strain, tick) when strain < 0.01, do: {:remain, nil}
+  defp choose_action(_state, strain, _tick) when strain < 0.01, do: {:remain, nil}
   defp choose_action(state, strain, tick) do
     result = PermeableFlow.run(state.field, %{strain: max(strain, 0.06)}, @actions,
       threshold: 0.0001, attenuation: 0.995, permeability_scale: 0.32, max_ticks: 2)
