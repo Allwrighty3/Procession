@@ -294,12 +294,10 @@ defmodule Procession.Simulation.MaintenanceActivationExperiment do
   defp update_field(%State{variant: :adaptive, field: field}, action, result, true, opts)
        when not is_nil(result) do
     selected_flows =
-      Map.new(result.flows, fn
-        {{from, ^action} = edge, magnitude} -> {edge, magnitude}
-        {_edge, _magnitude} -> nil
+      Enum.reduce(result.flows, %{}, fn
+        {{_from, ^action} = edge, magnitude}, acc -> Map.put(acc, edge, magnitude)
+        {_edge, _magnitude}, acc -> acc
       end)
-      |> Enum.reject(&is_nil/1)
-      |> Map.new()
 
     FlowLearning.apply(field, selected_flows,
       deposit: Keyword.get(opts, :learning_deposit, 0.10),
