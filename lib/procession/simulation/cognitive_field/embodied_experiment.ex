@@ -71,7 +71,7 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
         max_ticks: 2
       )
 
-    action = choose_action(result.exit_activation, index)
+    action = choose_action(result.exit_activation, index, Keyword.get(opts, :temperature, 0.08))
     coherent = coherent?(world, action)
     selected_flows = selected_flows(result.flows, action)
 
@@ -144,17 +144,26 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
     }
   end
 
-  defp choose_action(exit_activation, seed) do
-    candidates = Enum.map(@actions, fn action -> {action, Map.get(exit_activation, action, 0.0)} end)
-    magnitudes = Enum.map(candidates, &elem(&1, 1))
+  defp choose_action(exit_activation, seed, temperature) do
+    temperature = max(temperature, 0.001)
 
-    if Enum.max(magnitudes) - Enum.min(magnitudes) < 1.0e-9 do
-      Enum.at(@actions, rem(seed - 1, length(@actions)))
-    else
-      candidates
-      |> Enum.sort_by(fn {action, magnitude} -> {-magnitude, :erlang.phash2({seed, action})} end)
-      |> hd()
-      |> elem(0)
+    weighted =
+      Enum.map(@actions, fn action ->
+        magnitude = Map.get(exit_activation, action, 0.0)
+        {action, :math.exp(magnitude / temperature)}
+      end)
+
+    total = Enum.reduce(weighted, 0.0, fn {_action, weight}, acc -> acc + weight end)
+    target = :erlang.phash2({seed, :embodied_choice}, 1_000_000) / 1_000_000 * total
+
+    weighted
+    |> Enum.reduce_while(0.0, fn {action, weight}, cumulative ->
+      next = cumulative + weight
+      if target <= next, do: {:halt, action}, else: {:cont, next}
+    end)
+    |> case do
+      action when action in @actions -> action
+      _ -> List.last(@actions)
     end
   end
 
