@@ -16,11 +16,20 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
 
   defmodule World do
     @moduledoc false
+    @type t :: %__MODULE__{weather: :rain | :clear, hunger: :hungry | :sated, shelter_blocked: boolean()}
     defstruct weather: :rain, hunger: :sated, shelter_blocked: false
   end
 
   defmodule Episode do
     @moduledoc false
+    @type t :: %__MODULE__{
+            index: pos_integer(),
+            world: World.t(),
+            action: atom(),
+            coherent: boolean(),
+            exit_activation: map(),
+            dissipated: float()
+          }
     @enforce_keys [:index, :world, :action, :coherent, :exit_activation, :dissipated]
     defstruct [:index, :world, :action, :coherent, :exit_activation, :dissipated]
   end
@@ -52,10 +61,8 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
   @spec step(CognitiveField.t(), World.t(), pos_integer(), keyword()) ::
           {CognitiveField.t(), Episode.t()}
   def step(%CognitiveField{} = field, %World{} = world, index, opts \\ []) do
-    activation = perceive(world)
-
     result =
-      PermeableFlow.run(field, activation, @actions,
+      PermeableFlow.run(field, perceive(world), @actions,
         threshold: Keyword.get(opts, :threshold, 0.001),
         attenuation: Keyword.get(opts, :attenuation, 0.98),
         permeability_scale: Keyword.get(opts, :permeability_scale, 0.35),
@@ -100,9 +107,7 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
   end
 
   @spec action_counts([Episode.t()]) :: map()
-  def action_counts(episodes) do
-    Enum.frequencies_by(episodes, & &1.action)
-  end
+  def action_counts(episodes), do: Enum.frequencies_by(episodes, & &1.action)
 
   @spec success_rate([Episode.t()]) :: float()
   def success_rate([]), do: 0.0
@@ -148,11 +153,11 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
   defp coherent?(_world, _action), do: false
 
   defp selected_flows(flows, action) do
-    Map.new(flows, fn
-      {{from, ^action} = edge, magnitude} -> {edge, magnitude}
-      {_edge, _magnitude} -> nil
+    flows
+    |> Enum.flat_map(fn
+      {{_from, ^action} = edge, magnitude} -> [{edge, magnitude}]
+      {_edge, _magnitude} -> []
     end)
-    |> Enum.reject(&is_nil/1)
     |> Map.new()
   end
 
