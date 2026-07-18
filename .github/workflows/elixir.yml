@@ -40,3 +40,12 @@ jobs:
 
       - name: Run tests
         run: mix test
+
+      - name: Run 100-sample causal attribution metrics
+        run: mix procession.metrics.independent_change --samples 100 --ticks 220 | tee independent-change-metrics.txt
+
+      - name: Upload causal attribution metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-change-metrics
+          path: independent-change-metrics.txt
