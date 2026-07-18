@@ -40,3 +40,13 @@ jobs:
 
       - name: Run tests
         run: mix test
+
+      - name: Run movement predictability comparison
+        run: |
+          mix run -e 'alias Procession.Simulation.MovementPredictabilityExperiment, as: E; IO.puts(E.report(E.compare(ticks: 240, seeds: Enum.to_list(1..100))))' | tee movement-predictability.txt
+
+      - name: Upload movement predictability results
+        uses: actions/upload-artifact@v4
+        with:
+          name: movement-predictability-results
+          path: movement-predictability.txt
