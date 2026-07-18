@@ -47,10 +47,15 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
   def run(opts \\ []) do
     variant = Keyword.get(opts, :variant, :contingency_adaptive)
     motor_mode = Keyword.get(opts, :motor_mode, :reliable)
-    unless variant in @variants, do: raise(ArgumentError, "unknown variant: #{inspect(variant)}")
-    unless motor_mode in @motor_modes, do: raise(ArgumentError, "unknown motor mode: #{inspect(motor_mode)}")
+
+    unless variant in @variants,
+      do: raise(ArgumentError, "unknown variant: #{inspect(variant)}")
+
+    unless motor_mode in @motor_modes,
+      do: raise(ArgumentError, "unknown motor mode: #{inspect(motor_mode)}")
 
     ticks = Keyword.get(opts, :ticks, 220)
+
     initial = %State{
       variant: variant,
       motor_mode: motor_mode,
@@ -77,8 +82,16 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     seeds = Keyword.get(opts, :seeds, Enum.to_list(1..100))
 
     for motor_mode <- @motor_modes, variant <- @variants, into: %{} do
-      states = Enum.map(seeds, &run(Keyword.merge(opts,
-        motor_mode: motor_mode, variant: variant, seed: &1, ticks: ticks)))
+      states =
+        Enum.map(seeds, fn seed ->
+          run(Keyword.merge(opts,
+            motor_mode: motor_mode,
+            variant: variant,
+            seed: seed,
+            ticks: ticks
+          ))
+        end)
+
       lifetimes = Enum.map(states, & &1.tick)
       survived = Enum.count(lifetimes, &(&1 >= ticks))
 
@@ -98,19 +111,32 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
 
   def report(results) when is_map(results) do
     Enum.map_join(@motor_modes, "\n", fn mode ->
-      rows = Enum.map_join(@variants, "\n", fn variant ->
-        s = Map.fetch!(results, {mode, variant})
-        "  #{variant}: life=#{fmt(s.median_lifetime)} survived=#{s.survived} " <>
-          "intake=#{fmt(s.median_intake)} useful=#{fmt(s.median_useful)} " <>
-          "false_credit=#{fmt(s.median_false_credit)} confirmed=#{fmt(s.median_confirmed)}"
-      end)
+      rows =
+        Enum.map_join(@variants, "\n", fn variant ->
+          summary = Map.fetch!(results, {mode, variant})
+
+          "  #{variant}: life=#{fmt(summary.median_lifetime)} " <>
+            "survived=#{summary.survived} " <>
+            "intake=#{fmt(summary.median_intake)} " <>
+            "useful=#{fmt(summary.median_useful)} " <>
+            "false_credit=#{fmt(summary.median_false_credit)} " <>
+            "confirmed=#{fmt(summary.median_confirmed)}"
+        end)
+
       "#{mode}:\n#{rows}"
     end)
   end
 
   def missing_couplings do
-    [:distance_sensing, :explicit_world_provenance, :multi_step_prediction,
-     :multiple_resources, :obstacles, :other_entities, :development]
+    [
+      :distance_sensing,
+      :explicit_world_provenance,
+      :multi_step_prediction,
+      :multiple_resources,
+      :obstacles,
+      :other_entities,
+      :development
+    ]
   end
 
   defp new_field do
@@ -126,8 +152,13 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     requirement = Keyword.get(opts, :maintenance_requirement, 0.082)
     spend = min(available, Keyword.get(opts, :max_throughput, 0.16))
 
-    maintenance_result = FlowNetwork.run(maintenance_network(), %{available: spend}, [:maintenance],
-      threshold: 0.0001, attenuation: 0.995, permeability_scale: 0.05, max_ticks: 2)
+    maintenance_result =
+      FlowNetwork.run(maintenance_network(), %{available: spend}, [:maintenance],
+        threshold: 0.0001,
+        attenuation: 0.995,
+        permeability_scale: 0.05,
+        max_ticks: 2
+      )
 
     maintenance = Map.get(maintenance_result.transferred, :maintenance, 0.0)
     after_maintenance = max(0.0, available - maintenance - maintenance_result.unresolved)
@@ -135,16 +166,31 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     {action, activation} = choose_action(state, strain, tick)
 
     {next_position, displacement} = execute_action(state, action, tick, opts)
-    traces = state.traces |> LocalTrace.decay(factor: Keyword.get(opts, :trace_decay, 0.62))
-    traces = LocalTrace.activate(traces, {:action, action}, 1.0)
-    traces = if displacement == 0, do: traces,
-      else: LocalTrace.activate(traces, {:displacement, sign(displacement)}, 1.0)
+    action_signal = {:action, tick, action}
+    displacement_signal = {:displacement, tick, sign(displacement)}
 
-    pending = [%{due: tick + Keyword.get(opts, :effect_delay, 2), before: before,
-                 action: action, displacement: displacement, activation: activation} |
-               state.pending_effects]
+    traces =
+      state.traces
+      |> LocalTrace.decay(factor: Keyword.get(opts, :trace_decay, 0.62))
+      |> LocalTrace.activate(action_signal, 1.0)
+      |> maybe_activate_displacement(displacement, displacement_signal)
+
+    pending = [
+      %{
+        due: tick + Keyword.get(opts, :effect_delay, 2),
+        before: before,
+        action: action,
+        displacement: displacement,
+        activation: activation,
+        action_signal: action_signal,
+        displacement_signal: displacement_signal
+      }
+      | state.pending_effects
+    ]
+
     {due, pending} = Enum.split_with(pending, &(&1.due <= tick))
     after_intake = intake(next_position, source, opts)
+
     {field, traces, confirmed, false_credit} =
       apply_due_effects(state, due, after_intake, traces, opts)
 
@@ -154,31 +200,45 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     persisted = integrity > Keyword.get(opts, :failure_threshold, 0.10)
     useful = Enum.count(due, &(after_intake > &1.before + 1.0e-9))
 
-    %{state |
-      tick: tick,
-      store: max(0.0, after_maintenance - funded),
-      integrity: integrity,
-      position: next_position,
-      persisted: persisted,
-      field: field,
-      traces: traces,
-      pending_effects: pending,
-      total_intake: state.total_intake + before,
-      useful_actions: state.useful_actions + useful,
-      false_credit: state.false_credit + false_credit,
-      confirmed_contingencies: state.confirmed_contingencies + confirmed,
-      history: [%{tick: tick, source: source, action: action,
-                  displacement: displacement, intake: before} | state.history]
+    %{
+      state
+      | tick: tick,
+        store: max(0.0, after_maintenance - funded),
+        integrity: integrity,
+        position: next_position,
+        persisted: persisted,
+        field: field,
+        traces: traces,
+        pending_effects: pending,
+        total_intake: state.total_intake + before,
+        useful_actions: state.useful_actions + useful,
+        false_credit: state.false_credit + false_credit,
+        confirmed_contingencies: state.confirmed_contingencies + confirmed,
+        history: [
+          %{
+            tick: tick,
+            source: source,
+            action: action,
+            displacement: displacement,
+            intake: before
+          }
+          | state.history
+        ]
     }
+  end
+
+  defp maybe_activate_displacement(traces, 0, _signal), do: traces
+
+  defp maybe_activate_displacement(traces, _displacement, signal) do
+    LocalTrace.activate(traces, signal, 1.0)
   end
 
   defp apply_due_effects(state, due, after_intake, traces, opts) do
     Enum.reduce(due, {state.field, traces, 0, 0}, fn effect,
       {field, trace_acc, confirmed, false_credit} ->
       delta = after_intake - effect.before
-      actual_sign = sign(effect.displacement)
-      action_trace = LocalTrace.magnitude(trace_acc, {:action, effect.action})
-      displacement_trace = LocalTrace.magnitude(trace_acc, {:displacement, actual_sign})
+      action_trace = LocalTrace.magnitude(trace_acc, effect.action_signal)
+      displacement_trace = LocalTrace.magnitude(trace_acc, effect.displacement_signal)
       overlap = min(action_trace, displacement_trace)
 
       case state.variant do
@@ -187,8 +247,12 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
 
         :outcome_adaptive ->
           if delta > 1.0e-9 and not is_nil(effect.activation) do
-            {reinforce(field, effect.action, effect.activation, 1.0, opts), trace_acc,
-             confirmed, false_credit + if(effect.displacement == 0, do: 1, else: 0)}
+            {
+              reinforce(field, effect.action, effect.activation, 1.0, opts),
+              trace_acc,
+              confirmed,
+              false_credit + if(effect.displacement == 0, do: 1, else: 0)
+            }
           else
             {field, trace_acc, confirmed, false_credit}
           end
@@ -196,12 +260,25 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
         :contingency_adaptive ->
           cond do
             delta > 1.0e-9 and overlap > 0.0 and not is_nil(effect.activation) ->
-              {reinforce(field, effect.action, effect.activation, overlap, opts), trace_acc,
-               confirmed + 1, false_credit}
+              {
+                reinforce(field, effect.action, effect.activation, overlap, opts),
+                trace_acc,
+                confirmed + 1,
+                false_credit
+              }
+
             delta < -1.0e-9 and overlap > 0.0 ->
-              {CognitiveField.disturb_terminal(field, [:strain, effect.action],
-                 magnitude: Keyword.get(opts, :contradiction_magnitude, 0.22) * overlap,
-                 fraction: 1.0), trace_acc, confirmed + 1, false_credit}
+              {
+                CognitiveField.disturb_terminal(field, [:strain, effect.action],
+                  magnitude:
+                    Keyword.get(opts, :contradiction_magnitude, 0.22) * overlap,
+                  fraction: 1.0
+                ),
+                trace_acc,
+                confirmed + 1,
+                false_credit
+              }
+
             true ->
               {field, trace_acc, confirmed, false_credit}
           end
@@ -211,10 +288,12 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
 
   defp reinforce(field, action, activation, scale, opts) do
     selected = Map.take(activation.flows, [{:strain, action}])
+
     FlowLearning.apply(field, selected,
       deposit: Keyword.get(opts, :learning_deposit, 0.12) * scale,
       decay_slowing: 0.10,
-      decay_scale: 0.0)
+      decay_scale: 0.0
+    )
   end
 
   defp execute_action(%State{motor_mode: :reliable, position: position}, action, _tick, opts) do
@@ -224,21 +303,31 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
 
   defp execute_action(%State{motor_mode: :noisy, position: position, seed: seed}, action, tick, opts) do
     roll = unit({seed, tick, :motor})
-    executed = cond do
-      action == :remain -> :remain
-      roll < 0.62 -> action
-      roll < 0.82 -> :remain
-      action == :left -> :right
-      true -> :left
-    end
+
+    executed =
+      cond do
+        action == :remain -> :remain
+        roll < 0.62 -> action
+        roll < 0.82 -> :remain
+        action == :left -> :right
+        true -> :left
+      end
+
     next = move(position, executed, opts)
     {next, next - position}
   end
 
   defp choose_action(_state, strain, _tick) when strain < 0.01, do: {:remain, nil}
+
   defp choose_action(state, strain, tick) do
-    result = PermeableFlow.run(state.field, %{strain: max(strain, 0.06)}, @actions,
-      threshold: 0.0001, attenuation: 0.995, permeability_scale: 0.32, max_ticks: 2)
+    result =
+      PermeableFlow.run(state.field, %{strain: max(strain, 0.06)}, @actions,
+        threshold: 0.0001,
+        attenuation: 0.995,
+        permeability_scale: 0.32,
+        max_ticks: 2
+      )
+
     {weighted_action(result.exit_activation, {state.seed, tick}), result}
   end
 
@@ -248,9 +337,9 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     if total <= 0.0, do: :remain, else: pick(entries, unit(seed) * total)
   end
 
-  defp pick([{action, _}], _), do: action
-  defp pick([{action, weight} | _], threshold) when threshold <= weight, do: action
-  defp pick([{_, weight} | rest], threshold), do: pick(rest, threshold - weight)
+  defp pick([{action, _weight}], _threshold), do: action
+  defp pick([{action, weight} | _rest], threshold) when threshold <= weight, do: action
+  defp pick([{_action, weight} | rest], threshold), do: pick(rest, threshold - weight)
 
   defp source_position(tick, opts) do
     max = Keyword.get(opts, :world_max, 10)
@@ -271,14 +360,24 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
   defp move(position, :right, opts), do: min(Keyword.get(opts, :world_max, 10), position + 1)
   defp move(position, :remain, _opts), do: position
 
-  defp maintenance_network,
-    do: FlowNetwork.new() |> FlowNetwork.add_transition(:available, :maintenance, resistance: 0.18)
+  defp maintenance_network do
+    FlowNetwork.new()
+    |> FlowNetwork.add_transition(:available, :maintenance, resistance: 0.18)
+  end
 
   defp update_integrity(integrity, maintenance, requirement, shortfall, opts) do
-    next = if maintenance >= requirement,
-      do: min(1.0, integrity + Keyword.get(opts, :recovery_rate, 0.004)),
-      else: max(0.0, integrity - Keyword.get(opts, :integrity_loss, 0.028) *
-        ((requirement - maintenance) / requirement))
+    next =
+      if maintenance >= requirement do
+        min(1.0, integrity + Keyword.get(opts, :recovery_rate, 0.004))
+      else
+        max(
+          0.0,
+          integrity -
+            Keyword.get(opts, :integrity_loss, 0.028) *
+              ((requirement - maintenance) / requirement)
+        )
+      end
+
     max(0.0, next - shortfall * 0.8)
   end
 
@@ -287,12 +386,17 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
   defp sign(_value), do: :none
 
   defp median([]), do: 0.0
+
   defp median(values) do
     sorted = Enum.sort(values)
-    n = length(sorted)
-    i = div(n, 2)
-    if rem(n, 2) == 1, do: Enum.at(sorted, i) * 1.0,
-      else: (Enum.at(sorted, i - 1) + Enum.at(sorted, i)) / 2
+    count = length(sorted)
+    middle = div(count, 2)
+
+    if rem(count, 2) == 1 do
+      Enum.at(sorted, middle) * 1.0
+    else
+      (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
+    end
   end
 
   defp unit(seed), do: :erlang.phash2(seed, 1_000_000) / 1_000_000
