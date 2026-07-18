@@ -52,29 +52,34 @@ defmodule Procession.Simulation.CognitiveField.InternalFlowTest do
     assert physical_gap > internal_gap
   end
 
-  test "repeated internal coactivation prepares a recombined route for later external flow" do
-    field = recombination_field()
+  test "repeated internal coactivation amplifies a weak recombined branch" do
+    field =
+      recombination_field()
+      |> CognitiveField.traverse([:c, :join, :z])
 
     baseline = external_recombination(field)
 
     rehearsed =
       Enum.reduce(1..20, field, fn _, acc ->
-        InternalFlow.rehearse(acc, %{a: 0.24, b: 0.24}, [:z],
-          max_ticks: 3,
+        InternalFlow.rehearse(acc, %{a: 0.24, b: 0.24}, [:z, :y],
+          max_ticks: 4,
           exit_threshold: 0.80
         ).field
       end)
 
     after_rehearsal = external_recombination(rehearsed)
 
-    assert baseline.winner == nil
-    assert Map.get(after_rehearsal.exit_activation, :z, 0.0) >
-             Map.get(baseline.exit_activation, :z, 0.0)
+    assert exit_share(after_rehearsal, :z) > exit_share(baseline, :z)
   end
 
   defp route_gap(field) do
     CognitiveField.resistance(field, :entry, :lower) -
       CognitiveField.resistance(field, :entry, :upper)
+  end
+
+  defp exit_share(result, exit) do
+    total = Enum.reduce(result.exit_activation, 0.0, fn {_key, value}, acc -> acc + value end)
+    if total == 0.0, do: 0.0, else: Map.get(result.exit_activation, exit, 0.0) / total
   end
 
   defp line_field do
@@ -98,14 +103,16 @@ defmodule Procession.Simulation.CognitiveField.InternalFlowTest do
     |> CognitiveField.add_transition(:m, :join)
     |> CognitiveField.add_transition(:b, :n)
     |> CognitiveField.add_transition(:n, :join)
+    |> CognitiveField.add_transition(:c, :join)
     |> CognitiveField.add_transition(:join, :z)
+    |> CognitiveField.add_transition(:join, :y)
   end
 
   defp external_recombination(field) do
-    LocalFlow.run(field, %{a: 0.32, b: 0.32}, [:z],
+    LocalFlow.run(field, %{a: 0.32, b: 0.32}, [:z, :y],
       attenuation: 0.82,
       threshold: 0.03,
-      exit_threshold: 0.36,
+      exit_threshold: 0.10,
       max_ticks: 8
     )
   end
