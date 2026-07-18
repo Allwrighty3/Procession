@@ -1,20 +1,18 @@
 defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   @moduledoc """
-  Runs a long-lived 4x4 developmental world with an authored parent and a child
-  whose independent resource-seeking behavior must arise from shared history.
+  Runs a long-lived 4x4 developmental world with an authored parent.
 
-  The parent carries the child early, then walks an authored resource circuit.
-  The child gradually becomes capable of following. Parent movement traces that
-  overlap with proximity relief and intake accumulate in the child's local route
-  memory. After the parent departs, the child receives no parent position or
-  resource direction and must act from maintenance pressure plus those traces.
+  The child begins without independent locomotion, is carried along the parent's
+  resource circuit, gradually learns to follow, and finally acts after the parent
+  disappears. Independent action receives maintenance pressure and retained local
+  route traces, but no parent coordinate or resource direction.
   """
 
   @directions [:north, :south, :east, :west]
   @resource_positions [{0, 0}, {3, 0}, {2, 3}]
   @parent_route [
-    {1, 1}, {1, 0}, {0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2},
-    {3, 3}, {2, 3}, {1, 3}, {1, 2}, {1, 1}
+    {1, 1}, {1, 0}, {0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1},
+    {3, 2}, {3, 3}, {2, 3}, {1, 3}, {1, 2}, {1, 1}
   ]
 
   defmodule Child do
@@ -26,7 +24,7 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
               route_memory: %{},
               action_counts: %{north: 0, south: 0, east: 0, west: 0, rest: 0},
               independent_intake: 0.0,
-              independent_resource_visits: MapSet.new(),
+              independent_resource_visits: [],
               first_independent_resource_tick: nil,
               route_reuse: 0,
               independent_moves: 0,
@@ -61,10 +59,9 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
 
   def run(opts \\ []) do
     ticks = Keyword.get(opts, :ticks, 1_500)
-    seed = Keyword.get(opts, :seed, 1)
 
     initial = %State{
-      seed: seed,
+      seed: Keyword.get(opts, :seed, 1),
       resources: Map.new(@resource_positions, &{&1, 0.55})
     }
 
@@ -86,17 +83,14 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
       median_final_energy: states |> Enum.map(& &1.child.energy) |> median(),
       median_independent_intake: states |> Enum.map(& &1.child.independent_intake) |> median(),
       median_independent_resource_visits:
-        states |> Enum.map(&(MapSet.size(&1.child.independent_resource_visits))) |> median(),
+        states |> Enum.map(&(length(&1.child.independent_resource_visits))) |> median(),
       median_first_independent_resource_tick:
         states
         |> Enum.map(&(&1.child.first_independent_resource_tick || ticks + 1))
         |> median(),
       median_route_reuse_fraction:
         states
-        |> Enum.map(fn state ->
-          moves = max(state.child.independent_moves, 1)
-          state.child.route_reuse / moves
-        end)
+        |> Enum.map(fn state -> state.child.route_reuse / max(state.child.independent_moves, 1) end)
         |> median(),
       median_memory_size: states |> Enum.map(&(map_size(&1.child.route_memory))) |> median()
     }
@@ -137,22 +131,22 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
 
   defp advance(state, tick, opts) do
     carry_until = Keyword.get(opts, :carry_until, 180)
-    parent_departure = Keyword.get(opts, :parent_departure, 720)
-    parent_present = tick <= parent_departure
+    departure = Keyword.get(opts, :parent_departure, 720)
+    parent_present = tick <= departure
     parent_position = parent_position(tick)
-    resources = regenerate(state.resources, opts)
     child = metabolize(state.child, opts)
+    resources = regenerate(state.resources, opts)
 
-    {child, action, carried?} =
+    {child, resources, action, carried?} =
       cond do
         tick <= carry_until ->
-          carried_child(state, child, parent_position, resources, tick, opts)
+          carried(state, child, resources, parent_position, tick, opts)
 
         parent_present ->
-          following_child(state, child, parent_position, resources, tick, opts)
+          following(state, child, resources, parent_position, tick, opts)
 
         true ->
-          independent_child(state, child, resources, tick, opts)
+          independent(state, child, resources, tick, opts)
       end
 
     child = %{child | alive: child.energy > 0.0}
@@ -165,43 +159,49 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
         child: child,
         resources: resources,
         history: [
-          %{tick: tick, child: child.position, parent: if(parent_present, do: parent_position),
-            action: action, carried: carried?, energy: child.energy}
+          %{
+            tick: tick,
+            child: child.position,
+            parent: if(parent_present, do: parent_position),
+            action: action,
+            carried: carried?,
+            energy: child.energy
+          }
           | state.history
         ]
     }
   end
 
-  defp carried_child(state, child, parent_position, resources, tick, opts) do
+  defp carried(state, child, resources, parent_position, tick, opts) do
     previous = state.parent_position
-    direction = direction_between(previous, parent_position)
+    direction = direction_toward(previous, parent_position)
     {resources, intake, resource_id} = consume(resources, parent_position, child.energy, opts)
 
     child =
       child
-      |> learn_route(previous, direction, intake, 1.0, opts)
+      |> learn(previous, direction, intake, 1.0, opts)
       |> receive_intake(intake, false, resource_id, tick)
       |> Map.put(:position, parent_position)
       |> Map.put(:fatigue, max(0.0, child.fatigue - 0.03))
 
-    {child, :carried, true}
+    {child, resources, :carried, true}
   end
 
-  defp following_child(state, child, parent_position, resources, tick, opts) do
+  defp following(state, child, resources, parent_position, tick, opts) do
     mobility = development(tick, opts)
     separation = manhattan(child.position, parent_position)
     parent_direction = direction_toward(child.position, parent_position)
-    learned = route_pressures(child.route_memory, child.position)
+    learned = pressures(child.route_memory, child.position)
 
-    pressures =
+    motor_pressures =
       Map.new(@directions, fn direction ->
-        follow = if direction == parent_direction, do: 0.75 * separation, else: 0.0
+        follow = if direction == parent_direction, do: separation * 0.75, else: 0.0
         memory = Map.get(learned, direction, 0.0) * 0.25
         noise = centered({state.seed, tick, direction}) * 0.025
         {direction, mobility * (follow + memory + noise)}
       end)
 
-    action = choose(pressures, 0.08)
+    action = choose(motor_pressures, 0.08)
     next_position = move(child.position, action)
     moved? = next_position != child.position
     {resources, intake, resource_id} = consume(resources, next_position, child.energy, opts)
@@ -210,18 +210,18 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
     child =
       child
       |> pay_movement(moved?, opts)
-      |> learn_route(child.position, action, intake, relief, opts)
+      |> learn(child.position, action, intake, relief, opts)
       |> receive_intake(intake, false, resource_id, tick)
       |> update_action(action, next_position, false)
 
-    {child, action, false}
+    {child, resources, action, false}
   end
 
-  defp independent_child(state, child, resources, tick, opts) do
+  defp independent(state, child, resources, tick, opts) do
     hunger = max(0.0, 1.0 - child.energy)
-    learned = route_pressures(child.route_memory, child.position)
+    learned = pressures(child.route_memory, child.position)
 
-    pressures =
+    motor_pressures =
       Map.new(@directions, fn direction ->
         memory = Map.get(learned, direction, 0.0)
         persistence = Map.get(child.motor, direction, 0.0) * 0.45
@@ -229,21 +229,21 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
         {direction, hunger * memory + persistence + noise - child.fatigue * 0.15}
       end)
 
-    action = choose(pressures, 0.07)
+    action = choose(motor_pressures, 0.07)
     next_position = move(child.position, action)
     moved? = next_position != child.position
     {resources, intake, resource_id} = consume(resources, next_position, child.energy, opts)
-    remembered? = remembered_action?(child.route_memory, child.position, action)
+    reused? = remembered?(child.route_memory, child.position, action)
 
     child =
       child
       |> pay_movement(moved?, opts)
       |> receive_intake(intake, true, resource_id, tick)
       |> update_action(action, next_position, true)
-      |> update_motor(pressures)
-      |> count_route_reuse(remembered?, moved?)
+      |> update_motor(motor_pressures)
+      |> count_reuse(reused?, moved?)
 
-    {child, action, false}
+    {child, resources, action, false}
   end
 
   defp parent_position(tick) do
@@ -252,15 +252,14 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   end
 
   defp development(tick, opts) do
-    walk_start = Keyword.get(opts, :carry_until, 180)
+    start = Keyword.get(opts, :carry_until, 180)
     maturity = Keyword.get(opts, :motor_maturity_tick, 520)
-    clamp((tick - walk_start) / max(maturity - walk_start, 1))
+    clamp((tick - start) / max(maturity - start, 1))
   end
 
   defp metabolize(child, opts) do
-    metabolic_cost = Keyword.get(opts, :metabolic_cost, 0.0042)
-    recovery = if child.fatigue > 0.0, do: 0.012, else: 0.0
-    %{child | energy: clamp(child.energy - metabolic_cost), fatigue: max(0.0, child.fatigue - recovery)}
+    cost = Keyword.get(opts, :metabolic_cost, 0.0042)
+    %{child | energy: clamp(child.energy - cost), fatigue: max(0.0, child.fatigue - 0.012)}
   end
 
   defp pay_movement(child, true, opts) do
@@ -273,7 +272,7 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   defp receive_intake(child, amount, independent?, resource_id, tick) do
     visits =
       if independent? and resource_id,
-        do: MapSet.put(child.independent_resource_visits, resource_id),
+        do: Enum.uniq([resource_id | child.independent_resource_visits]),
         else: child.independent_resource_visits
 
     first_tick =
@@ -290,11 +289,17 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
     }
   end
 
-  defp learn_route(child, _position, nil, _intake, _relief, _opts), do: child
-  defp learn_route(child, position, direction, intake, relief, opts) do
+  defp learn(child, _position, nil, _intake, _relief, _opts), do: child
+
+  defp learn(child, position, direction, intake, relief, opts) do
     deposit = Keyword.get(opts, :route_deposit, 0.10) * (0.25 + intake * 2.0 + relief)
     key = {position, direction}
-    memory = decay_memory(child.route_memory, opts) |> Map.update(key, deposit, &min(3.0, &1 + deposit))
+
+    memory =
+      child.route_memory
+      |> decay_memory(opts)
+      |> Map.update(key, deposit, &min(3.0, &1 + deposit))
+
     %{child | route_memory: memory}
   end
 
@@ -307,14 +312,17 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
     |> Map.new()
   end
 
-  defp route_pressures(memory, position) do
-    Map.new(@directions, fn direction -> {direction, Map.get(memory, {position, direction}, 0.0)} end)
+  defp pressures(memory, position) do
+    Map.new(@directions, fn direction ->
+      {direction, Map.get(memory, {position, direction}, 0.0)}
+    end)
   end
 
-  defp remembered_action?(_memory, _position, :rest), do: false
-  defp remembered_action?(memory, position, action) do
+  defp remembered?(_memory, _position, :rest), do: false
+
+  defp remembered?(memory, position, action) do
     value = Map.get(memory, {position, action}, 0.0)
-    best = route_pressures(memory, position) |> Map.values() |> Enum.max(fn -> 0.0 end)
+    best = pressures(memory, position) |> Map.values() |> Enum.max(fn -> 0.0 end)
     value > 0.0 and value >= best * 0.9
   end
 
@@ -328,15 +336,17 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
     }
   end
 
-  defp update_motor(child, pressures) do
-    motor = Map.new(@directions, fn direction ->
-      {direction, max(0.0, Map.get(pressures, direction, 0.0))}
-    end)
+  defp update_motor(child, motor_pressures) do
+    motor =
+      Map.new(@directions, fn direction ->
+        {direction, max(0.0, Map.get(motor_pressures, direction, 0.0))}
+      end)
+
     %{child | motor: motor}
   end
 
-  defp count_route_reuse(child, true, true), do: %{child | route_reuse: child.route_reuse + 1}
-  defp count_route_reuse(child, _remembered?, _moved?), do: child
+  defp count_reuse(child, true, true), do: %{child | route_reuse: child.route_reuse + 1}
+  defp count_reuse(child, _reused?, _moved?), do: child
 
   defp regenerate(resources, opts) do
     regen = Keyword.get(opts, :resource_regen, 0.006)
@@ -346,15 +356,22 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   defp consume(resources, position, energy, opts) do
     available = Map.get(resources, position, 0.0)
     amount = min(available, min(1.0 - energy, Keyword.get(opts, :max_intake, 0.16)))
-    resources = if amount > 0.0, do: Map.put(resources, position, available - amount), else: resources
+
+    resources =
+      if amount > 0.0,
+        do: Map.put(resources, position, available - amount),
+        else: resources
+
     resource_id = if position in @resource_positions and amount > 0.0, do: position, else: nil
     {resources, amount, resource_id}
   end
 
-  defp choose(pressures, threshold) do
-    {direction, value} = Enum.max_by(pressures, fn {_direction, value} -> value end)
+  defp choose(motor_pressures, threshold) do
+    {direction, value} = Enum.max_by(motor_pressures, fn {_direction, value} -> value end)
     if value > threshold, do: direction, else: :rest
   end
+
+  defp direction_toward(position, position), do: nil
 
   defp direction_toward({x, y}, {tx, ty}) do
     cond do
@@ -362,12 +379,8 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
       abs(tx - x) >= abs(ty - y) and tx < x -> :west
       ty > y -> :south
       ty < y -> :north
-      true -> nil
     end
   end
-
-  defp direction_between(position, position), do: nil
-  defp direction_between({x, y}, {tx, ty}), do: direction_toward({x, y}, {tx, ty})
 
   defp move({x, y}, :north), do: {x, max(0, y - 1)}
   defp move({x, y}, :south), do: {x, min(3, y + 1)}
@@ -384,6 +397,7 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   defp age_label(_tick), do: :independent
 
   defp median([]), do: 0.0
+
   defp median(values) do
     sorted = Enum.sort(values)
     count = length(sorted)
