@@ -16,6 +16,19 @@ defmodule Procession.Simulation.StableRetentionFactorialExperimentTest do
     assert Enum.any?(results, fn {_key, summary} -> summary.acquired > 0 end)
   end
 
+  test "late behavior accounts for useful, harmful, and inactive outcomes" do
+    results = Experiment.compare(ticks: 80, acquisition_window: 40, seeds: Enum.to_list(1..8))
+
+    Enum.each(results, fn {_key, summary} ->
+      total =
+        summary.median_late_useful_fraction +
+          summary.median_late_harmful_fraction +
+          summary.median_late_inactive_fraction
+
+      assert_in_delta total, 1.0, 0.05
+    end)
+  end
+
   test "fixed seeds produce repeatable results" do
     opts = [ticks: 80, seeds: Enum.to_list(1..10)]
     assert Experiment.compare(opts) == Experiment.compare(opts)
