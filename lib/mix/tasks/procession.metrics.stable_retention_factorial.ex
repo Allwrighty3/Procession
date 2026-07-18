@@ -1,9 +1,9 @@
 defmodule Mix.Tasks.Procession.Metrics.StableRetentionFactorial do
   use Mix.Task
 
-  @shortdoc "Runs stable retention motor-plasticity metrics"
+  @shortdoc "Runs stable-contingency retention metrics"
 
-  alias Procession.Simulation.StableRetentionFactorialExperiment, as: Experiment
+  alias Procession.Simulation.StableContingencyFactorialExperiment, as: Experiment
 
   @impl Mix.Task
   def run(args) do
@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Procession.Metrics.StableRetentionFactorial do
 
     results = Experiment.compare(ticks: ticks, seeds: seeds)
 
-    Mix.shell().info("Stable retention motor-plasticity factorial metrics")
+    Mix.shell().info("Stable contingency motor-plasticity factorial metrics")
     Mix.shell().info("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}\n")
     Mix.shell().info(Experiment.report(results))
   end
