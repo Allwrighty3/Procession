@@ -30,5 +30,6 @@ defmodule Procession.Simulation.ActionContingencyExperimentTest do
     refute Map.has_key?(state, :world_provenance)
     refute Map.has_key?(state, :cause_graph)
     assert is_map(state.traces)
+    assert :explicit_world_provenance in Experiment.missing_couplings()
   end
 end
