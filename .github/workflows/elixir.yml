@@ -40,3 +40,13 @@ jobs:
 
       - name: Run tests
         run: mix test
+
+      - name: Run shifting resource comparison
+        run: |
+          mix run -e 'alias Procession.Simulation.ShiftingResourceExperiment, as: E; c = E.compare(ticks: 180, seeds: Enum.to_list(1..80), source_interval: 30); IO.puts(E.report(c)); Enum.each(E.variants(), fn v -> IO.puts("\n--- #{v} seed 7 ---"); IO.puts(E.report(E.run(variant: v, ticks: 180, seed: 7, source_interval: 30))) end)' | tee shifting-results.txt
+
+      - name: Upload shifting resource results
+        uses: actions/upload-artifact@v4
+        with:
+          name: shifting-resource-results
+          path: shifting-results.txt
