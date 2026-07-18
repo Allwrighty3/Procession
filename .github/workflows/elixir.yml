@@ -41,16 +41,18 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run refined shifting resource sweep
+      - name: Test adaptive reversal parameters
         run: |
           mix run -e '
           alias Procession.Simulation.ShiftingResourceExperiment, as: E
-          base = [ticks: 300, seeds: Enum.to_list(1..100)]
+          base = [ticks: 240, seeds: Enum.to_list(1..100), source_interval: 60,
+            source_intake: 0.18, intake_falloff: 0.030, move_cost: 0.004,
+            remain_cost: 0.001, integrity_loss: 0.015]
           scenarios = [
-            {:e, [source_interval: 60, source_intake: 0.18, intake_falloff: 0.030, move_cost: 0.004, remain_cost: 0.001, integrity_loss: 0.015, learning_deposit: 0.38, contradiction_magnitude: 0.32]},
-            {:f, [source_interval: 70, source_intake: 0.18, intake_falloff: 0.030, move_cost: 0.004, remain_cost: 0.001, integrity_loss: 0.018, learning_deposit: 0.38, contradiction_magnitude: 0.32]},
-            {:g, [source_interval: 60, source_intake: 0.20, intake_falloff: 0.035, move_cost: 0.004, remain_cost: 0.001, integrity_loss: 0.016, learning_deposit: 0.42, contradiction_magnitude: 0.36]},
-            {:h, [source_interval: 80, source_intake: 0.18, intake_falloff: 0.030, move_cost: 0.004, remain_cost: 0.001, integrity_loss: 0.018, learning_deposit: 0.40, contradiction_magnitude: 0.34]}
+            {:i, [learning_deposit: 0.25, contradiction_magnitude: 1.0, activation_permeability_scale: 0.8]},
+            {:j, [learning_deposit: 0.50, contradiction_magnitude: 1.0, activation_permeability_scale: 0.8]},
+            {:k, [learning_deposit: 0.35, contradiction_magnitude: 0.8, activation_permeability_scale: 1.2]},
+            {:l, [learning_deposit: 0.20, contradiction_magnitude: 1.0, activation_permeability_scale: 1.2]}
           ]
           Enum.each(scenarios, fn {name, opts} ->
             IO.puts("\n=== #{name} #{inspect(opts)} ===")
@@ -58,8 +60,8 @@ jobs:
           end)
           ' | tee shifting-sweep.txt
 
-      - name: Upload refined shifting resource sweep
+      - name: Upload adaptive reversal sweep
         uses: actions/upload-artifact@v4
         with:
-          name: shifting-resource-sweep-refined
+          name: shifting-resource-reversal-sweep
           path: shifting-sweep.txt
