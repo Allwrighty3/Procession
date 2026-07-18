@@ -270,13 +270,15 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperiment do
   defp pay_movement(child, false, _opts), do: child
 
   defp receive_intake(child, amount, independent?, resource_id, tick) do
+    visited_resource? = independent? and not is_nil(resource_id)
+
     visits =
-      if independent? and resource_id,
+      if visited_resource?,
         do: Enum.uniq([resource_id | child.independent_resource_visits]),
         else: child.independent_resource_visits
 
     first_tick =
-      if independent? and resource_id and is_nil(child.first_independent_resource_tick),
+      if visited_resource? and is_nil(child.first_independent_resource_tick),
         do: tick,
         else: child.first_independent_resource_tick
 
