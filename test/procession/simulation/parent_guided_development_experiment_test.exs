@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Procession.Simulation.ParentGuidedDevelopmentExperiment, as: Experiment
 
@@ -25,6 +25,37 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
   test "short population comparison is deterministic" do
     opts = [ticks: 240, seeds: Enum.to_list(1..3), resource_regen: 0.002]
     assert Experiment.compare(opts) == Experiment.compare(opts)
+  end
+
+  test "no-parent control starts without learned routes" do
+    state =
+      Experiment.run(
+        ticks: 120,
+        seed: 3,
+        resource_regen: 0.002,
+        parent_departure: 0,
+        carry_until: 0
+      )
+
+    refute state.parent_present
+    assert state.child.route_memory == %{}
+    assert state.child.independent_intake == 0.0
+  end
+
+  test "metrics task writes guided and no-parent reports" do
+    path = Path.join(System.tmp_dir!(), "procession-parent-development-#{System.unique_integer([:positive])}.txt")
+    Mix.Task.reenable("procession.metrics.parent_guided_development")
+
+    Mix.Tasks.Procession.Metrics.ParentGuidedDevelopment.run([
+      "--samples", "2",
+      "--ticks", "240",
+      "--output", path
+    ])
+
+    report = File.read!(path)
+    assert report =~ "parent_guided:"
+    assert report =~ "no_parent:"
+    File.rm(path)
   end
 
   test "render exposes developmental state" do
