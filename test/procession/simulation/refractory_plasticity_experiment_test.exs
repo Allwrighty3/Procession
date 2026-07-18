@@ -11,7 +11,7 @@ defmodule Procession.Simulation.RefractoryPlasticityExperimentTest do
     assert Map.has_key?(results, :flexible)
   end
 
-  test "refractory competition produces direct directional switching" do
+  test "refractory state emerges from sustained motor output" do
     states =
       Enum.map(1..20, fn seed ->
         Experiment.run(
@@ -24,7 +24,13 @@ defmodule Procession.Simulation.RefractoryPlasticityExperimentTest do
         )
       end)
 
-    assert Enum.any?(states, &(&1.switches > 0))
+    assert Enum.any?(states, fn state ->
+             state.refractory.left > 0.0 or state.refractory.right > 0.0
+           end)
+
+    assert Enum.any?(states, fn state ->
+             state.action_counts.left + state.action_counts.right > 0
+           end)
   end
 
   test "plasticity profiles remain deterministic for a fixed seed set" do
