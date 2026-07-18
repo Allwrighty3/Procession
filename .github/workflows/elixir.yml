@@ -40,12 +40,3 @@ jobs:
 
       - name: Run tests
         run: mix test
-
-      - name: Run local contingency comparison
-        run: mix run -e 'alias Procession.Simulation.ActionContingencyExperiment, as: E; E.compare(ticks: 220, seeds: Enum.to_list(1..100)) |> E.report() |> IO.puts()' | tee local-contingency.txt
-
-      - name: Upload local contingency results
-        uses: actions/upload-artifact@v4
-        with:
-          name: local-contingency-results
-          path: local-contingency.txt
