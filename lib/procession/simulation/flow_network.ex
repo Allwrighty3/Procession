@@ -13,22 +13,37 @@ defmodule Procession.Simulation.FlowNetwork do
 
   defmodule Transition do
     @moduledoc false
+    @type t :: %__MODULE__{from: term(), to: term(), resistance: float()}
     @enforce_keys [:from, :to]
     defstruct from: nil, to: nil, resistance: 1.0
   end
 
   defmodule Result do
     @moduledoc false
+    @type t :: %__MODULE__{
+            entered: map(),
+            transferred: map(),
+            retained: map(),
+            flows: map(),
+            unresolved: float(),
+            history: [map()],
+            ticks: non_neg_integer()
+          }
     @enforce_keys [:entered, :transferred, :retained, :flows, :unresolved, :history, :ticks]
     defstruct [:entered, :transferred, :retained, :flows, :unresolved, :history, :ticks]
   end
 
+  @type t :: %__MODULE__{
+          nodes: MapSet.t(node_id()),
+          transitions: %{optional(edge()) => Transition.t()}
+        }
+
   defstruct nodes: MapSet.new(), transitions: %{}
 
-  @spec new() :: %__MODULE__{}
+  @spec new() :: t()
   def new, do: %__MODULE__{}
 
-  @spec add_transition(%__MODULE__{}, node_id(), node_id(), keyword()) :: %__MODULE__{}
+  @spec add_transition(t(), node_id(), node_id(), keyword()) :: t()
   def add_transition(%__MODULE__{} = network, from, to, opts \\ []) do
     resistance = opts |> Keyword.get(:resistance, 1.0) |> max(0.0001)
     transition = %Transition{from: from, to: to, resistance: resistance * 1.0}
@@ -40,17 +55,19 @@ defmodule Procession.Simulation.FlowNetwork do
     }
   end
 
-  @spec put_resistance(%__MODULE__{}, node_id(), node_id(), number()) :: %__MODULE__{}
+  @spec put_resistance(t(), node_id(), node_id(), number()) :: t()
   def put_resistance(%__MODULE__{} = network, from, to, resistance) when is_number(resistance) do
     case Map.fetch(network.transitions, {from, to}) do
-      :error -> network
+      :error ->
+        network
+
       {:ok, transition} ->
         updated = %{transition | resistance: max(0.0001, resistance * 1.0)}
         %{network | transitions: Map.put(network.transitions, {from, to}, updated)}
     end
   end
 
-  @spec resistance(%__MODULE__{}, node_id(), node_id()) :: float() | :infinity
+  @spec resistance(t(), node_id(), node_id()) :: float() | :infinity
   def resistance(%__MODULE__{} = network, from, to) do
     case Map.get(network.transitions, {from, to}) do
       nil -> :infinity
@@ -58,7 +75,7 @@ defmodule Procession.Simulation.FlowNetwork do
     end
   end
 
-  @spec run(%__MODULE__{}, map(), [node_id()] | MapSet.t(), keyword()) :: Result.t()
+  @spec run(t(), map(), [node_id()] | MapSet.t(), keyword()) :: Result.t()
   def run(%__MODULE__{} = network, quantities, exits, opts \\ []) do
     threshold = Keyword.get(opts, :threshold, 0.02)
     attenuation = Keyword.get(opts, :attenuation, 0.95)
