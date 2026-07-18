@@ -41,12 +41,25 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run shifting resource comparison
+      - name: Run shifting resource sweep
         run: |
-          mix run -e 'alias Procession.Simulation.ShiftingResourceExperiment, as: E; c = E.compare(ticks: 180, seeds: Enum.to_list(1..80), source_interval: 30); IO.puts(E.report(c)); Enum.each(E.variants(), fn v -> IO.puts("\n--- #{v} seed 7 ---"); IO.puts(E.report(E.run(variant: v, ticks: 180, seed: 7, source_interval: 30))) end)' | tee shifting-results.txt
+          mix run -e '
+          alias Procession.Simulation.ShiftingResourceExperiment, as: E
+          base = [ticks: 240, seeds: Enum.to_list(1..80)]
+          scenarios = [
+            {:a, [source_interval: 45, source_intake: 0.17, intake_falloff: 0.028, move_cost: 0.008, remain_cost: 0.002, integrity_loss: 0.030, learning_deposit: 0.25, contradiction_magnitude: 0.20]},
+            {:b, [source_interval: 50, source_intake: 0.18, intake_falloff: 0.030, move_cost: 0.006, remain_cost: 0.002, integrity_loss: 0.025, learning_deposit: 0.30, contradiction_magnitude: 0.24]},
+            {:c, [source_interval: 40, source_intake: 0.18, intake_falloff: 0.032, move_cost: 0.006, remain_cost: 0.002, integrity_loss: 0.025, learning_deposit: 0.28, contradiction_magnitude: 0.26]},
+            {:d, [source_interval: 60, source_intake: 0.17, intake_falloff: 0.030, move_cost: 0.005, remain_cost: 0.001, integrity_loss: 0.022, learning_deposit: 0.35, contradiction_magnitude: 0.28]}
+          ]
+          Enum.each(scenarios, fn {name, opts} ->
+            IO.puts("\n=== #{name} #{inspect(opts)} ===")
+            IO.puts(E.report(E.compare(Keyword.merge(base, opts))))
+          end)
+          ' | tee shifting-sweep.txt
 
-      - name: Upload shifting resource results
+      - name: Upload shifting resource sweep
         uses: actions/upload-artifact@v4
         with:
-          name: shifting-resource-results
-          path: shifting-results.txt
+          name: shifting-resource-sweep
+          path: shifting-sweep.txt
