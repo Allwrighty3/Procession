@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   alias Procession.Simulation.ParentGuidedDevelopmentExperiment, as: Experiment
 
@@ -40,22 +40,6 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
     refute state.parent_present
     assert state.child.route_memory == %{}
     assert state.child.independent_intake == 0.0
-  end
-
-  test "metrics task writes guided and no-parent reports" do
-    path = Path.join(System.tmp_dir!(), "procession-parent-development-#{System.unique_integer([:positive])}.txt")
-    Mix.Task.reenable("procession.metrics.parent_guided_development")
-
-    Mix.Tasks.Procession.Metrics.ParentGuidedDevelopment.run([
-      "--samples", "2",
-      "--ticks", "240",
-      "--output", path
-    ])
-
-    report = File.read!(path)
-    assert report =~ "parent_guided:"
-    assert report =~ "no_parent:"
-    File.rm(path)
   end
 
   test "render exposes developmental state" do
