@@ -40,13 +40,3 @@ jobs:
 
       - name: Run tests
         run: mix test
-
-      - name: Run comparison report
-        run: |
-          mix run -e 'alias Procession.Simulation.MaintenanceActivationExperiment, as: E; c = E.compare(ticks: 100, seeds: Enum.to_list(1..40)); IO.puts(E.report(c)); for v <- E.variants() do s = E.run(variant: v, ticks: 100, seed: 7); IO.puts("\n--- #{v} seed 7 ---"); IO.puts(E.report(s)) end' | tee comparison-output.txt
-
-      - name: Upload comparison output
-        uses: actions/upload-artifact@v4
-        with:
-          name: comparison-output
-          path: comparison-output.txt
