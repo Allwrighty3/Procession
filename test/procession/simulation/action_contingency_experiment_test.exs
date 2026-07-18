@@ -24,6 +24,15 @@ defmodule Procession.Simulation.ActionContingencyExperimentTest do
     assert state.false_credit == 0
   end
 
+  test "local traces are tied to specific entity events" do
+    state = Experiment.run(ticks: 3, seed: 7)
+
+    assert Enum.any?(Map.keys(state.traces), fn
+      {:action, tick, action} when is_integer(tick) and is_atom(action) -> true
+      _ -> false
+    end)
+  end
+
   test "world-facing state does not expose a causal history API" do
     state = Experiment.run(ticks: 1)
 
