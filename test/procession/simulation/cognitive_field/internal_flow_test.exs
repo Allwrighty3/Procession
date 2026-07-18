@@ -29,19 +29,21 @@ defmodule Procession.Simulation.CognitiveField.InternalFlowTest do
         ).field
       end)
 
-    physical_result =
-      LocalFlow.run(primed, %{entry: 1.0}, [:upper_exit, :lower_exit],
-        attenuation: 0.9,
-        threshold: 0.01,
-        exit_threshold: 0.1,
-        sharpness: 3.0
-      )
-
     physically_enacted =
-      FlowLearning.apply(primed, physical_result.flows,
-        deposit: 0.09,
-        decay_slowing: 0.13
-      )
+      Enum.reduce(1..12, primed, fn _, acc ->
+        result =
+          LocalFlow.run(acc, %{entry: 1.0}, [:upper_exit, :lower_exit],
+            attenuation: 0.9,
+            threshold: 0.01,
+            exit_threshold: 0.1,
+            sharpness: 3.0
+          )
+
+        FlowLearning.apply(acc, result.flows,
+          deposit: 0.09,
+          decay_slowing: 0.13
+        )
+      end)
 
     internal_gap = route_gap(internally_rehearsed)
     physical_gap = route_gap(physically_enacted)
