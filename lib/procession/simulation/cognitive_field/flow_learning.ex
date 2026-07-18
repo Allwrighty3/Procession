@@ -16,11 +16,13 @@ defmodule Procession.Simulation.CognitiveField.FlowLearning do
   def apply(%CognitiveField{} = field, flows, opts \\ []) when is_map(flows) do
     deposit = Keyword.get(opts, :deposit, 0.09)
     decay_slowing = Keyword.get(opts, :decay_slowing, 0.13)
+    decay_scale = Keyword.get(opts, :decay_scale, 1.0)
     maximum_flow = flows |> Map.values() |> Enum.max(fn -> 0.0 end)
 
     transitions =
       Map.new(field.transitions, fn {edge, transition} ->
-        decayed_residue = transition.residue * (1.0 - transition.decay)
+        elapsed_decay = min(1.0, transition.decay * decay_scale)
+        decayed_residue = transition.residue * (1.0 - elapsed_decay)
         normalized_flow = normalized_flow(flows, edge, maximum_flow)
 
         updated =
@@ -38,7 +40,11 @@ defmodule Procession.Simulation.CognitiveField.FlowLearning do
             %Transition{
               transition
               | residue: decayed_residue,
-                decay: min(transition.baseline_decay, transition.decay + 0.0008)
+                decay:
+                  min(
+                    transition.baseline_decay,
+                    transition.decay + 0.0008 * decay_scale
+                  )
             }
           end
 
