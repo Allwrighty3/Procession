@@ -10,6 +10,7 @@ defmodule Procession.Simulation.MotorCompetitionExperimentTest do
     assert Map.has_key?(results, :motor_competition)
     assert Map.has_key?(results, :fluctuating_competition)
     assert Map.has_key?(results, :embodied_competition)
+    assert Map.has_key?(results, :redistributed_competition)
   end
 
   test "remain emerges when competing motor pressure does not overcome threshold" do
@@ -79,6 +80,27 @@ defmodule Procession.Simulation.MotorCompetitionExperimentTest do
         )
       end)
 
+    assert Enum.any?(states, &(&1.failed_motion_feedback > 0))
+  end
+
+  test "motor pressure can transfer into the competing channel" do
+    states =
+      Enum.map(1..20, fn seed ->
+        Experiment.run(
+          mode: :redistributed_competition,
+          ticks: 100,
+          reversal_tick: 50,
+          seed: seed,
+          world_max: 2,
+          initial_position: 0,
+          motor_threshold: 0.01,
+          fatigue_gain: 0.14,
+          redistribution_fraction: 0.60,
+          unresolved_redistribution: 0.80
+        )
+      end)
+
+    assert Enum.any?(states, &(&1.redistributed_activation > 0.0))
     assert Enum.any?(states, &(&1.failed_motion_feedback > 0))
   end
 end
