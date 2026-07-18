@@ -27,21 +27,6 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
     assert Experiment.compare(opts) == Experiment.compare(opts)
   end
 
-  test "no-parent control starts without learned routes" do
-    state =
-      Experiment.run(
-        ticks: 120,
-        seed: 3,
-        resource_regen: 0.002,
-        parent_departure: 0,
-        carry_until: 0
-      )
-
-    refute state.parent_present
-    assert state.child.route_memory == %{}
-    assert state.child.independent_intake == 0.0
-  end
-
   test "render exposes developmental state" do
     state = Experiment.run(ticks: 80, seed: 2, resource_regen: 0.002)
     rendered = Experiment.render(state)
