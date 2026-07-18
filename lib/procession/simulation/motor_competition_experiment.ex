@@ -5,9 +5,10 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
   probabilities. Movement occurs only when net motor pressure exceeds embodied
   resistance; otherwise the body remains in place.
 
-  The embodied competition control also makes sustained output locally costly:
-  active channels accumulate fatigue, fatigue decays while channels recover, and
-  motor output that fails to produce displacement disturbs the active pathway.
+  Embodied controls make sustained output locally costly through fatigue and
+  failed-motion feedback. The redistributed control additionally conserves part
+  of fatigue-suppressed and blocked output by transferring it into the competing
+  motor channel instead of letting it disappear.
   """
 
   alias Procession.Simulation.CognitiveField
@@ -18,7 +19,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
     :weighted_choice,
     :motor_competition,
     :fluctuating_competition,
-    :embodied_competition
+    :embodied_competition,
+    :redistributed_competition
   ]
 
   defmodule State do
@@ -30,6 +32,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
               field: nil,
               motor: %{left: 0.0, right: 0.0},
               fatigue: %{left: 0.0, right: 0.0},
+              unresolved_motor: %{left: 0.0, right: 0.0},
+              redistributed_activation: 0.0,
               previous_action: :remain,
               action_counts: %{left: 0, right: 0, remain: 0},
               switches: 0,
@@ -53,6 +57,7 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
       :median_conflict_cost,
       :median_fatigue_cost,
       :median_failed_motion_feedback,
+      :median_redistributed_activation,
       :median_within_entity_entropy,
       :population_left_fraction
     ]
@@ -123,6 +128,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
          median_fatigue_cost: states |> Enum.map(& &1.fatigue_cost) |> median(),
          median_failed_motion_feedback:
            states |> Enum.map(& &1.failed_motion_feedback) |> median(),
+         median_redistributed_activation:
+           states |> Enum.map(& &1.redistributed_activation) |> median(),
          median_within_entity_entropy: states |> Enum.map(&action_entropy/1) |> median(),
          population_left_fraction:
            if(total_actions == 0, do: 0.0, else: total_left / total_actions)
@@ -141,6 +148,7 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
         "conflict=#{fmt(summary.median_conflict_cost)} " <>
         "fatigue=#{fmt(summary.median_fatigue_cost)} " <>
         "failed_feedback=#{fmt(summary.median_failed_motion_feedback)} " <>
+        "redistributed=#{fmt(summary.median_redistributed_activation)} " <>
         "entropy=#{fmt(summary.median_within_entity_entropy)} " <>
         "left_fraction=#{fmt(summary.population_left_fraction)}"
     end)
@@ -150,7 +158,10 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
     source = if tick < reversal_tick, do: 0, else: Keyword.get(opts, :world_max, 10)
     before = intake(state.position, source, opts)
     activation = field_activation(state.field)
-    {action, motor, fatigue} = output(state, activation.exit_activation, tick, opts)
+
+    {action, motor, fatigue, redistributed} =
+      output(state, activation.exit_activation, tick, opts)
+
     next_position = move(state.position, action, opts)
     displacement = next_position - state.position
     after_move = intake(next_position, source, opts)
@@ -159,6 +170,7 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
     {field, failed_feedback} =
       learn(state, action, activation, delta, displacement, opts)
 
+    unresolved_motor = update_unresolved(state, action, motor, displacement, opts)
     post_reversal? = tick >= reversal_tick
     obsolete = if post_reversal? and action == :left, do: 1, else: 0
     corrected_at = state.corrected_at || correction_tick(field, tick, reversal_tick)
@@ -176,6 +188,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
         field: field,
         motor: motor,
         fatigue: fatigue,
+        unresolved_motor: unresolved_motor,
+        redistributed_activation: state.redistributed_activation + redistributed,
         previous_action: action,
         action_counts: Map.update!(state.action_counts, action, &(&1 + 1)),
         switches: state.switches + if(switched, do: 1, else: 0),
@@ -191,6 +205,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
             action: action,
             motor: motor,
             fatigue: fatigue,
+            unresolved_motor: unresolved_motor,
+            redistributed: redistributed,
             displacement: displacement,
             delta: delta,
             failed_feedback: failed_feedback
@@ -209,8 +225,13 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
     )
   end
 
-  defp output(%State{mode: :weighted_choice, seed: seed, motor: motor, fatigue: fatigue}, weights, tick, _opts) do
-    {weighted_action(weights, {seed, tick}), motor, fatigue}
+  defp output(
+         %State{mode: :weighted_choice, seed: seed, motor: motor, fatigue: fatigue},
+         weights,
+         tick,
+         _opts
+       ) do
+    {weighted_action(weights, {seed, tick}), motor, fatigue, 0.0}
   end
 
   defp output(%State{} = state, weights, tick, opts) do
@@ -224,20 +245,29 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
     left_input = Map.get(weights, :left, 0.0) * input_gain
     right_input = Map.get(weights, :right, 0.0) * input_gain
 
-    left =
+    left_before_fatigue =
       max(
         0.0,
-        state.motor.left * retention + left_input - state.motor.right * inhibition -
-          state.fatigue.left * fatigue_inhibition + fluctuation.left
+        state.motor.left * retention + left_input - state.motor.right * inhibition +
+          fluctuation.left
       )
 
-    right =
+    right_before_fatigue =
       max(
         0.0,
-        state.motor.right * retention + right_input - state.motor.left * inhibition -
-          state.fatigue.right * fatigue_inhibition + fluctuation.right
+        state.motor.right * retention + right_input - state.motor.left * inhibition +
+          fluctuation.right
       )
 
+    left_suppressed = min(left_before_fatigue, state.fatigue.left * fatigue_inhibition)
+    right_suppressed = min(right_before_fatigue, state.fatigue.right * fatigue_inhibition)
+
+    left_base = max(0.0, left_before_fatigue - left_suppressed)
+    right_base = max(0.0, right_before_fatigue - right_suppressed)
+
+    {left_spill, right_spill} = redistribution(state, left_suppressed, right_suppressed, opts)
+    left = left_base + left_spill
+    right = right_base + right_spill
     net = right - left
 
     action =
@@ -248,10 +278,58 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
       end
 
     fatigue = update_fatigue(state, action, left, right, opts)
-    {action, %{left: left, right: right}, fatigue}
+    {action, %{left: left, right: right}, fatigue, left_spill + right_spill}
   end
 
-  defp update_fatigue(%State{mode: :embodied_competition, fatigue: fatigue}, action, left, right, opts) do
+  defp redistribution(
+         %State{mode: :redistributed_competition, unresolved_motor: unresolved},
+         left_suppressed,
+         right_suppressed,
+         opts
+       ) do
+    fraction = Keyword.get(opts, :redistribution_fraction, 0.48)
+    unresolved_fraction = Keyword.get(opts, :unresolved_redistribution, 0.70)
+
+    {
+      right_suppressed * fraction + unresolved.right * unresolved_fraction,
+      left_suppressed * fraction + unresolved.left * unresolved_fraction
+    }
+  end
+
+  defp redistribution(_state, _left_suppressed, _right_suppressed, _opts), do: {0.0, 0.0}
+
+  defp update_unresolved(
+         %State{mode: :redistributed_competition},
+         action,
+         motor,
+         displacement,
+         opts
+       )
+       when action != :remain and displacement == 0 do
+    retention = Keyword.get(opts, :unresolved_retention, 0.55)
+
+    case action do
+      :left -> %{left: motor.left * retention, right: 0.0}
+      :right -> %{left: 0.0, right: motor.right * retention}
+    end
+  end
+
+  defp update_unresolved(%State{mode: :redistributed_competition}, _action, _motor, _displacement, opts) do
+    decay = Keyword.get(opts, :unresolved_decay, 0.25)
+    %{left: 0.0 * decay, right: 0.0 * decay}
+  end
+
+  defp update_unresolved(%State{unresolved_motor: unresolved}, _action, _motor, _displacement, _opts),
+    do: unresolved
+
+  defp update_fatigue(
+         %State{mode: mode, fatigue: fatigue},
+         action,
+         left,
+         right,
+         opts
+       )
+       when mode in [:embodied_competition, :redistributed_competition] do
     recovery = Keyword.get(opts, :fatigue_recovery, 0.82)
     gain = Keyword.get(opts, :fatigue_gain, 0.075)
     base = %{left: fatigue.left * recovery, right: fatigue.right * recovery}
@@ -265,13 +343,18 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
 
   defp update_fatigue(%State{fatigue: fatigue}, _action, _left, _right, _opts), do: fatigue
 
-  defp fatigue_inhibition(:embodied_competition, opts),
-    do: Keyword.get(opts, :fatigue_inhibition, 0.75)
+  defp fatigue_inhibition(mode, opts)
+       when mode in [:embodied_competition, :redistributed_competition],
+       do: Keyword.get(opts, :fatigue_inhibition, 0.75)
 
   defp fatigue_inhibition(_mode, _opts), do: 0.0
 
   defp fluctuation(mode, seed, tick, opts)
-       when mode in [:fluctuating_competition, :embodied_competition] do
+       when mode in [
+              :fluctuating_competition,
+              :embodied_competition,
+              :redistributed_competition
+            ] do
     magnitude = Keyword.get(opts, :fluctuation_magnitude, 0.018)
 
     %{
@@ -285,7 +368,8 @@ defmodule Procession.Simulation.MotorCompetitionExperiment do
   defp learn(%State{} = state, action, activation, delta, displacement, opts) do
     field = learn_from_consequence(state.field, action, activation, delta, opts)
 
-    if state.mode == :embodied_competition and action != :remain and displacement == 0 do
+    if state.mode in [:embodied_competition, :redistributed_competition] and
+         action != :remain and displacement == 0 do
       next =
         CognitiveField.disturb_terminal(field, [:strain, action],
           magnitude: Keyword.get(opts, :failed_motion_magnitude, 0.12),
