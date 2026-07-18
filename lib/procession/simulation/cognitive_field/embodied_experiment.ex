@@ -12,7 +12,9 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
   alias Procession.Simulation.CognitiveField.Transition
 
   @actions [:seek_shelter, :seek_food, :wait]
-  @signals [:rain, :clear, :hungry, :sated, :shelter_blocked, :shelter_open]
+  @atomic_signals [:rain, :clear, :hungry, :sated, :shelter_blocked, :shelter_open]
+  @contexts for weather <- [:rain, :clear], hunger <- [:hungry, :sated], blocked <- [false, true], do: {:context, weather, hunger, blocked}
+  @signals @atomic_signals ++ @contexts
 
   defmodule World do
     @moduledoc false
@@ -131,20 +133,29 @@ defmodule Procession.Simulation.CognitiveField.EmbodiedExperiment do
   end
 
   defp perceive(%World{} = world) do
-    [
-      world.weather,
-      world.hunger,
-      if(world.shelter_blocked, do: :shelter_blocked, else: :shelter_open)
-    ]
-    |> Map.new(&{&1, 0.55})
+    blocked = if(world.shelter_blocked, do: :shelter_blocked, else: :shelter_open)
+    context = {:context, world.weather, world.hunger, world.shelter_blocked}
+
+    %{
+      world.weather => 0.20,
+      world.hunger => 0.20,
+      blocked => 0.20,
+      context => 0.80
+    }
   end
 
   defp choose_action(exit_activation, seed) do
-    @actions
-    |> Enum.map(fn action -> {action, Map.get(exit_activation, action, 0.0)} end)
-    |> Enum.sort_by(fn {action, magnitude} -> {-magnitude, :erlang.phash2({seed, action})} end)
-    |> hd()
-    |> elem(0)
+    candidates = Enum.map(@actions, fn action -> {action, Map.get(exit_activation, action, 0.0)} end)
+    magnitudes = Enum.map(candidates, &elem(&1, 1))
+
+    if Enum.max(magnitudes) - Enum.min(magnitudes) < 1.0e-9 do
+      Enum.at(@actions, rem(seed - 1, length(@actions)))
+    else
+      candidates
+      |> Enum.sort_by(fn {action, magnitude} -> {-magnitude, :erlang.phash2({seed, action})} end)
+      |> hd()
+      |> elem(0)
+    end
   end
 
   defp coherent?(%World{weather: :rain, shelter_blocked: false}, :seek_shelter), do: true
