@@ -39,17 +39,4 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run tests
-        run: mix test 2>&1 | tee test-output.txt
-
-      - name: Run contingency comparison
-        if: always()
-        run: mix run -e 'alias Procession.Simulation.ActionContingencyExperiment, as: E; E.compare(ticks: 220, seeds: Enum.to_list(1..100)) |> E.report() |> IO.puts()' | tee contingency-output.txt
-
-      - name: Upload diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: contingency-diagnostics
-          path: |
-            test-output.txt
-            contingency-output.txt
+        run: mix test
