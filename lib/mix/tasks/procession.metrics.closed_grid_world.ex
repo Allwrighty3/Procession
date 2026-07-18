@@ -4,6 +4,7 @@ defmodule Mix.Tasks.Procession.Metrics.ClosedGridWorld do
   @shortdoc "Runs closed 4x4 embodied world metrics"
 
   alias Procession.Simulation.ClosedGridWorldExperiment, as: Experiment
+  alias Procession.Simulation.ClosedGridWorldExperiment.Resource
 
   @impl Mix.Task
   def run(args) do
@@ -22,10 +23,17 @@ defmodule Mix.Tasks.Procession.Metrics.ClosedGridWorld do
     first_seed = Keyword.get(opts, :first_seed, 1)
     seeds = Enum.to_list(first_seed..(first_seed + samples - 1))
 
-    results = Experiment.compare(ticks: ticks, seeds: seeds)
+    resources = [
+      %Resource{id: :spring, position: {0, 0}, capacity: 0.55, amount: 0.55, regen: 0.004},
+      %Resource{id: :grove, position: {3, 0}, capacity: 0.42, amount: 0.42, regen: 0.003},
+      %Resource{id: :cache, position: {2, 3}, capacity: 0.65, amount: 0.65, regen: 0.005}
+    ]
+
+    results = Experiment.compare(ticks: ticks, seeds: seeds, resources: resources)
 
     Mix.shell().info("Closed 4x4 embodied world metrics")
-    Mix.shell().info("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}\n")
+    Mix.shell().info("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}")
+    Mix.shell().info("resource_regen=0.004,0.003,0.005\n")
     Mix.shell().info(Experiment.report(results))
   end
 
