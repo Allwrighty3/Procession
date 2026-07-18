@@ -24,9 +24,9 @@ defmodule Mix.Tasks.Procession.Metrics.ParentGuidedDevelopment do
 
     summary = Experiment.compare(ticks: ticks, seeds: seeds, resource_regen: 0.002)
 
-    Mix.shell().info("Parent-guided developmental world metrics")
-    Mix.shell().info("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}\n")
-    Mix.shell().info(Experiment.report(summary))
+    IO.puts("Parent-guided developmental world metrics")
+    IO.puts("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}\n")
+    IO.puts(Experiment.report(summary))
   end
 
   defp positive!(value, _name) when is_integer(value) and value > 0, do: value
