@@ -47,6 +47,9 @@ jobs:
       - name: Run 100-sample association reversal metrics
         run: mix procession.metrics.association_reversal --samples 100 --ticks 180 --reversal-tick 90 | tee association-reversal-metrics.txt
 
+      - name: Run 100-sample motor competition metrics
+        run: mix procession.metrics.motor_competition --samples 100 --ticks 180 --reversal-tick 90 | tee motor-competition-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -54,3 +57,4 @@ jobs:
           path: |
             independent-change-metrics.txt
             association-reversal-metrics.txt
+            motor-competition-metrics.txt
