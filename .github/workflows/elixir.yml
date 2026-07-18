@@ -40,12 +40,3 @@ jobs:
 
       - name: Run tests
         run: mix test
-
-      - name: Run independent-change comparison
-        run: mix run -e 'alias Procession.Simulation.IndependentChangeContingencyExperiment, as: E; E.compare(ticks: 220, seeds: Enum.to_list(1..100)) |> E.report() |> IO.puts()' | tee independent-change-results.txt
-
-      - name: Upload independent-change results
-        uses: actions/upload-artifact@v4
-        with:
-          name: independent-change-results
-          path: independent-change-results.txt
