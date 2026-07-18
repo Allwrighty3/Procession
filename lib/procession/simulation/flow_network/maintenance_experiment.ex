@@ -22,6 +22,18 @@ defmodule Procession.Simulation.FlowNetwork.MaintenanceExperiment do
 
   defmodule State do
     @moduledoc false
+    @type t :: %__MODULE__{
+            tick: non_neg_integer(),
+            store: float(),
+            integrity: float(),
+            persisted: boolean(),
+            total_intake: float(),
+            maintenance_used: float(),
+            action_used: float(),
+            unresolved: float(),
+            history: [map()]
+          }
+
     defstruct tick: 0,
               store: 0.6,
               integrity: 1.0,
