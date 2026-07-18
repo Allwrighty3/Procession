@@ -53,14 +53,14 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlowTest do
     initial_index = reach_index(initial_result, order)
 
     {trained, reach_history} =
-      Enum.reduce(1..80, {field, [initial_index]}, fn _, {acc, history} ->
+      Enum.reduce(1..120, {field, [initial_index]}, fn _, {acc, history} ->
         result = weak_run(acc)
 
         updated =
           FlowLearning.apply(acc, result.flows,
-            deposit: 0.018,
+            deposit: 0.035,
             decay_slowing: 0.04,
-            elapsed: 0.05
+            elapsed: 0.0
           )
 
         {updated, [reach_index(result, order) | history]}
@@ -79,13 +79,13 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlowTest do
     before = external_run(field)
 
     rehearsed =
-      Enum.reduce(1..100, field, fn _, acc ->
+      Enum.reduce(1..120, field, fn _, acc ->
         result = weak_run(acc)
 
         FlowLearning.apply(acc, result.flows,
-          deposit: 0.022,
+          deposit: 0.035,
           decay_slowing: 0.04,
-          elapsed: 0.04
+          elapsed: 0.0
         )
       end)
 
