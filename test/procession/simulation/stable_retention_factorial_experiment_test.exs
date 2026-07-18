@@ -1,7 +1,7 @@
 defmodule Procession.Simulation.StableRetentionFactorialExperimentTest do
   use ExUnit.Case, async: true
 
-  alias Procession.Simulation.StableRetentionFactorialExperiment, as: Experiment
+  alias Procession.Simulation.StableContingencyFactorialExperiment, as: Experiment
 
   test "comparison covers all motor and plasticity combinations" do
     results = Experiment.compare(ticks: 60, seeds: Enum.to_list(1..4))
@@ -11,7 +11,7 @@ defmodule Procession.Simulation.StableRetentionFactorialExperimentTest do
     end
   end
 
-  test "stable source supports useful pathway acquisition" do
+  test "fixed useful contingency supports pathway acquisition" do
     results = Experiment.compare(ticks: 100, seeds: Enum.to_list(1..20))
     assert Enum.any?(results, fn {_key, summary} -> summary.acquired > 0 end)
   end
