@@ -44,8 +44,13 @@ jobs:
       - name: Run 100-sample causal attribution metrics
         run: mix procession.metrics.independent_change --samples 100 --ticks 220 | tee independent-change-metrics.txt
 
-      - name: Upload causal attribution metrics
+      - name: Run 100-sample association reversal metrics
+        run: mix procession.metrics.association_reversal --samples 100 --ticks 180 --reversal-tick 90 | tee association-reversal-metrics.txt
+
+      - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
-          name: independent-change-metrics
-          path: independent-change-metrics.txt
+          name: simulation-metrics
+          path: |
+            independent-change-metrics.txt
+            association-reversal-metrics.txt
