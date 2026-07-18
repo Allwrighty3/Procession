@@ -91,9 +91,8 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlowTest do
 
     after_rehearsal = external_run(rehearsed)
 
-    assert Map.get(before.exit_activation, :exit, 0.0) < 0.08
-    assert Map.get(after_rehearsal.exit_activation, :exit, 0.0) >
-             Map.get(before.exit_activation, :exit, 0.0)
+    assert Map.get(before.exit_activation, :exit, 0.0) == 0.0
+    assert Map.get(after_rehearsal.exit_activation, :exit, 0.0) > 0.0
   end
 
   defp reach_index(result, order) do
@@ -102,7 +101,7 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlowTest do
   end
 
   defp weak_run(field) do
-    PermeableFlow.run(field, %{a: 0.55}, [:exit],
+    PermeableFlow.run(field, %{a: 0.25}, [:exit],
       attenuation: 0.97,
       permeability_scale: 0.8,
       threshold: 0.018,
@@ -111,7 +110,7 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlowTest do
   end
 
   defp external_run(field) do
-    PermeableFlow.run(field, %{a: 0.72}, [:exit],
+    PermeableFlow.run(field, %{a: 0.40}, [:exit],
       attenuation: 0.97,
       permeability_scale: 0.8,
       threshold: 0.018,
