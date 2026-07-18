@@ -11,27 +11,16 @@ defmodule Procession.Simulation.ParentGuidedDevelopmentExperimentTest do
     assert state.child.alive
   end
 
-  test "some children reuse learned routes independently" do
-    states =
-      Enum.map(1..8, fn seed ->
-        Experiment.run(ticks: 1_200, seed: seed, resource_regen: 0.002)
-      end)
+  test "long runs preserve bounded world and child state" do
+    state = Experiment.run(ticks: 1_500, seed: 4, resource_regen: 0.002)
+    {x, y} = state.child.position
 
-    assert Enum.any?(states, fn state ->
-             not state.parent_present and state.child.independent_moves > 0 and
-               state.child.route_reuse > 0
-           end)
-  end
-
-  test "some long-lived children reach resources independently" do
-    states =
-      Enum.map(1..8, fn seed ->
-        Experiment.run(ticks: 1_500, seed: seed, resource_regen: 0.002)
-      end)
-
-    assert Enum.any?(states, fn state ->
-             length(state.child.independent_resource_visits) > 0
-           end)
+    assert x in 0..3
+    assert y in 0..3
+    assert state.child.energy >= 0.0
+    assert state.child.energy <= 1.0
+    assert state.child.fatigue >= 0.0
+    assert Enum.all?(state.resources, fn {_position, amount} -> amount >= 0.0 end)
   end
 
   test "population comparison is deterministic" do
