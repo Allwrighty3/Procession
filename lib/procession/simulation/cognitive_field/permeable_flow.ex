@@ -99,11 +99,12 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlow do
         fn {{_from, to} = edge, weight, permeability}, {nodes, flows, total_loss} ->
           allocated = magnitude * weight / total_weight
           transmitted = allocated * attenuation * permeability
+          flows = Map.update(flows, edge, transmitted, &(&1 + transmitted))
 
           if transmitted >= threshold do
             {
               Map.update(nodes, to, transmitted, &(&1 + transmitted)),
-              Map.update(flows, edge, transmitted, &(&1 + transmitted)),
+              flows,
               total_loss + allocated - transmitted
             }
           else
