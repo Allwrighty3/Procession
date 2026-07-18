@@ -25,7 +25,7 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlow do
 
     {exit_activation, remaining, flows, dissipated, history, ticks} =
       flow(field, initial, exits, threshold, attenuation, sharpness, permeability_scale,
-        max_ticks, %{}, %{}, %{}, 0.0, [initial], 0)
+        max_ticks, %{}, %{}, 0.0, [initial], 0)
 
     %Result{
       initial_activation: initial,
@@ -65,50 +65,50 @@ defmodule Procession.Simulation.CognitiveField.PermeableFlow do
   end
 
   defp flow(_field, current, _exits, _threshold, _attenuation, _sharpness, _scale,
-         max_ticks, exit_activation, flows, _edge_dissipation, dissipated, history, tick)
+         max_ticks, exit_activation, flows, dissipated, history, tick)
        when tick >= max_ticks or map_size(current) == 0 do
     {exit_activation, current, flows, dissipated, history, tick}
   end
 
   defp flow(field, current, exits, threshold, attenuation, sharpness, scale,
-         max_ticks, exit_activation, flows, edge_dissipation, dissipated, history, tick) do
+         max_ticks, exit_activation, flows, dissipated, history, tick) do
     {moving, reached} = Enum.split_with(current, fn {node, _} -> not MapSet.member?(exits, node) end)
 
     next_exit = Enum.reduce(reached, exit_activation, fn {node, magnitude}, acc ->
       Map.update(acc, node, magnitude, &(&1 + magnitude))
     end)
 
-    {next, next_flows, next_edge_dissipation, next_dissipated} =
-      Enum.reduce(moving, {%{}, flows, edge_dissipation, dissipated}, fn {node, magnitude}, acc ->
+    {next, next_flows, next_dissipated} =
+      Enum.reduce(moving, {%{}, flows, dissipated}, fn {node, magnitude}, acc ->
         spread_node(field, node, magnitude, threshold, attenuation, sharpness, scale, acc)
       end)
 
-    normalized = normalize(next, threshold)
-    dropped = sum_map(next) - sum_map(normalized)
-
-    flow(field, normalized, exits, threshold, attenuation, sharpness, scale, max_ticks,
-      next_exit, next_flows, next_edge_dissipation, next_dissipated + dropped,
-      [normalized | history], tick + 1)
+    flow(field, next, exits, threshold, attenuation, sharpness, scale, max_ticks,
+      next_exit, next_flows, next_dissipated, [next | history], tick + 1)
   end
 
   defp spread_node(field, node, magnitude, threshold, attenuation, sharpness, scale,
-         {activation_acc, flow_acc, edge_dissipation_acc, dissipated_acc}) do
+         {activation_acc, flow_acc, dissipated_acc}) do
     outgoing = outgoing(field, node, sharpness, scale)
     total_weight = Enum.reduce(outgoing, 0.0, fn {_edge, weight, _permeability}, acc -> acc + weight end)
 
     if total_weight == 0.0 do
-      {activation_acc, flow_acc, edge_dissipation_acc, dissipated_acc + magnitude}
+      {activation_acc, flow_acc, dissipated_acc + magnitude}
     else
-      Enum.reduce(outgoing, {activation_acc, flow_acc, edge_dissipation_acc, dissipated_acc},
-        fn {{_from, to} = edge, weight, permeability}, {nodes, flows, edge_loss, total_loss} ->
+      Enum.reduce(outgoing, {activation_acc, flow_acc, dissipated_acc},
+        fn {{_from, to} = edge, weight, permeability}, {nodes, flows, total_loss} ->
           allocated = magnitude * weight / total_weight
           transmitted = allocated * attenuation * permeability
-          lost = allocated - transmitted
 
-          nodes = if transmitted >= threshold, do: Map.update(nodes, to, transmitted, &(&1 + transmitted)), else: nodes
-          flows = if transmitted >= threshold, do: Map.update(flows, edge, transmitted, &(&1 + transmitted)), else: flows
-          edge_loss = Map.update(edge_loss, edge, lost, &(&1 + lost))
-          {nodes, flows, edge_loss, total_loss + lost}
+          if transmitted >= threshold do
+            {
+              Map.update(nodes, to, transmitted, &(&1 + transmitted)),
+              Map.update(flows, edge, transmitted, &(&1 + transmitted)),
+              total_loss + allocated - transmitted
+            }
+          else
+            {nodes, flows, total_loss + allocated}
+          end
         end)
     end
   end
