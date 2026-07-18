@@ -9,6 +9,7 @@ defmodule Procession.Simulation.MotorCompetitionExperimentTest do
     assert Map.has_key?(results, :weighted_choice)
     assert Map.has_key?(results, :motor_competition)
     assert Map.has_key?(results, :fluctuating_competition)
+    assert Map.has_key?(results, :embodied_competition)
   end
 
   test "remain emerges when competing motor pressure does not overcome threshold" do
@@ -46,5 +47,38 @@ defmodule Procession.Simulation.MotorCompetitionExperimentTest do
 
     assert first == second
     assert first.fluctuating_competition.median_within_entity_entropy > 0.0
+  end
+
+  test "embodied competition accumulates and recovers motor fatigue" do
+    state =
+      Experiment.run(
+        mode: :embodied_competition,
+        ticks: 40,
+        reversal_tick: 20,
+        seed: 7,
+        fatigue_gain: 0.12,
+        fatigue_recovery: 0.75
+      )
+
+    assert state.fatigue_cost > 0.0
+    assert state.fatigue.left >= 0.0
+    assert state.fatigue.right >= 0.0
+  end
+
+  test "failed boundary motion feeds contradiction back to the active route" do
+    states =
+      Enum.map(1..20, fn seed ->
+        Experiment.run(
+          mode: :embodied_competition,
+          ticks: 80,
+          reversal_tick: 40,
+          seed: seed,
+          world_max: 1,
+          initial_position: 0,
+          motor_threshold: 0.01
+        )
+      end)
+
+    assert Enum.any?(states, &(&1.failed_motion_feedback > 0))
   end
 end
