@@ -7,8 +7,8 @@ defmodule Procession.Simulation.MaintenanceActivationExperiment do
 
   - `:uncoupled` never exposes maintenance strain to the activation field.
   - `:reactive` exposes strain, but leaves the field topology unchanged.
-  - `:adaptive` exposes strain and applies flow-dependent learning after
-    interactions that improve environmental intake.
+  - `:adaptive` exposes strain and changes only the selected route after that
+    action improves environmental intake.
 
   Present couplings:
 
@@ -128,15 +128,14 @@ defmodule Procession.Simulation.MaintenanceActivationExperiment do
 
         survived = Enum.count(lifetimes, &(&1 >= ticks))
 
-        summary = %TrialSummary{
-          variant: variant,
-          lifetimes: lifetimes,
-          median_lifetime: median(lifetimes),
-          survived: survived,
-          survival_rate: survived / max(1, length(lifetimes))
-        }
-
-        {variant, summary}
+        {variant,
+         %TrialSummary{
+           variant: variant,
+           lifetimes: lifetimes,
+           median_lifetime: median(lifetimes),
+           survived: survived,
+           survival_rate: survived / max(1, length(lifetimes))
+         }}
       end)
 
     %Comparison{ticks: ticks, seeds: seeds, summaries: summaries}
@@ -214,7 +213,7 @@ defmodule Procession.Simulation.MaintenanceActivationExperiment do
     next_intake = environmental_intake(next_position, opts)
     improved_access = next_intake > intake_before + 1.0e-9
 
-    next_field = update_field(state, activation_result, improved_access, opts)
+    next_field = update_field(state, action, activation_result, improved_access, opts)
     funded_cost = min(store_after_maintenance, action_cost)
     next_store = max(0.0, store_after_maintenance - funded_cost)
 
@@ -292,19 +291,26 @@ defmodule Procession.Simulation.MaintenanceActivationExperiment do
     end
   end
 
-  defp update_field(%State{variant: :adaptive, field: field}, result, true, opts)
+  defp update_field(%State{variant: :adaptive, field: field}, action, result, true, opts)
        when not is_nil(result) do
-    FlowLearning.apply(field, result.flows,
+    selected_flows =
+      Map.new(result.flows, fn
+        {{from, ^action} = edge, magnitude} -> {edge, magnitude}
+        {_edge, _magnitude} -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Map.new()
+
+    FlowLearning.apply(field, selected_flows,
       deposit: Keyword.get(opts, :learning_deposit, 0.10),
       decay_slowing: Keyword.get(opts, :learning_decay_slowing, 0.10)
     )
   end
 
-  defp update_field(%State{variant: :adaptive, field: field}, _result, false, _opts) do
-    CognitiveField.idle(field, 1)
-  end
+  defp update_field(%State{variant: :adaptive, field: field}, _action, _result, false, _opts),
+    do: field
 
-  defp update_field(%State{field: field}, _result, _improved_access, _opts), do: field
+  defp update_field(%State{field: field}, _action, _result, _improved_access, _opts), do: field
 
   defp environmental_intake(position, opts) do
     source = Keyword.get(opts, :source_intake, 0.24)
