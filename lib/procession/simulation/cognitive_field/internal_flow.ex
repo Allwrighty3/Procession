@@ -29,7 +29,8 @@ defmodule Procession.Simulation.CognitiveField.InternalFlow do
     updated =
       FlowLearning.apply(field, result.flows,
         deposit: Keyword.get(opts, :deposit, 0.012),
-        decay_slowing: Keyword.get(opts, :decay_slowing, 0.035)
+        decay_slowing: Keyword.get(opts, :decay_slowing, 0.035),
+        decay_scale: Keyword.get(opts, :decay_scale, 0.10)
       )
 
     %{field: updated, result: result}
