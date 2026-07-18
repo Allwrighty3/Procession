@@ -160,7 +160,7 @@ defmodule Procession.Simulation.FlowNetwork do
   defp outgoing(network, node, sharpness, scale) do
     network.transitions
     |> Enum.flat_map(fn
-      {{^node, to} = edge, transition} ->
+      {{^node, _to} = edge, transition} ->
         weight = :math.pow(1.0 / transition.resistance, sharpness)
         permeability = :math.exp(-scale * transition.resistance)
         [{edge, weight, permeability}]
