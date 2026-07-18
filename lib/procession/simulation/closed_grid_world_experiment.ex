@@ -134,7 +134,7 @@ defmodule Procession.Simulation.ClosedGridWorldExperiment do
     moved? = position != state.position
     move_cost = if moved?, do: Keyword.get(opts, :movement_cost, 0.018), else: 0.0
     fatigue = fatigue(state.fatigue, action, moved?, opts)
-    {resources, intake, resource_id} = consume(resources, position, hunger, opts)
+    {resources, {intake, resource_id}} = consume(resources, position, hunger, opts)
     harmful? = action in @directions and moved? and
       nearest_resource_distance(position, resources) > nearest_resource_distance(state.position, resources)
     energy = clamp(base_energy - move_cost + intake)
