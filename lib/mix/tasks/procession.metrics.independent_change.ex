@@ -38,6 +38,6 @@ defmodule Mix.Tasks.Procession.Metrics.IndependentChange do
     Mix.shell().info(Experiment.report(results))
   end
 
-  defp positive!(value, name) when is_integer(value) and value > 0, do: value
+  defp positive!(value, _name) when is_integer(value) and value > 0, do: value
   defp positive!(_value, name), do: Mix.raise("#{name} must be a positive integer")
 end
