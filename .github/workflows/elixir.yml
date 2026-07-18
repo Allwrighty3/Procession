@@ -67,10 +67,15 @@ jobs:
           mix run -e '
           alias Procession.Simulation.ParentGuidedDevelopmentExperiment, as: Experiment
           summary = Experiment.compare(ticks: 1500, seeds: Enum.to_list(1..20), resource_regen: 0.002)
-          IO.puts("Parent-guided developmental world metrics")
-          IO.puts("samples=20 ticks=1500 seeds=1..20\n")
-          IO.puts(Experiment.report(summary))
-          ' | tee parent-guided-development-metrics.txt
+          report = [
+            "Parent-guided developmental world metrics",
+            "samples=20 ticks=1500 seeds=1..20",
+            "",
+            Experiment.report(summary)
+          ] |> Enum.join("\n")
+          File.write!("parent-guided-development-metrics.txt", report <> "\n")
+          IO.puts(report)
+          '
 
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
