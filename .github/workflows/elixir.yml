@@ -53,6 +53,9 @@ jobs:
       - name: Run 100-sample refractory plasticity metrics
         run: mix procession.metrics.refractory_plasticity --samples 100 --ticks 180 --reversal-tick 90 | tee refractory-plasticity-metrics.txt
 
+      - name: Run 100-sample motor-plasticity factorial metrics
+        run: mix procession.metrics.motor_plasticity_factorial --samples 100 --ticks 180 --reversal-tick 90 | tee motor-plasticity-factorial-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -62,3 +65,4 @@ jobs:
             association-reversal-metrics.txt
             motor-competition-metrics.txt
             refractory-plasticity-metrics.txt
+            motor-plasticity-factorial-metrics.txt
