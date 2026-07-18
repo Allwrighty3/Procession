@@ -140,12 +140,13 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     traces = if displacement == 0, do: traces,
       else: LocalTrace.activate(traces, {:displacement, sign(displacement)}, 1.0)
 
-    pending = [%{due: tick + Keyword.get(opts, :effect_delay, 2),
-                 before: before, action: action, displacement: displacement} | state.pending_effects]
+    pending = [%{due: tick + Keyword.get(opts, :effect_delay, 2), before: before,
+                 action: action, displacement: displacement, activation: activation} |
+               state.pending_effects]
     {due, pending} = Enum.split_with(pending, &(&1.due <= tick))
     after_intake = intake(next_position, source, opts)
     {field, traces, confirmed, false_credit} =
-      apply_due_effects(state, due, after_intake, activation, traces, opts)
+      apply_due_effects(state, due, after_intake, traces, opts)
 
     cost = if action == :remain, do: 0.002, else: Keyword.get(opts, :move_cost, 0.008)
     funded = min(after_maintenance, cost)
@@ -171,8 +172,9 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
     }
   end
 
-  defp apply_due_effects(state, due, after_intake, activation, traces, opts) do
-    Enum.reduce(due, {state.field, traces, 0, 0}, fn effect, {field, trace_acc, confirmed, false_credit} ->
+  defp apply_due_effects(state, due, after_intake, traces, opts) do
+    Enum.reduce(due, {state.field, traces, 0, 0}, fn effect,
+      {field, trace_acc, confirmed, false_credit} ->
       delta = after_intake - effect.before
       actual_sign = sign(effect.displacement)
       action_trace = LocalTrace.magnitude(trace_acc, {:action, effect.action})
@@ -184,8 +186,8 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
           {field, trace_acc, confirmed, false_credit}
 
         :outcome_adaptive ->
-          if delta > 1.0e-9 and not is_nil(activation) do
-            {reinforce(field, effect.action, activation, 1.0, opts), trace_acc,
+          if delta > 1.0e-9 and not is_nil(effect.activation) do
+            {reinforce(field, effect.action, effect.activation, 1.0, opts), trace_acc,
              confirmed, false_credit + if(effect.displacement == 0, do: 1, else: 0)}
           else
             {field, trace_acc, confirmed, false_credit}
@@ -193,8 +195,8 @@ defmodule Procession.Simulation.ActionContingencyExperiment do
 
         :contingency_adaptive ->
           cond do
-            delta > 1.0e-9 and overlap > 0.0 and not is_nil(activation) ->
-              {reinforce(field, effect.action, activation, overlap, opts), trace_acc,
+            delta > 1.0e-9 and overlap > 0.0 and not is_nil(effect.activation) ->
+              {reinforce(field, effect.action, effect.activation, overlap, opts), trace_acc,
                confirmed + 1, false_credit}
             delta < -1.0e-9 and overlap > 0.0 ->
               {CognitiveField.disturb_terminal(field, [:strain, effect.action],
