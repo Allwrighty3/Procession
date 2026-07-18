@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Procession.Metrics.ParentGuidedDevelopment do
     first_seed = Keyword.get(opts, :first_seed, 1)
     seeds = Enum.to_list(first_seed..(first_seed + samples - 1))
 
-    summary = Experiment.compare(ticks: ticks, seeds: seeds)
+    summary = Experiment.compare(ticks: ticks, seeds: seeds, resource_regen: 0.002)
 
     Mix.shell().info("Parent-guided developmental world metrics")
     Mix.shell().info("samples=#{samples} ticks=#{ticks} seeds=#{first_seed}..#{first_seed + samples - 1}\n")
