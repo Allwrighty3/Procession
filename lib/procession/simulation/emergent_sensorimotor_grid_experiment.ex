@@ -226,7 +226,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     effort = Enum.sum(Map.values(outputs)) / 5.0
     gain = Keyword.get(opts, :strain_gain, 0.035)
     recovery = Keyword.get(opts, :strain_recovery, 0.025)
-    value + effort * gain - if(moved, do: recovery * 0.25, else: recovery) |> clamp()
+    recovered = if moved, do: recovery * 0.25, else: recovery
+    clamp(value + effort * gain - recovered)
   end
 
   defp output_cost(outputs, opts), do: Enum.sum(Map.values(outputs)) * Keyword.get(opts, :output_cost, 0.0018)
