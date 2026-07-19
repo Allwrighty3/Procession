@@ -15,7 +15,7 @@ defmodule Procession.Simulation.RelationalTerrainSettlingTest do
 
   test "settles only a bounded local neighborhood and reports measurable improvement" do
     terrain = train(Enum.map(1..50, &{:point, &1}), 8)
-    terrain = RelationalTerrain.observe(terrain, {:point, 25}, @opts)
+    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe({:point, 25}, @opts)
 
     {settled, metrics} =
       RelationalTerrainSettling.settle(terrain,
@@ -35,7 +35,7 @@ defmodule Procession.Simulation.RelationalTerrainSettlingTest do
 
   test "settling preserves cue-driven route replay" do
     terrain = train([:a, :b, :c, :d], 60)
-    terrain = RelationalTerrain.observe(terrain, :b, @opts)
+    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(:b, @opts)
     {terrain, metrics} = RelationalTerrainSettling.settle(terrain, relaxer_opts: [iterations: 6, rate: 0.20])
 
     assert metrics.residual_after <= metrics.residual_before
