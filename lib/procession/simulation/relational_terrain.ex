@@ -110,11 +110,36 @@ defmodule Procession.Simulation.RelationalTerrain do
     do: List.duplicate(0.0, dimensions)
 
   defp contextual_proposal(state, observation, opts) do
-    previous = Map.fetch!(state.regions, state.last_observed_region)
-    step = Keyword.get(opts, :placement_step, 0.35)
-    direction = innovation_direction(observation, state.dimensions, opts)
-    add(previous.center, scale(direction, step))
+    case Map.get(state.label_index, observation) do
+      nil ->
+        previous = Map.fetch!(state.regions, state.last_observed_region)
+        step = Keyword.get(opts, :placement_step, 0.35)
+        direction = placement_direction(state, previous, observation, opts)
+        add(previous.center, scale(direction, step))
+
+      region_id ->
+        Map.fetch!(state.regions, region_id).center
+    end
   end
+
+  defp placement_direction(%State{dimensions: 1} = state, previous, observation, opts) do
+    occupied =
+      previous.geometry
+      |> Map.keys()
+      |> Enum.map(fn id -> Map.fetch!(state.regions, id).center end)
+      |> Enum.map(fn [coordinate] -> coordinate - hd(previous.center) end)
+      |> Enum.reject(&(&1 == 0.0))
+      |> Enum.map(&if(&1 < 0.0, do: -1.0, else: 1.0))
+      |> Enum.uniq()
+
+    case occupied do
+      [side] -> [-side]
+      _ -> innovation_direction(observation, 1, opts)
+    end
+  end
+
+  defp placement_direction(state, _previous, observation, opts),
+    do: innovation_direction(observation, state.dimensions, opts)
 
   defp innovation_direction(observation, dimensions, opts) do
     salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
