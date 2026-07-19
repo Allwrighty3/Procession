@@ -50,6 +50,9 @@ jobs:
       - name: Run dependent baby development experiment
         run: mix procession.metrics.dependent_development --population 48 --baby-ticks 120 --participation-ticks 120 --withdrawal-ticks 100 --seed 1 --output dependent-development-metrics.txt
 
+      - name: Analyze participatory survivor trajectories
+        run: mix procession.metrics.dependent_survivor_analysis --population 48 --baby-ticks 120 --participation-ticks 120 --withdrawal-ticks 100 --seed 1 --output dependent-survivor-analysis-metrics.txt
+
       - name: Run short developmental smoke probe
         run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
 
@@ -67,6 +70,7 @@ jobs:
             unattended-survival-metrics.txt
             untaught-grid-learning-metrics.txt
             dependent-development-metrics.txt
+            dependent-survivor-analysis-metrics.txt
             developmental-stream-metrics.txt
             compression-cost-metrics.txt
             developmental-tendencies-metrics.txt
