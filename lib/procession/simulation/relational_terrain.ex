@@ -52,7 +52,7 @@ defmodule Procession.Simulation.RelationalTerrain do
 
   def advance(%State{} = state, opts \\ []) do
     retained = decay_activity(state.activity, opts)
-    propagated = propagate(retained, state.regions, opts)
+    propagated = propagate(state.activity, state.regions, opts)
     activity = merge_activity(retained, propagated, opts)
 
     %{state |
