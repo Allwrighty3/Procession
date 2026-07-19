@@ -2,10 +2,11 @@ defmodule Procession.Simulation.RelationalTerrain do
   @moduledoc """
   Experimental sparse manifold-style developmental field.
 
-  The visible three-dimensional terrain is treated as an interpretation aid only.
-  Internally, regions occupy an arbitrary-dimensional relational space. Persistent
-  memory is represented as deformation of each region's local geometry; transient
-  activity flows through that geometry without loading the entire terrain.
+  Three-dimensional terrain is only a human interpretation aid. Internally, regions
+  occupy an arbitrary-dimensional relational space, including a viable one-dimensional
+  space. New regions are placed relative to the currently experienced neighborhood;
+  persistent memory is deformation of local geometry, and transient activity flows
+  through only the active neighborhood.
   """
 
   defmodule Region do
@@ -28,12 +29,19 @@ defmodule Procession.Simulation.RelationalTerrain do
   @type vector :: [float()]
 
   def new(opts \\ []) do
-    %State{dimensions: Keyword.get(opts, :dimensions, 8)}
+    dimensions = Keyword.get(opts, :dimensions, 8)
+
+    if not is_integer(dimensions) or dimensions < 1 do
+      raise ArgumentError, "dimensions must be a positive integer"
+    end
+
+    %State{dimensions: dimensions}
   end
 
   def observe(%State{} = state, observation, opts \\ []) do
-    vector = encode(observation, state.dimensions, opts)
-    {state, region_id} = locate_or_create(state, observation, vector, opts)
+    proposal = contextual_proposal(state, observation, opts)
+    {state, region_id} = locate_or_create(state, observation, proposal, opts)
+    state = adapt_region_center(state, region_id, proposal, opts)
     state = deform_from_previous(state, region_id, opts)
 
     activity =
@@ -93,23 +101,52 @@ defmodule Procession.Simulation.RelationalTerrain do
     end
   end
 
-  defp locate_or_create(state, observation, vector, opts) do
+  defp contextual_proposal(%State{last_observed_region: nil, dimensions: dimensions}, _observation, _opts),
+    do: List.duplicate(0.0, dimensions)
+
+  defp contextual_proposal(state, observation, opts) do
+    previous = Map.fetch!(state.regions, state.last_observed_region)
+    step = Keyword.get(opts, :placement_step, 0.35)
+    direction = innovation_direction(observation, state.dimensions, opts)
+    add(previous.center, scale(direction, step))
+  end
+
+  defp innovation_direction(observation, dimensions, opts) do
+    salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
+
+    0..(dimensions - 1)
+    |> Enum.map(fn dimension ->
+      (:erlang.phash2({salt, observation, dimension}, 2_000_001) - 1_000_000) / 1_000_000
+    end)
+    |> normalize()
+    |> ensure_direction()
+  end
+
+  defp ensure_direction(vector) do
+    if Enum.all?(vector, &(&1 == 0.0)) do
+      [1.0 | List.duplicate(0.0, max(length(vector) - 1, 0))]
+    else
+      vector
+    end
+  end
+
+  defp locate_or_create(state, observation, proposal, opts) do
     case Map.get(state.label_index, observation) do
       nil ->
         radius = Keyword.get(opts, :reuse_radius, 0.08)
 
         nearest =
           state.regions
-          |> Enum.map(fn {id, region} -> {id, distance(vector, region.center)} end)
+          |> Enum.map(fn {id, region} -> {id, distance(proposal, region.center)} end)
           |> Enum.min_by(&elem(&1, 1), fn -> nil end)
 
         case nearest do
-          {id, distance} when distance <= radius ->
+          {id, separation} when separation <= radius ->
             {%{state | label_index: Map.put(state.label_index, observation, id)}, id}
 
           _ ->
             id = state.next_id
-            region = %Region{id: id, center: vector, visits: 0, depth: 0.0}
+            region = %Region{id: id, center: proposal, visits: 0, depth: 0.0}
 
             {%{state |
                next_id: id + 1,
@@ -121,6 +158,18 @@ defmodule Procession.Simulation.RelationalTerrain do
       id ->
         {state, id}
     end
+  end
+
+  defp adapt_region_center(state, id, proposal, opts) do
+    rate = Keyword.get(opts, :placement_learning_rate, 0.04)
+
+    regions =
+      Map.update!(state.regions, id, fn region ->
+        center = interpolate(region.center, proposal, rate)
+        %{region | center: center}
+      end)
+
+    %{state | regions: regions}
   end
 
   defp deform_from_previous(%State{last_observed_region: nil} = state, _current, _opts), do: state
@@ -197,20 +246,14 @@ defmodule Procession.Simulation.RelationalTerrain do
     |> MapSet.new()
   end
 
-  defp encode(observation, dimensions, opts) do
-    salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
-
-    0..(dimensions - 1)
-    |> Enum.map(fn dimension ->
-      (:erlang.phash2({salt, observation, dimension}, 2_000_001) - 1_000_000) / 1_000_000
-    end)
-    |> normalize()
-  end
-
   defp normalize(vector) do
     magnitude = :math.sqrt(Enum.sum(Enum.map(vector, &(&1 * &1))))
     if magnitude == 0.0, do: vector, else: Enum.map(vector, &(&1 / magnitude))
   end
+
+  defp add(left, right), do: Enum.zip_with(left, right, &(&1 + &2))
+  defp scale(vector, amount), do: Enum.map(vector, &(&1 * amount))
+  defp interpolate(current, proposal, rate), do: Enum.zip_with(current, proposal, &(&1 + (&2 - &1) * rate))
 
   defp distance(left, right) do
     left
