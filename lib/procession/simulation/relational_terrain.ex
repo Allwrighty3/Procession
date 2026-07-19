@@ -1,0 +1,221 @@
+defmodule Procession.Simulation.RelationalTerrain do
+  @moduledoc """
+  Experimental sparse manifold-style developmental field.
+
+  The visible three-dimensional terrain is treated as an interpretation aid only.
+  Internally, regions occupy an arbitrary-dimensional relational space. Persistent
+  memory is represented as deformation of each region's local geometry; transient
+  activity flows through that geometry without loading the entire terrain.
+  """
+
+  defmodule Region do
+    @moduledoc false
+    defstruct [:id, :center, :visits, :depth, geometry: %{}]
+  end
+
+  defmodule State do
+    @moduledoc false
+    defstruct dimensions: 8,
+              next_id: 0,
+              regions: %{},
+              label_index: %{},
+              activity: %{},
+              active_region_ids: MapSet.new(),
+              last_observed_region: nil,
+              tick: 0
+  end
+
+  @type vector :: [float()]
+
+  def new(opts \\ []) do
+    %State{dimensions: Keyword.get(opts, :dimensions, 8)}
+  end
+
+  def observe(%State{} = state, observation, opts \\ []) do
+    vector = encode(observation, state.dimensions, opts)
+    {state, region_id} = locate_or_create(state, observation, vector, opts)
+    state = deform_from_previous(state, region_id, opts)
+
+    activity =
+      state.activity
+      |> decay_activity(opts)
+      |> Map.update(region_id, 1.0, &min(&1 + 1.0, 3.0))
+
+    %{state |
+      tick: state.tick + 1,
+      activity: activity,
+      active_region_ids: active_ids(activity, opts),
+      last_observed_region: region_id,
+      regions: update_visit(state.regions, region_id, opts)
+    }
+  end
+
+  def advance(%State{} = state, opts \\ []) do
+    retained = decay_activity(state.activity, opts)
+    propagated = propagate(retained, state.regions, opts)
+    activity = merge_activity(retained, propagated, opts)
+
+    %{state |
+      tick: state.tick + 1,
+      activity: activity,
+      active_region_ids: active_ids(activity, opts),
+      last_observed_region: nil
+    }
+  end
+
+  def clear_activity(%State{} = state) do
+    %{state | activity: %{}, active_region_ids: MapSet.new(), last_observed_region: nil}
+  end
+
+  def activation(%State{} = state, observation) do
+    case Map.get(state.label_index, observation) do
+      nil -> 0.0
+      region_id -> Map.get(state.activity, region_id, 0.0)
+    end
+  end
+
+  def region_count(%State{} = state), do: map_size(state.regions)
+  def active_region_count(%State{} = state), do: MapSet.size(state.active_region_ids)
+
+  def local_region(%State{} = state, observation) do
+    with region_id when not is_nil(region_id) <- Map.get(state.label_index, observation) do
+      Map.get(state.regions, region_id)
+    end
+  end
+
+  def deformation(%State{} = state, from, to) do
+    with from_id when not is_nil(from_id) <- Map.get(state.label_index, from),
+         to_id when not is_nil(to_id) <- Map.get(state.label_index, to),
+         %Region{} = region <- Map.get(state.regions, from_id) do
+      Map.get(region.geometry, to_id, 0.0)
+    else
+      _ -> 0.0
+    end
+  end
+
+  defp locate_or_create(state, observation, vector, opts) do
+    case Map.get(state.label_index, observation) do
+      nil ->
+        radius = Keyword.get(opts, :reuse_radius, 0.08)
+
+        nearest =
+          state.regions
+          |> Enum.map(fn {id, region} -> {id, distance(vector, region.center)} end)
+          |> Enum.min_by(&elem(&1, 1), fn -> nil end)
+
+        case nearest do
+          {id, distance} when distance <= radius ->
+            {%{state | label_index: Map.put(state.label_index, observation, id)}, id}
+
+          _ ->
+            id = state.next_id
+            region = %Region{id: id, center: vector, visits: 0, depth: 0.0}
+
+            {%{state |
+               next_id: id + 1,
+               regions: Map.put(state.regions, id, region),
+               label_index: Map.put(state.label_index, observation, id)
+             }, id}
+        end
+
+      id ->
+        {state, id}
+    end
+  end
+
+  defp deform_from_previous(%State{last_observed_region: nil} = state, _current, _opts), do: state
+  defp deform_from_previous(%State{last_observed_region: current} = state, current, _opts), do: state
+
+  defp deform_from_previous(state, current, opts) do
+    previous = state.last_observed_region
+    amount = Keyword.get(opts, :deformation_rate, 0.12)
+    reverse_ratio = Keyword.get(opts, :reverse_deformation_ratio, 0.10)
+
+    regions =
+      state.regions
+      |> deepen(previous, current, amount)
+      |> deepen(current, previous, amount * reverse_ratio)
+
+    %{state | regions: regions}
+  end
+
+  defp deepen(regions, source, target, amount) do
+    Map.update!(regions, source, fn region ->
+      geometry = Map.update(region.geometry, target, amount, &(&1 + amount))
+      %{region | geometry: geometry, depth: region.depth + amount}
+    end)
+  end
+
+  defp update_visit(regions, id, opts) do
+    center_rate = Keyword.get(opts, :center_learning_rate, 0.02)
+
+    Map.update!(regions, id, fn region ->
+      %{region | visits: region.visits + 1, depth: region.depth + center_rate}
+    end)
+  end
+
+  defp propagate(activity, regions, opts) do
+    flow_fraction = Keyword.get(opts, :flow_fraction, 0.82)
+    flow_floor = Keyword.get(opts, :flow_floor, 0.01)
+
+    Enum.reduce(activity, %{}, fn {source, source_activity}, acc ->
+      geometry = Map.fetch!(regions, source).geometry
+      total = Enum.sum(Map.values(geometry))
+
+      if total <= 0.0 do
+        acc
+      else
+        Enum.reduce(geometry, acc, fn {target, deformation}, flow_acc ->
+          amount = source_activity * flow_fraction * deformation / total
+          if amount < flow_floor, do: flow_acc, else: Map.update(flow_acc, target, amount, &(&1 + amount))
+        end)
+      end
+    end)
+  end
+
+  defp merge_activity(retained, propagated, opts) do
+    cap = Keyword.get(opts, :activity_cap, 3.0)
+    Map.merge(retained, propagated, fn _id, left, right -> min(cap, left + right) end)
+  end
+
+  defp decay_activity(activity, opts) do
+    retention = Keyword.get(opts, :activity_retention, 0.16)
+    floor = Keyword.get(opts, :activity_floor, 0.005)
+
+    activity
+    |> Enum.map(fn {id, value} -> {id, value * retention} end)
+    |> Enum.reject(fn {_id, value} -> value < floor end)
+    |> Map.new()
+  end
+
+  defp active_ids(activity, opts) do
+    threshold = Keyword.get(opts, :active_threshold, 0.04)
+
+    activity
+    |> Enum.filter(fn {_id, value} -> value >= threshold end)
+    |> Enum.map(&elem(&1, 0))
+    |> MapSet.new()
+  end
+
+  defp encode(observation, dimensions, opts) do
+    salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
+
+    0..(dimensions - 1)
+    |> Enum.map(fn dimension ->
+      (:erlang.phash2({salt, observation, dimension}, 2_000_001) - 1_000_000) / 1_000_000
+    end)
+    |> normalize()
+  end
+
+  defp normalize(vector) do
+    magnitude = :math.sqrt(Enum.sum(Enum.map(vector, &(&1 * &1))))
+    if magnitude == 0.0, do: vector, else: Enum.map(vector, &(&1 / magnitude))
+  end
+
+  defp distance(left, right) do
+    left
+    |> Enum.zip(right)
+    |> Enum.reduce(0.0, fn {a, b}, total -> total + :math.pow(a - b, 2) end)
+    |> :math.sqrt()
+  end
+end
