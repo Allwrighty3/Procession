@@ -5,7 +5,8 @@ defmodule Procession.Simulation.DevelopmentalField do
   Raw experience activates generic micro-nodes. Generated nodes reactivate before
   plasticity, allowing prior structure to participate in later learning. Edges are
   directed; reciprocal structure develops only when experience strengthens both
-  directions.
+  directions. Plasticity is locally budgeted so simultaneous activity does not
+  automatically connect every active node to every other active node.
   """
 
   defmodule Node do
@@ -38,8 +39,7 @@ defmodule Procession.Simulation.DevelopmentalField do
     edges =
       state.edges
       |> decay_edges(opts)
-      |> strengthen_coactive_edges(active_field, activity, opts)
-      |> strengthen_temporal_edges(previous, rising, activity, opts)
+      |> strengthen_competing_edges(previous, active_field, rising, activity, opts)
 
     recurrence = update_recurrence(state.recurrence, active_field)
 
@@ -152,34 +152,81 @@ defmodule Procession.Simulation.DevelopmentalField do
     |> Map.new()
   end
 
-  defp strengthen_coactive_edges(edges, active, activity, opts) do
-    gain = Keyword.get(opts, :edge_gain, 0.04)
+  defp strengthen_competing_edges(edges, previous, active, rising, current, opts) do
+    source_threshold = Keyword.get(opts, :temporal_source_threshold, 0.18)
 
-    active
-    |> MapSet.to_list()
-    |> directed_pairs()
-    |> Enum.reduce(edges, fn {source, target} = edge, acc ->
-      amount = gain * min(Map.get(activity, source, 0.0), Map.get(activity, target, 0.0))
-      Map.update(acc, edge, amount, &min(3.0, &1 + amount))
+    sources =
+      active
+      |> MapSet.union(
+        previous
+        |> Enum.filter(fn {_id, value} -> value >= source_threshold end)
+        |> Enum.map(&elem(&1, 0))
+        |> MapSet.new()
+      )
+
+    Enum.reduce(sources, edges, fn source, acc ->
+      candidates = plasticity_candidates(source, previous, active, rising, current, opts)
+      reinforce_competitors(acc, source, candidates, source_strength(source, previous, current), opts)
     end)
   end
 
-  defp strengthen_temporal_edges(edges, previous, rising, current, opts) do
-    gain = Keyword.get(opts, :temporal_edge_gain, Keyword.get(opts, :edge_gain, 0.04) * 0.50)
-    threshold = Keyword.get(opts, :temporal_source_threshold, 0.18)
+  defp plasticity_candidates(source, previous, active, rising, current, opts) do
+    coactive_weight = Keyword.get(opts, :coactive_evidence_weight, 1.0)
+    temporal_weight = Keyword.get(opts, :temporal_evidence_weight, 2.0)
 
-    sources = previous |> Enum.filter(fn {_id, value} -> value >= threshold end) |> Enum.map(&elem(&1, 0))
+    coactive =
+      if MapSet.member?(active, source) do
+        active
+        |> Enum.reject(&(&1 == source))
+        |> Map.new(fn target ->
+          {target, coactive_weight * min(Map.get(current, source, 0.0), Map.get(current, target, 0.0))}
+        end)
+      else
+        %{}
+      end
 
-    Enum.reduce(sources, edges, fn source, acc ->
-      Enum.reduce(rising, acc, fn target, inner ->
-        if source == target do
-          inner
+    if Map.get(previous, source, 0.0) > 0.0 do
+      Enum.reduce(rising, coactive, fn target, scores ->
+        if target == source do
+          scores
         else
-          amount = gain * min(Map.get(previous, source, 0.0), Map.get(current, target, 0.0))
-          Map.update(inner, {source, target}, amount, &min(3.0, &1 + amount))
+          evidence = temporal_weight * min(Map.get(previous, source, 0.0), Map.get(current, target, 0.0))
+          Map.update(scores, target, evidence, &(&1 + evidence))
         end
       end)
-    end)
+    else
+      coactive
+    end
+  end
+
+  defp reinforce_competitors(edges, _source, candidates, _source_strength, _opts)
+       when map_size(candidates) == 0,
+       do: edges
+
+  defp reinforce_competitors(edges, source, candidates, source_strength, opts) do
+    fanout = Keyword.get(opts, :plasticity_fanout, 6)
+    budget = Keyword.get(opts, :plasticity_budget, 0.08) * min(source_strength, 1.0)
+
+    selected =
+      candidates
+      |> Enum.filter(fn {_target, score} -> score > 0.0 end)
+      |> Enum.sort_by(fn {target, score} -> {-score, target} end)
+      |> Enum.take(fanout)
+
+    total = Enum.sum(Enum.map(selected, &elem(&1, 1)))
+
+    if total <= 0.0 do
+      edges
+    else
+      Enum.reduce(selected, edges, fn {target, score}, acc ->
+        amount = budget * score / total
+        Map.update(acc, {source, target}, amount, &min(3.0, &1 + amount))
+      end)
+    end
+  end
+
+  defp source_strength(source, previous, current) do
+    max(Map.get(previous, source, 0.0), Map.get(current, source, 0.0))
   end
 
   defp update_recurrence(recurrence, active) do
@@ -207,7 +254,7 @@ defmodule Procession.Simulation.DevelopmentalField do
       reuse: 0, formed_tick: state.tick, formation_coherence: formation_coherence}
 
     # Existing activity produces the generated region. Reverse edges are not
-    # inserted; they can only emerge through later reciprocal coactivation.
+    # inserted; they can only emerge through later reciprocal competition.
     edges = Enum.reduce(active, state.edges, fn member, acc -> Map.put_new(acc, {member, id}, 0.10) end)
 
     %{state |
