@@ -29,8 +29,7 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
 
     baseline_history = stream(ticks, seed, 0)
 
-    clone_runs =
-      Enum.map(1..population, fn _ -> execute(baseline_history, @field_opts) end)
+    clone_runs = Enum.map(1..population, fn _ -> execute(baseline_history, @field_opts) end)
 
     salted_runs =
       Enum.map(1..population, fn entity ->
@@ -38,16 +37,11 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
       end)
 
     varied_runs =
-      Enum.map(1..population, fn entity ->
-        execute(stream(ticks, seed, entity), @field_opts)
-      end)
+      Enum.map(1..population, fn entity -> execute(stream(ticks, seed, entity), @field_opts) end)
 
     salted_varied_runs =
       Enum.map(1..population, fn entity ->
-        execute(
-          stream(ticks, seed, entity),
-          Keyword.put(@field_opts, :encoding_salt, {:entity, entity})
-        )
+        execute(stream(ticks, seed, entity), Keyword.put(@field_opts, :encoding_salt, {:entity, entity}))
       end)
 
     %{
@@ -76,7 +70,6 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
     field = DevelopmentalField.run(inputs, opts)
     nodes = DevelopmentalField.generated_nodes(field)
     threshold = Keyword.fetch!(opts, :consolidation_threshold)
-
     eligible_signatures = Enum.count(field.recurrence, fn {_signature, count} -> count >= threshold end)
     distinct_signatures = map_size(field.recurrence)
 
@@ -123,9 +116,7 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
     }
   end
 
-  defp generated_support_count(node, micro_nodes) do
-    Enum.count(node.support, &(&1 >= micro_nodes))
-  end
+  defp generated_support_count(node, micro_nodes), do: Enum.count(node.support, &(&1 >= micro_nodes))
 
   defp generated_edge_count(field) do
     Enum.count(field.edges, fn {{source, target}, _weight} ->
@@ -133,10 +124,7 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
     end)
   end
 
-  defp support_similarity(left, right) do
-    directional_support_similarity(left.nodes, right.nodes)
-  end
-
+  defp support_similarity(left, right), do: directional_support_similarity(left.nodes, right.nodes)
   defp directional_support_similarity([], []), do: 1.0
   defp directional_support_similarity([], _), do: 0.0
   defp directional_support_similarity(_, []), do: 0.0
@@ -156,14 +144,13 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
   end
 
   defp profile_similarity(left, right) do
-    components = [
+    [
       sequence_similarity(left.profile.support_sizes, right.profile.support_sizes),
       sequence_similarity(left.profile.hierarchy, right.profile.hierarchy),
       sequence_similarity(left.profile.formed, right.profile.formed),
       1.0 - abs(left.profile.generated_edge_density - right.profile.generated_edge_density)
     ]
-
-    mean(components)
+    |> mean()
   end
 
   defp sequence_similarity(left, right) do
@@ -182,8 +169,8 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
   end
 
   defp pair_mean(runs, comparer) do
-    pairs = for {left, index} <- Enum.with_index(runs), right <- Enum.drop(runs, index + 1), do: comparer.(left, right)
-    mean(pairs)
+    for({left, index} <- Enum.with_index(runs), right <- Enum.drop(runs, index + 1), do: comparer.(left, right))
+    |> mean()
   end
 
   defp stream(ticks, seed, entity_variation) do
@@ -194,7 +181,6 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
         contact? = rem(local_tick, 48) in 0..5
         cue = caregiver_cue(local_tick)
         motor = motor_output(state, tick, seed + entity_variation)
-
         capacity = clamp(state.capacity - 0.010 + if(contact?, do: 0.22, else: 0.0))
         temperature = clamp(state.temperature - 0.012 + if(contact?, do: 0.25, else: 0.0))
 
@@ -241,7 +227,6 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
   defp trend(delta) when delta < -0.015, do: :falling
   defp trend(_delta), do: :stable
   defp clamp(value), do: value |> max(0.0) |> min(1.0)
-
   defp ratio(_numerator, 0), do: 0.0
   defp ratio(numerator, denominator), do: numerator / denominator
   defp mean([]), do: 0.0
@@ -251,7 +236,8 @@ defmodule Procession.Simulation.DevelopmentalPopulationExperiment do
 
   defp jaccard(left, right) do
     union = MapSet.union(left, right) |> MapSet.size()
-    if union == 0, do: 1.0, else: MapSet.intersection(left, right) |> MapSet.size() / union
+    intersection = MapSet.intersection(left, right) |> MapSet.size()
+    if union == 0, do: 1.0, else: intersection / union
   end
 
   defp group_line(name, group) do
