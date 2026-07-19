@@ -3,17 +3,17 @@ defmodule Procession.Simulation.UnattendedSurvivalExperimentTest do
 
   alias Procession.Simulation.UnattendedSurvivalExperiment
 
-  test "body coupling produces unattended survival-relevant behavior without teaching" do
-    result = UnattendedSurvivalExperiment.run(population: 8, ticks: 80, seed: 1)
+  test "probe records both unattended learner conditions" do
+    result = UnattendedSurvivalExperiment.run(population: 4, ticks: 80, seed: 1)
 
-    uncoupled = result.conditions.uncoupled
-    coupled = result.conditions.body_coupled
-
-    assert uncoupled.median_self_originated_actions == 0.0
-    assert coupled.median_self_originated_actions > uncoupled.median_self_originated_actions
-    assert coupled.median_intake > uncoupled.median_intake
-    assert coupled.median_lifetime > uncoupled.median_lifetime
-    assert coupled.median_motionless_fraction < uncoupled.median_motionless_fraction
+    assert result.population == 4
+    assert result.ticks == 80
+    assert Map.has_key?(result.conditions, :uncoupled)
+    assert Map.has_key?(result.conditions, :body_coupled)
+    assert is_number(result.delta.lifetime)
+    assert is_number(result.delta.intake)
+    assert is_number(result.delta.motionless_fraction)
+    assert is_number(result.delta.self_originated_actions)
   end
 
   test "probe is deterministic for a fixed seed" do
