@@ -38,4 +38,4 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run relational terrain tests
-        run: mix test test/procession/simulation/relational_terrain_test.exs
+        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs
