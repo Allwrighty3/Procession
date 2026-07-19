@@ -39,8 +39,14 @@ defmodule Procession.Simulation.TaskLocalTeachingController do
 
     urgency = urgency(state.arousal, state.disturbance_age)
     deterioration = deterioration(state.arousal - Map.get(state, :previous_arousal, state.arousal))
-    viable_options_remaining? = state.active_problem? and distinct_self_actions < length(@self_actions)
-    exploring? = distinct_self_actions >= 2 or (distinct_self_actions == 1 and state.teacher.stalled_attempts < 2)
+
+    viable_options_remaining? =
+      state.active_problem? and
+        (progress == :partial or distinct_self_actions < length(@self_actions))
+
+    exploring? =
+      distinct_self_actions >= 2 or
+        (distinct_self_actions == 1 and state.teacher.stalled_attempts < 2)
 
     productive_struggle? =
       state.active_problem? and
