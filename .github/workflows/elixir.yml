@@ -39,7 +39,17 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run tests
-        run: mix test
+        shell: bash
+        run: |
+          set -o pipefail
+          mix test 2>&1 | tee full-test-output.txt
+
+      - name: Upload full test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-output
+          path: full-test-output.txt
 
       - name: Run unattended learner survival probe
         run: mix procession.metrics.unattended_survival --population 32 --ticks 80 --seed 1 --output unattended-survival-metrics.txt
