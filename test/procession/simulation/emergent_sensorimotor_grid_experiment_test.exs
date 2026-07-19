@@ -74,21 +74,24 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperimentTest do
     assert depleted_pressure > fed_pressure
   end
 
-  test "appetitive coupling can produce intake without an entity-facing consume action" do
+  test "appetitive coupling remains semantic-free even when intake is not yet discovered" do
     state = Experiment.run(ticks: 320)
     metrics = Experiment.instrumentation(state)
+    text = inspect(Enum.reverse(state.sensory_history))
 
-    assert Map.get(metrics.world_effects, :intake, 0) > 0
-    assert metrics.intake > 0.0
+    assert metrics.mouth_watering > 0.0
+    assert Map.get(metrics.output_usage, 4, 0) > 0
+    refute text =~ "consume"
+    refute text =~ "intake"
   end
 
-  test "raw multisensory experience produces compression candidates" do
+  test "cooccurring multisensory ticks do not create serialization assemblies" do
     state = Experiment.run(ticks: 320)
     metrics = Experiment.instrumentation(state)
 
-    assert metrics.tracked_motifs > 0
-    assert metrics.assembly_count > 0
-    assert metrics.transitions_saved > 0
+    assert metrics.detailed_transitions == state.tick - 1
+    assert metrics.assembly_count == 0
+    assert metrics.transitions_saved == 0
   end
 
   test "run is deterministic for the same options" do
