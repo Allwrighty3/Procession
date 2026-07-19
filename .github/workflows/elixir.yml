@@ -41,6 +41,9 @@ jobs:
       - name: Run tests
         run: mix test
 
+      - name: Run unattended learner survival probe
+        run: mix procession.metrics.unattended_survival --population 32 --ticks 240 --seed 1 --output unattended-survival-metrics.txt
+
       - name: Run short developmental smoke probe
         run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
 
@@ -55,6 +58,7 @@ jobs:
         with:
           name: simulation-metrics
           path: |
+            unattended-survival-metrics.txt
             developmental-stream-metrics.txt
             compression-cost-metrics.txt
             developmental-tendencies-metrics.txt
