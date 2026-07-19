@@ -122,8 +122,7 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
   defp discover(counts, opts) do
     thresholds = Keyword.get(opts, :assembly_occurrence_thresholds, @default_thresholds)
 
-    counts
-    |> Enum.reduce(%{}, fn {motif, occurrences}, acc ->
+    Enum.reduce(counts, %{}, fn {motif, occurrences}, acc ->
       members = Tuple.to_list(motif)
       size = length(members)
       threshold = Map.get(thresholds, size, :infinity)
@@ -150,8 +149,15 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
     state
     |> assemblies()
     |> Enum.reject(fn assembly -> Enum.any?(assembly.members, &MapSet.member?(disturbed, &1)) end)
-    |> Map.new(fn assembly -> {hd(assembly.members), assembly} end, fn _key, left, right ->
-      if left.size >= right.size, do: left, else: right
+    |> Enum.reduce(%{}, fn assembly, registry ->
+      Map.update(registry, hd(assembly.members), assembly, fn current ->
+        if assembly.size > current.size or
+             (assembly.size == current.size and assembly.occurrences > current.occurrences) do
+          assembly
+        else
+          current
+        end
+      end)
     end)
   end
 
