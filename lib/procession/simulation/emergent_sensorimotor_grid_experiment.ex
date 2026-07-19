@@ -179,12 +179,18 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     retention = Keyword.get(opts, :output_retention, 0.55)
     exploration = Keyword.get(opts, :exploration, 0.24)
     urgency = 1.0 - senses.energy
+    motor_quieting = Keyword.get(opts, :visceral_motor_quieting, 0.72)
 
     Map.new(@channels, fn channel ->
       prior = Map.fetch!(state.outputs, channel) * retention
       learned = Map.get(state.tendencies, {context, channel}, 0.0) * urgency
       fluctuation = centered({tick, channel, state.hidden_position}) * exploration
-      visceral_bias = if channel == 4, do: mouth_watering, else: 0.0
+
+      visceral_bias =
+        if channel == 4,
+          do: mouth_watering,
+          else: -mouth_watering * motor_quieting
+
       {channel, clamp(prior + learned + fluctuation + visceral_bias)}
     end)
   end
@@ -221,7 +227,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   end
 
   defp hidden_intake(resources, position, pressure, senses, opts) do
-    threshold = Keyword.get(opts, :intake_threshold, 0.20)
+    threshold = Keyword.get(opts, :intake_threshold, 0.18)
     capacity = Keyword.get(opts, :intake_rate, 0.18) * pressure * (1.0 - senses.energy)
 
     Enum.map_reduce(resources, 0.0, fn resource, total ->
@@ -236,10 +242,16 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
 
   defp mouth_watering(senses, opts) do
     urgency = 1.0 - senses.energy
+    ambient_gain = Keyword.get(opts, :ambient_mouth_watering_gain, 0.32)
     contact_gain = Keyword.get(opts, :contact_mouth_watering_gain, 1.60)
     approach_gain = Keyword.get(opts, :approach_mouth_watering_gain, 0.70)
     rising_signal = max(0.0, senses.ambient_change) + max(0.0, senses.contact_change) * 1.5
-    clamp(urgency * (senses.contact * contact_gain + rising_signal * approach_gain))
+
+    clamp(
+      urgency *
+        (senses.ambient * ambient_gain + senses.contact * contact_gain +
+           rising_signal * approach_gain)
+    )
   end
 
   defp appetitive_feedback(before, sensed_after, opts) do
