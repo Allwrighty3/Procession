@@ -1,13 +1,15 @@
 defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   @moduledoc """
-  Hidden 4x4 physics coupled to an entity that receives only basic continuous senses
-  and emits anonymous actuator pressures. Coordinates, directions, resources, actions,
-  and locations are world-side evaluation concepts and never enter learning or compression.
+  Hidden 4x4 physics coupled to an entity that receives continuous, uninterpreted
+  sensory channels and emits anonymous actuator pressures. Coordinates, directions,
+  resources, actions, and locations remain world-side evaluation concepts.
   """
 
   alias Procession.Simulation.RelationalTerrainNaturalCompression, as: Compression
 
   @channels 0..4
+  @visual_channels 0..15
+  @impact_channels 0..3
 
   defmodule Resource do
     @moduledoc false
@@ -24,6 +26,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
               outputs: %{},
               tendencies: %{},
               previous_senses: nil,
+              proprioception: {0.0, 0.0},
+              impact: %{},
               compression: nil,
               sensory_history: [],
               hidden_history: [],
@@ -51,6 +55,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       resources: Keyword.get(opts, :resources, default_resources()),
       outputs: Map.new(@channels, &{&1, 0.0}),
       tendencies: %{},
+      impact: Map.new(@impact_channels, &{&1, 0.0}),
       compression: Compression.new(compression_opts)
     }
 
@@ -78,6 +83,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       hidden_cells_visited: map_size(state.visits),
       output_usage: output_usage(state.hidden_history),
       world_effects: world_effects(state.hidden_history),
+      boundary_impacts: boundary_impacts(state.hidden_history),
+      visual_channels: 16,
       detailed_transitions: plan.detailed_transitions,
       effective_transitions: plan.effective_transitions,
       transitions_saved: plan.transitions_saved,
@@ -89,22 +96,47 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
 
   defp advance(state, tick, opts, compression_opts) do
     resources = regenerate(state.resources)
-    before = senses(state.hidden_position, state.energy, state.strain, resources, state.previous_senses)
+
+    before =
+      senses(
+        state.hidden_position,
+        state.energy,
+        state.strain,
+        resources,
+        state.previous_senses,
+        state.proprioception,
+        state.impact
+      )
+
     context = context_signature(before)
     mouth_watering = mouth_watering(before, opts)
     outputs = emit_outputs(state, context, before, mouth_watering, tick, opts)
 
-    {position, resources, intake, resistance, hidden_effect} =
+    {position, resources, intake, resistance, impact, hidden_effect} =
       apply_body(outputs, state.hidden_position, resources, before, opts)
 
+    proprioception = displacement(state.hidden_position, position)
     moved = position != state.hidden_position
     strain = update_strain(state.strain, outputs, moved, opts)
     energy = clamp(state.energy - Keyword.get(opts, :metabolic_cost, 0.009) - output_cost(outputs, opts) + intake)
-    sensed_after = senses(position, energy, strain, resources, before)
+
+    sensed_after =
+      senses(position, energy, strain, resources, before, proprioception, impact)
+
     appetitive_feedback = appetitive_feedback(before, sensed_after, opts)
     reward = learning_feedback(before, sensed_after, resistance, strain, appetitive_feedback)
     tendencies = update_tendencies(state.tendencies, context, outputs, reward, opts)
-    tokens = sensorimotor_tokens(before, outputs, sensed_after, resistance, appetitive_feedback, mouth_watering)
+
+    tokens =
+      sensorimotor_tokens(
+        before,
+        outputs,
+        sensed_after,
+        resistance,
+        appetitive_feedback,
+        mouth_watering
+      )
+
     compression = Enum.reduce(tokens, state.compression, &Compression.observe(&2, &1, compression_opts))
 
     %{state |
@@ -116,6 +148,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       outputs: outputs,
       tendencies: tendencies,
       previous_senses: sensed_after,
+      proprioception: proprioception,
+      impact: impact,
       compression: compression,
       sensory_history: Enum.reverse(tokens) ++ state.sensory_history,
       hidden_history: [
@@ -125,6 +159,9 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
           outputs: outputs,
           effect: hidden_effect,
           intake: intake,
+          resistance: resistance,
+          impact: impact,
+          proprioception: proprioception,
           appetitive_feedback: appetitive_feedback,
           mouth_watering: mouth_watering
         }
@@ -138,7 +175,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     }
   end
 
-  defp senses(position, energy, strain, resources, previous) do
+  defp senses(position, energy, strain, resources, previous, proprioception, impact) do
     contact =
       resources
       |> Enum.filter(&(&1.position == position))
@@ -152,8 +189,10 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       |> Enum.sum()
       |> clamp()
 
+    vision = panoramic_vision(position, resources)
     previous_ambient = if previous, do: previous.ambient, else: ambient
     previous_contact = if previous, do: previous.contact, else: contact
+    previous_vision = if previous, do: previous.vision, else: vision
 
     %{
       energy: energy,
@@ -161,17 +200,55 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       contact: contact,
       ambient: ambient,
       ambient_change: ambient - previous_ambient,
-      contact_change: contact - previous_contact
+      contact_change: contact - previous_contact,
+      vision: vision,
+      visual_change: visual_change(vision, previous_vision),
+      proprioception: proprioception,
+      impact: impact
     }
   end
 
+  # A fixed panoramic receptor sheet. Channel indexes are available to the body,
+  # but no coordinate, object, resource, or location interpretation is supplied.
+  defp panoramic_vision(position, resources) do
+    Map.new(@visual_channels, fn channel ->
+      cell = {rem(channel, 4), div(channel, 4)}
+
+      external =
+        resources
+        |> Enum.filter(&(&1.position == cell))
+        |> Enum.map(& &1.amount)
+        |> Enum.sum()
+
+      body_contrast = if cell == position, do: 0.28, else: 0.0
+      {channel, clamp(0.04 + external * 0.82 + body_contrast)}
+    end)
+  end
+
+  defp visual_change(current, previous) do
+    Enum.reduce(@visual_channels, 0.0, fn channel, total ->
+      total + abs(Map.fetch!(current, channel) - Map.fetch!(previous, channel))
+    end)
+    |> Kernel./(16.0)
+    |> clamp()
+  end
+
   defp context_signature(senses) do
+    visual_signature =
+      @visual_channels
+      |> Enum.map(&bin(Map.fetch!(senses.vision, &1)))
+      |> List.to_tuple()
+
     {
       bin(senses.energy),
       bin(senses.contact),
       bin(senses.ambient),
       signed_bin(senses.ambient_change),
-      bin(senses.strain)
+      bin(senses.strain),
+      signed_bin(elem(senses.proprioception, 0)),
+      signed_bin(elem(senses.proprioception, 1)),
+      bin(max_impact(senses.impact)),
+      visual_signature
     }
   end
 
@@ -179,19 +256,13 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     retention = Keyword.get(opts, :output_retention, 0.55)
     exploration = Keyword.get(opts, :exploration, 0.24)
     urgency = 1.0 - senses.energy
-    contact_quieting_gain = Keyword.get(opts, :contact_motor_quieting, 1.05)
-    contact_quieting = senses.contact * urgency * contact_quieting_gain
+    contact_quieting = senses.contact * urgency * Keyword.get(opts, :contact_motor_quieting, 1.05)
 
     Map.new(@channels, fn channel ->
       prior = Map.fetch!(state.outputs, channel) * retention
       learned = Map.get(state.tendencies, {context, channel}, 0.0) * urgency
       fluctuation = centered({tick, channel, state.hidden_position}) * exploration
-
-      visceral_bias =
-        if channel == 4,
-          do: mouth_watering,
-          else: -contact_quieting
-
+      visceral_bias = if channel == 4, do: mouth_watering, else: -contact_quieting
       {channel, clamp(prior + learned + fluctuation + visceral_bias)}
     end)
   end
@@ -202,29 +273,34 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     vertical = Map.fetch!(outputs, 2) - Map.fetch!(outputs, 3)
     threshold = Keyword.get(opts, :actuator_threshold, 0.18)
 
-    {position, effect, resistance} =
+    {position, effect, resistance, impact} =
       cond do
         abs(horizontal) >= abs(vertical) and abs(horizontal) > threshold ->
-          direction = if horizontal > 0.0, do: :east, else: :west
-          move_hidden(position, direction)
+          hidden_direction = if horizontal > 0.0, do: :east, else: :west
+          move_hidden(position, hidden_direction)
 
         abs(vertical) > threshold ->
-          direction = if vertical > 0.0, do: :south, else: :north
-          move_hidden(position, direction)
+          hidden_direction = if vertical > 0.0, do: :south, else: :north
+          move_hidden(position, hidden_direction)
 
         true ->
-          {position, :no_displacement, 0.0}
+          {position, :no_displacement, 0.0, empty_impact()}
       end
 
     intake_pressure = Map.fetch!(outputs, 4)
     {resources, intake} = hidden_intake(resources, position, intake_pressure, senses, opts)
     hidden_effect = if intake > 0.0, do: :intake, else: effect
-    {position, resources, intake, resistance, hidden_effect}
+    {position, resources, intake, resistance, impact, hidden_effect}
   end
 
-  defp move_hidden(position, direction) do
-    next = step(position, direction)
-    if next == position, do: {position, :resisted, 1.0}, else: {next, :displaced, 0.0}
+  defp move_hidden(position, hidden_direction) do
+    next = step(position, hidden_direction)
+
+    if next == position do
+      {position, :resisted, 1.0, impact_for(hidden_direction)}
+    else
+      {next, :displaced, 0.0, empty_impact()}
+    end
   end
 
   defp hidden_intake(resources, position, pressure, senses, opts) do
@@ -272,7 +348,6 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   defp update_tendencies(tendencies, context, outputs, reward, opts) do
     retention = Keyword.get(opts, :tendency_retention, 0.997)
     rate = Keyword.get(opts, :tendency_rate, 0.22)
-
     decayed = Map.new(tendencies, fn {key, value} -> {key, value * retention} end)
 
     Enum.reduce(@channels, decayed, fn channel, acc ->
@@ -283,30 +358,39 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     end)
   end
 
-  defp sensorimotor_tokens(
-         before,
-         outputs,
-         sensed_after,
-         resistance,
-         appetitive_feedback,
-         mouth_watering
-       ) do
-    [
+  defp sensorimotor_tokens(before, outputs, sensed_after, resistance, appetitive_feedback, mouth_watering) do
+    basic = [
       {:sense, :energy, bin(before.energy)},
       {:sense, :contact, bin(before.contact)},
       {:sense, :ambient, bin(before.ambient)},
       {:sense, :change, signed_bin(before.ambient_change)},
-      {:sense, :strain, bin(before.strain)}
-    ] ++
-      Enum.map(@channels, fn channel -> {:output, channel, bin(Map.fetch!(outputs, channel))} end) ++
-      [
-        {:sense, :energy_delta, signed_bin(sensed_after.energy - before.energy)},
-        {:sense, :ambient_delta, signed_bin(sensed_after.ambient - before.ambient)},
-        {:sense, :contact_delta, signed_bin(sensed_after.contact - before.contact)},
-        {:sense, :appetitive_feedback, signed_bin(appetitive_feedback)},
-        {:sense, :visceral_pressure, bin(mouth_watering)},
-        {:sense, :resistance, bin(resistance)}
-      ]
+      {:sense, :strain, bin(before.strain)},
+      {:sense, :proprioception, 0, signed_bin(elem(before.proprioception, 0))},
+      {:sense, :proprioception, 1, signed_bin(elem(before.proprioception, 1))}
+    ]
+
+    vision = Enum.map(@visual_channels, fn channel ->
+      {:sense, :vision, channel, bin(Map.fetch!(before.vision, channel))}
+    end)
+
+    impacts = Enum.map(@impact_channels, fn channel ->
+      {:sense, :impact, channel, bin(Map.fetch!(before.impact, channel))}
+    end)
+
+    outputs_tokens =
+      Enum.map(@channels, fn channel -> {:output, channel, bin(Map.fetch!(outputs, channel))} end)
+
+    consequences = [
+      {:sense, :energy_delta, signed_bin(sensed_after.energy - before.energy)},
+      {:sense, :ambient_delta, signed_bin(sensed_after.ambient - before.ambient)},
+      {:sense, :contact_delta, signed_bin(sensed_after.contact - before.contact)},
+      {:sense, :visual_change, bin(sensed_after.visual_change)},
+      {:sense, :appetitive_feedback, signed_bin(appetitive_feedback)},
+      {:sense, :visceral_pressure, bin(mouth_watering)},
+      {:sense, :resistance, bin(resistance)}
+    ]
+
+    basic ++ vision ++ impacts ++ outputs_tokens ++ consequences
   end
 
   defp output_usage(history) do
@@ -320,6 +404,16 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   end
 
   defp world_effects(history), do: history |> Enum.map(& &1.effect) |> Enum.frequencies()
+
+  defp boundary_impacts(history) do
+    Enum.reduce(history, Map.new(@impact_channels, &{&1, 0}), fn event, counts ->
+      Enum.reduce(@impact_channels, counts, fn channel, acc ->
+        if Map.fetch!(event.impact, channel) > 0.0,
+          do: Map.update!(acc, channel, &(&1 + 1)),
+          else: acc
+      end)
+    end)
+  end
 
   defp update_strain(value, outputs, moved, opts) do
     effort = Enum.sum(Map.values(outputs)) / 5.0
@@ -348,6 +442,14 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
 
   defp regenerate(resources),
     do: Enum.map(resources, &%{&1 | amount: min(&1.capacity, &1.amount + &1.regen)})
+
+  defp displacement({x1, y1}, {x2, y2}), do: {(x2 - x1) * 1.0, (y2 - y1) * 1.0}
+  defp empty_impact, do: Map.new(@impact_channels, &{&1, 0.0})
+  defp impact_for(:north), do: Map.put(empty_impact(), 0, 1.0)
+  defp impact_for(:south), do: Map.put(empty_impact(), 1, 1.0)
+  defp impact_for(:east), do: Map.put(empty_impact(), 2, 1.0)
+  defp impact_for(:west), do: Map.put(empty_impact(), 3, 1.0)
+  defp max_impact(impact), do: impact |> Map.values() |> Enum.max(fn -> 0.0 end)
 
   defp step({x, y}, :north), do: {x, max(0, y - 1)}
   defp step({x, y}, :south), do: {x, min(3, y + 1)}
