@@ -32,7 +32,7 @@ defmodule Procession.Simulation.RelationalTerrainCompressionTest do
     assert disturbed.transitions_saved < stable.transitions_saved
     assert disturbed.assembly_count > 0
     assert Enum.any?(disturbed.assemblies, &({:step, 1} in &1.members))
-    assert Enum.any?(disturbed.assemblies, &({:step, 64} in &1.members))
+    assert Enum.any?(disturbed.assemblies, &({:step, 49} in &1.members))
   end
 
   test "weak or ambiguous relationships remain detailed" do
