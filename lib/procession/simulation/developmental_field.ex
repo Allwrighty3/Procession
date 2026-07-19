@@ -15,6 +15,7 @@ defmodule Procession.Simulation.DevelopmentalField do
   defmodule State do
     @moduledoc false
     defstruct tick: 0,
+              micro_nodes: 0,
               next_id: 0,
               nodes: %{},
               edges: %{},
@@ -32,11 +33,11 @@ defmodule Procession.Simulation.DevelopmentalField do
         {id, %Node{id: id, kind: :micro}}
       end)
 
-    %State{next_id: count, nodes: nodes}
+    %State{micro_nodes: count, next_id: count, nodes: nodes}
   end
 
   def step(%State{} = state, input, opts \\ []) do
-    active = encode(input, map_size(state.nodes), opts)
+    active = encode(input, state.micro_nodes, opts)
     activity = update_activity(state.activity, active, opts)
     edges = strengthen_edges(state.edges, active, opts)
     recurrence = update_recurrence(state.recurrence, active)
@@ -68,11 +69,11 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   def edge_mass(edges), do: edges |> Map.values() |> Enum.sum()
 
-  defp encode(input, total_nodes, opts) do
+  defp encode(input, micro_nodes, opts) do
     width = Keyword.get(opts, :input_width, 5)
 
     0..(width - 1)
-    |> Enum.map(fn offset -> :erlang.phash2({input, offset}, total_nodes) end)
+    |> Enum.map(fn offset -> :erlang.phash2({input, offset}, micro_nodes) end)
     |> MapSet.new()
   end
 
