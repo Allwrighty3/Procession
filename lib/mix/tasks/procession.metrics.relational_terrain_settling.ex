@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
   alias Procession.Simulation.RelationalTerrain
   alias Procession.Simulation.RelationalTerrainSettling
 
-  @shortdoc "Measures local terrain relaxation quality and cost"
+  @shortdoc "Measures local terrain relaxation quality, cost, and destination behavior"
 
   @impl Mix.Task
   def run(_args) do
@@ -32,7 +32,11 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
           "residual_after=#{format(metrics.residual_after)}",
           "reduction_pct=#{format(metrics.residual_reduction * 100.0)}",
           "elapsed_us=#{metrics.elapsed_microseconds}",
-          "replay_score=#{format(metrics.replay_score)}"
+          "destination_reached=#{metrics.destination_reached}",
+          "arrival_tick=#{format_tick(metrics.arrival_tick)}",
+          "destination_peak=#{format(metrics.peak_destination_activation)}",
+          "destination_cumulative=#{format(metrics.cumulative_destination_activation)}",
+          "peak_active_regions=#{metrics.peak_active_regions}"
         ], " ")
       )
     end)
@@ -63,10 +67,11 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
         relaxer_opts: [iterations: 8, rate: 0.25]
       )
 
-    Map.merge(metrics, %{
-      stored_regions: RelationalTerrain.region_count(terrain),
-      replay_score: replay_score(terrain, route, opts)
-    })
+    behavior = destination_behavior(terrain, hd(route), List.last(route), length(route) + 8, opts)
+
+    metrics
+    |> Map.merge(behavior)
+    |> Map.put(:stored_regions, RelationalTerrain.region_count(terrain))
   end
 
   defp train(route, repetitions, opts) do
@@ -76,19 +81,40 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
     end)
   end
 
-  defp replay_score(terrain, route, opts) do
-    [first | expected] = route
-    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(first, opts)
+  defp destination_behavior(terrain, cue, destination, horizon, opts) do
+    threshold = 0.03
+    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(cue, opts)
 
-    {_terrain, hits} =
-      Enum.reduce(expected, {terrain, 0}, fn expected_observation, {current, hits} ->
-        next = RelationalTerrain.advance(current, opts)
-        activation = RelationalTerrain.activation(next, expected_observation)
-        {next, hits + if(activation > 0.03, do: 1, else: 0)}
+    result =
+      Enum.reduce(1..horizon, %{
+        terrain: terrain,
+        arrival_tick: nil,
+        peak_destination_activation: 0.0,
+        cumulative_destination_activation: 0.0,
+        peak_active_regions: RelationalTerrain.active_region_count(terrain)
+      }, fn tick, acc ->
+        next = RelationalTerrain.advance(acc.terrain, opts)
+        activation = RelationalTerrain.activation(next, destination)
+
+        %{
+          terrain: next,
+          arrival_tick: acc.arrival_tick || if(activation >= threshold, do: tick),
+          peak_destination_activation: max(acc.peak_destination_activation, activation),
+          cumulative_destination_activation: acc.cumulative_destination_activation + activation,
+          peak_active_regions: max(acc.peak_active_regions, RelationalTerrain.active_region_count(next))
+        }
       end)
 
-    hits / max(length(expected), 1)
+    %{
+      destination_reached: not is_nil(result.arrival_tick),
+      arrival_tick: result.arrival_tick,
+      peak_destination_activation: result.peak_destination_activation,
+      cumulative_destination_activation: result.cumulative_destination_activation,
+      peak_active_regions: result.peak_active_regions
+    }
   end
 
+  defp format_tick(nil), do: "none"
+  defp format_tick(tick), do: Integer.to_string(tick)
   defp format(value), do: :erlang.float_to_binary(value * 1.0, decimals: 4)
 end
