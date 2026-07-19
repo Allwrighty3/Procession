@@ -41,76 +41,20 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run 100-sample causal attribution metrics
-        run: mix procession.metrics.independent_change --samples 100 --ticks 220 | tee independent-change-metrics.txt
-
-      - name: Run 100-sample association reversal metrics
-        run: mix procession.metrics.association_reversal --samples 100 --ticks 180 --reversal-tick 90 | tee association-reversal-metrics.txt
-
-      - name: Run 100-sample motor competition metrics
-        run: mix procession.metrics.motor_competition --samples 100 --ticks 180 --reversal-tick 90 | tee motor-competition-metrics.txt
-
-      - name: Run 100-sample refractory plasticity metrics
-        run: mix procession.metrics.refractory_plasticity --samples 100 --ticks 180 --reversal-tick 90 | tee refractory-plasticity-metrics.txt
-
-      - name: Run 100-sample motor-plasticity factorial metrics
-        run: mix procession.metrics.motor_plasticity_factorial --samples 100 --ticks 180 --reversal-tick 90 | tee motor-plasticity-factorial-metrics.txt
-
-      - name: Run 100-sample stable retention factorial metrics
-        run: mix procession.metrics.stable_retention_factorial --samples 100 --ticks 220 | tee stable-retention-factorial-metrics.txt
-
-      - name: Run 100-sample closed grid world metrics
-        run: mix procession.metrics.closed_grid_world --samples 100 --ticks 320 | tee closed-grid-world-metrics.txt
-
-      - name: Run parent-guided versus no-parent development metrics
-        run: mix procession.metrics.parent_guided_development --samples 20 --ticks 1500 --output parent-guided-development-metrics.txt
-
-      - name: Run embodied caregiver regulation metrics
-        run: mix procession.metrics.embodied_attachment --samples 20 --ticks 1800
-
-      - name: Run responsive parent development metrics
-        run: mix procession.metrics.responsive_parent --samples 20 --ticks 1800 --output responsive-parent-metrics.txt
-
-      - name: Run relational field attachment metrics
-        run: mix procession.metrics.relational_attachment --samples 20 --ticks 1800 --output relational-attachment-metrics.txt
-
-      - name: Observe developmental stream structure
-        run: mix procession.metrics.developmental_stream --ticks 720 --seed 1 --output developmental-stream-metrics.txt
-
-      - name: Compare developmental structure origins
-        run: mix procession.metrics.developmental_origin --ticks 720 --seed 1 --output developmental-origin-metrics.txt
-
-      - name: Probe extended temporal emergence
-        run: mix procession.metrics.developmental_temporal_probe --seed 1 --output developmental-temporal-probe-metrics.txt
-
-      - name: Compare developmental populations
-        run: mix procession.metrics.developmental_population --population 8 --ticks 2880 --seed 1 --output developmental-population-metrics.txt
+      - name: Run short developmental smoke probe
+        run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
 
       - name: Measure compression computational cost
-        run: mix procession.metrics.compression_cost --ticks 2880 --samples 5 --seed 1 --output compression-cost-metrics.txt
+        run: mix procession.metrics.compression_cost --ticks 1440 --samples 3 --seed 1 --output compression-cost-metrics.txt
 
-      - name: Run closed-loop developmental tendencies
-        run: mix procession.metrics.developmental_tendencies --population 20 --phase-ticks 2000 --seed 1 --output developmental-tendencies-metrics.txt
+      - name: Run active developmental tendencies experiment
+        run: mix procession.metrics.developmental_tendencies --population 8 --phase-ticks 1000 --seed 1 --output developmental-tendencies-metrics.txt
 
-      - name: Upload simulation metrics
+      - name: Upload active simulation metrics
         uses: actions/upload-artifact@v4
         with:
           name: simulation-metrics
           path: |
-            independent-change-metrics.txt
-            association-reversal-metrics.txt
-            motor-competition-metrics.txt
-            refractory-plasticity-metrics.txt
-            motor-plasticity-factorial-metrics.txt
-            stable-retention-factorial-metrics.txt
-            closed-grid-world-metrics.txt
-            parent-guided-development-metrics.txt
-            embodied-attachment-metrics.txt
-            responsive-parent-metrics.txt
-            relational-attachment-metrics.txt
             developmental-stream-metrics.txt
-            developmental-origin-metrics.txt
-            developmental-temporal-probe-metrics.txt
-            developmental-population-metrics.txt
             compression-cost-metrics.txt
             developmental-tendencies-metrics.txt
