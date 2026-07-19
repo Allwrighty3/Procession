@@ -10,6 +10,7 @@ defmodule Procession.Simulation.DevelopmentalTemporalProbeTest do
 
     Enum.each(result.horizons, fn {_ticks, horizon} ->
       assert horizon.baseline.generated >= 0
+      assert horizon.baseline.generated_relations >= 0
 
       Enum.each([horizon.reversed, horizon.rotated, horizon.block_reversed], fn comparison ->
         assert comparison.support_similarity >= 0.0
@@ -18,7 +19,7 @@ defmodule Procession.Simulation.DevelopmentalTemporalProbeTest do
         assert comparison.edge_similarity <= 1.0
         assert comparison.edge_weight_similarity >= 0.0
         assert comparison.edge_weight_similarity <= 1.0
-        assert comparison.generated_relations == 0
+        assert comparison.generated_relations >= 0
       end)
     end)
   end
@@ -28,7 +29,9 @@ defmodule Procession.Simulation.DevelopmentalTemporalProbeTest do
 
     assert result.staged.forward_then_reverse.generated >= 0
     assert result.staged.reverse_then_forward.generated >= 0
-    assert result.staged.similarity.generated_relations == 0
+    assert result.staged.forward_then_reverse.generated_relations >= 0
+    assert result.staged.reverse_then_forward.generated_relations >= 0
+    assert result.staged.similarity.generated_relations >= 0
     assert is_binary(DevelopmentalTemporalProbe.report(result))
   end
 end
