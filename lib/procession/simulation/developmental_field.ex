@@ -82,8 +82,10 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp encode(input, micro_nodes, opts) do
     width = Keyword.get(opts, :input_width, 5)
+    salt = Keyword.get(opts, :encoding_salt, :shared)
+
     0..(width - 1)
-    |> Enum.map(fn offset -> :erlang.phash2({input, offset}, micro_nodes) end)
+    |> Enum.map(fn offset -> :erlang.phash2({salt, input, offset}, micro_nodes) end)
     |> MapSet.new()
   end
 
