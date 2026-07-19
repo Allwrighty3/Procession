@@ -38,7 +38,7 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run relational terrain tests
-        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs test/procession/simulation/relational_terrain_natural_compression_test.exs test/procession/simulation/closed_grid_action_compression_experiment_test.exs 2>&1 | tee relational-terrain-tests.txt
+        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs test/procession/simulation/relational_terrain_natural_compression_test.exs test/procession/simulation/closed_grid_action_compression_experiment_test.exs test/procession/simulation/emergent_sensorimotor_grid_experiment_test.exs 2>&1 | tee relational-terrain-tests.txt
 
       - name: Upload test output
         if: always()
@@ -90,3 +90,14 @@ jobs:
         with:
           name: closed-grid-action-compression-metrics
           path: closed-grid-action-compression-metrics.txt
+
+      - name: Run emergent sensorimotor grid metrics
+        if: always()
+        run: mix procession.metrics.emergent_sensorimotor_grid | tee emergent-sensorimotor-grid-metrics.txt
+
+      - name: Upload emergent sensorimotor grid metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emergent-sensorimotor-grid-metrics
+          path: emergent-sensorimotor-grid-metrics.txt
