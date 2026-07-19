@@ -38,7 +38,7 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run relational terrain tests
-        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs 2>&1 | tee relational-terrain-tests.txt
+        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs test/procession/simulation/relational_terrain_natural_compression_test.exs 2>&1 | tee relational-terrain-tests.txt
 
       - name: Upload test output
         if: always()
@@ -68,3 +68,14 @@ jobs:
         with:
           name: relational-terrain-compression-metrics
           path: relational-terrain-compression-metrics.txt
+
+      - name: Run natural compression discovery metrics
+        if: always()
+        run: mix procession.metrics.relational_terrain_natural_compression | tee relational-terrain-natural-compression-metrics.txt
+
+      - name: Upload natural compression metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-natural-compression-metrics
+          path: relational-terrain-natural-compression-metrics.txt
