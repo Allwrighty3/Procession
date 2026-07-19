@@ -7,6 +7,10 @@ defmodule Procession.Simulation.DevelopmentalField do
   directed; reciprocal structure develops only when experience strengthens both
   directions. Plasticity is locally budgeted so simultaneous activity does not
   automatically connect every active node to every other active node.
+
+  Raw activity remains available to the simulation. A separate compressed learning
+  field lets active generated nodes explain familiar support so new consolidation
+  is driven by generated structure plus unexplained residual activity.
   """
 
   defmodule Node do
@@ -33,15 +37,20 @@ defmodule Procession.Simulation.DevelopmentalField do
 
     base_activity = previous |> decay_activity(opts) |> inject_micro_activity(active_micro)
     {activity, nodes} = reactivate_generated(base_activity, state, active_micro, opts)
-    rising = rising_nodes(previous, activity, opts)
-    active_field = plastic_nodes(activity, opts)
+    raw_active_field = plastic_nodes(activity, opts)
+
+    compression_state = %{state | nodes: nodes}
+    {learning_activity, claimed} = compress_learning_activity(activity, compression_state, active_micro, opts)
+    learning_previous = Map.drop(previous, MapSet.to_list(claimed))
+    rising = rising_nodes(learning_previous, learning_activity, opts)
+    learning_field = plastic_nodes(learning_activity, opts)
 
     edges =
       state.edges
       |> decay_edges(opts)
-      |> strengthen_competing_edges(previous, active_field, rising, activity, opts)
+      |> strengthen_competing_edges(learning_previous, learning_field, rising, learning_activity, opts)
 
-    recurrence = update_recurrence(state.recurrence, active_field)
+    recurrence = update_recurrence(state.recurrence, learning_field)
 
     state = %{state |
       tick: state.tick + 1,
@@ -51,12 +60,14 @@ defmodule Procession.Simulation.DevelopmentalField do
       recurrence: recurrence
     }
 
-    state = maybe_consolidate(state, active_field, opts)
+    state = maybe_consolidate(state, learning_field, opts)
 
     snapshot = %{
       tick: state.tick,
       active_micro: MapSet.size(active_micro),
-      active_field: MapSet.size(active_field),
+      active_field: MapSet.size(raw_active_field),
+      learning_field: MapSet.size(learning_field),
+      explained_nodes: MapSet.size(claimed),
       generated_nodes: MapSet.size(state.generated),
       edge_mass: edge_mass(state.edges),
       active_mass: Enum.sum(Map.values(state.activity))
@@ -91,6 +102,7 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp decay_activity(activity, opts) do
     retention = Keyword.get(opts, :activity_retention, 0.70)
+
     activity
     |> Enum.map(fn {id, value} -> {id, value * retention} end)
     |> Enum.reject(fn {_id, value} -> value < 0.001 end)
@@ -130,8 +142,48 @@ defmodule Procession.Simulation.DevelopmentalField do
     activated / max(MapSet.size(support), 1)
   end
 
+  defp compress_learning_activity(activity, state, active_micro, opts) do
+    node_threshold = Keyword.get(opts, :compression_node_threshold, 0.20)
+    coverage_threshold = Keyword.get(opts, :compression_coverage_threshold, 0.60)
+    attenuation = Keyword.get(opts, :compression_support_attenuation, 0.05)
+    plasticity_threshold = Keyword.get(opts, :plasticity_threshold, 0.18)
+
+    candidates =
+      state.generated
+      |> Enum.filter(fn id -> Map.get(activity, id, 0.0) >= node_threshold end)
+      |> Enum.map(fn id ->
+        node = Map.fetch!(state.nodes, id)
+        coverage = support_activation(node.support, activity, active_micro)
+        stability = min(node.stability / 10.0, 1.0)
+        {id, node, coverage * max(stability, 0.10), coverage}
+      end)
+      |> Enum.filter(fn {_id, _node, _score, coverage} -> coverage >= coverage_threshold end)
+      |> Enum.sort_by(fn {id, _node, score, _coverage} -> {-score, id} end)
+
+    {learning_activity, claimed} =
+      Enum.reduce(candidates, {activity, MapSet.new()}, fn {id, node, _score, _coverage}, {activity_acc, claimed_acc} ->
+        claimable =
+          node.support
+          |> Enum.reject(&(&1 == id))
+          |> Enum.filter(fn member ->
+            not MapSet.member?(claimed_acc, member) and
+              Map.get(activity_acc, member, 0.0) >= plasticity_threshold
+          end)
+
+        activity_acc =
+          Enum.reduce(claimable, activity_acc, fn member, acc ->
+            Map.update!(acc, member, &(&1 * attenuation))
+          end)
+
+        {activity_acc, Enum.reduce(claimable, claimed_acc, &MapSet.put(&2, &1))}
+      end)
+
+    {learning_activity, claimed}
+  end
+
   defp rising_nodes(previous, current, opts) do
     threshold = Keyword.get(opts, :rise_threshold, 0.20)
+
     current
     |> Enum.filter(fn {id, value} -> value - Map.get(previous, id, 0.0) >= threshold end)
     |> Enum.map(&elem(&1, 0))
@@ -140,6 +192,7 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp plastic_nodes(activity, opts) do
     threshold = Keyword.get(opts, :plasticity_threshold, 0.18)
+
     activity
     |> Enum.filter(fn {_id, value} -> value >= threshold end)
     |> Enum.map(&elem(&1, 0))
@@ -148,6 +201,7 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp decay_edges(edges, opts) do
     retention = Keyword.get(opts, :edge_retention, 0.999)
+
     edges
     |> Enum.map(fn {edge, value} -> {edge, value * retention} end)
     |> Enum.reject(fn {_edge, value} -> value < 0.0005 end)
@@ -252,6 +306,7 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp create_generated_node(state, active, formation_coherence) do
     id = state.next_id
+
     node = %Node{id: id, kind: :generated, support: active, stability: 1.0,
       reuse: 0, formed_tick: state.tick, formation_coherence: formation_coherence}
 
