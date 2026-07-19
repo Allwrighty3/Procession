@@ -43,6 +43,61 @@ defmodule Procession.Simulation.RelationalTerrainTest do
     assert centers |> Enum.uniq() |> length() == 3
   end
 
+  test "expands for directional crowding even without positional collision" do
+    provider = fn
+      :branch_a, 2 -> [1.0, 0.0]
+      :branch_b, 2 -> [0.98, 0.20]
+      _observation, dimensions -> [1.0 | List.duplicate(0.0, dimensions - 1)]
+    end
+
+    opts = Keyword.merge(@opts,
+      dimensions: 2,
+      direction_provider: provider,
+      dimension_conflict_radius: 0.001,
+      direction_crowding_cosine: 0.95,
+      reuse_radius: 0.001
+    )
+
+    terrain =
+      RelationalTerrain.new(opts)
+      |> traverse([:origin, :branch_a], opts)
+      |> RelationalTerrain.clear_activity()
+      |> traverse([:origin, :branch_b], opts)
+
+    assert RelationalTerrain.dimension_count(terrain) == 3
+    assert RelationalTerrain.dimension_expansion_count(terrain) == 1
+
+    branch_a = RelationalTerrain.local_region(terrain, :branch_a).center
+    branch_b = RelationalTerrain.local_region(terrain, :branch_b).center
+    assert branch_a != branch_b
+    assert Enum.at(branch_b, 2) != 0.0
+  end
+
+  test "does not expand when local directions remain well separated" do
+    provider = fn
+      :branch_a, 2 -> [1.0, 0.0]
+      :branch_b, 2 -> [0.0, 1.0]
+      _observation, dimensions -> [1.0 | List.duplicate(0.0, dimensions - 1)]
+    end
+
+    opts = Keyword.merge(@opts,
+      dimensions: 2,
+      direction_provider: provider,
+      dimension_conflict_radius: 0.001,
+      direction_crowding_cosine: 0.95,
+      reuse_radius: 0.001
+    )
+
+    terrain =
+      RelationalTerrain.new(opts)
+      |> traverse([:origin, :branch_a], opts)
+      |> RelationalTerrain.clear_activity()
+      |> traverse([:origin, :branch_b], opts)
+
+    assert RelationalTerrain.dimension_count(terrain) == 2
+    assert RelationalTerrain.dimension_expansion_count(terrain) == 0
+  end
+
   test "can disable dimensional expansion for controlled comparisons" do
     opts = Keyword.merge(@opts,
       dimensions: 1,
