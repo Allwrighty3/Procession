@@ -23,6 +23,7 @@ defmodule Procession.Simulation.ClosedGridActionCompressionExperiment do
               position: {1, 1},
               energy: 0.62,
               fatigue: 0.0,
+              dwell: 0,
               resources: [],
               compression: nil,
               action_counts: %{},
@@ -89,8 +90,9 @@ defmodule Procession.Simulation.ClosedGridActionCompressionExperiment do
     fatigue = update_fatigue(state.fatigue, action, moved?, opts)
     move_cost = if moved?, do: Keyword.get(opts, :movement_cost, 0.018), else: 0.0
     energy = clamp(base_energy - move_cost + intake)
+    dwell = if moved?, do: 0, else: min(state.dwell + 1, 100)
 
-    events = internal_events(action, hunger, gradients, at_resource, outcome)
+    events = internal_events(action, hunger, gradients, at_resource, outcome, state.dwell)
     compression = Enum.reduce(events, state.compression, &Compression.observe(&2, &1, compression_opts))
 
     %{state |
@@ -98,6 +100,7 @@ defmodule Procession.Simulation.ClosedGridActionCompressionExperiment do
       position: position,
       energy: energy,
       fatigue: fatigue,
+      dwell: dwell,
       resources: resources,
       compression: compression,
       alive: energy > 0.0,
@@ -105,27 +108,34 @@ defmodule Procession.Simulation.ClosedGridActionCompressionExperiment do
       action_counts: Map.update!(state.action_counts, action, &(&1 + 1)),
       event_history: Enum.reverse(events) ++ state.event_history,
       history: [%{tick: tick, action: action, outcome: outcome, position: position,
-        energy: energy, fatigue: fatigue, intake: intake, scores: scores} | state.history]
+        energy: energy, fatigue: fatigue, dwell: dwell, intake: intake, scores: scores} | state.history]
     }
   end
 
   defp action_scores(state, hunger, gradients, at_resource, tick, opts) do
     noise = Keyword.get(opts, :fluctuation_magnitude, 0.008)
+    exploration = min(state.dwell * Keyword.get(opts, :dwell_exploration_gain, 0.025), 0.65)
 
     movement =
       Map.new(@directions, fn direction ->
         blocked = step(state.position, direction) == state.position
-        score = Map.fetch!(gradients, direction) * hunger - state.fatigue * 0.40 - bool_value(blocked) * 0.30 +
-          centered({tick, direction}) * noise
+        score = Map.fetch!(gradients, direction) * hunger + exploration -
+          state.fatigue * 0.40 - bool_value(blocked) * 0.30 + centered({tick, direction}) * noise
         {direction, score}
       end)
 
-    consume = if at_resource && at_resource.amount > 0.01, do: hunger * 1.20 + at_resource.amount * 0.30, else: -0.50
-    rest = state.fatigue * 0.95 + (1.0 - hunger) * 0.12
+    consume =
+      if at_resource && at_resource.amount > 0.01 && hunger >= Keyword.get(opts, :consume_hunger_floor, 0.25) do
+        hunger * 1.10 + at_resource.amount * 0.10 - state.dwell * 0.025
+      else
+        -0.50
+      end
+
+    rest = state.fatigue * 1.05 + (1.0 - hunger) * 0.16 - exploration * 0.30
     movement |> Map.put(:consume, consume) |> Map.put(:rest, rest)
   end
 
-  defp internal_events(action, hunger, gradients, at_resource, outcome) do
+  defp internal_events(action, hunger, gradients, at_resource, outcome, dwell) do
     sensed =
       cond do
         at_resource && at_resource.amount > 0.01 -> {:sense, :resource_here}
@@ -135,10 +145,12 @@ defmodule Procession.Simulation.ClosedGridActionCompressionExperiment do
 
     family = if action in @directions, do: :locomotion, else: action
     need = if hunger >= 0.55, do: :high_need, else: :low_need
+    persistence = if dwell >= 6, do: :habituated, else: :engaged
 
     [
       sensed,
       {:need, need},
+      {:local_state, persistence},
       {:recruit, family},
       {:execute, action},
       {:consequence, outcome}
