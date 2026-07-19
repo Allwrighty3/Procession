@@ -232,7 +232,8 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp overlap_ratio(left, right) do
     intersection = MapSet.intersection(left, right) |> MapSet.size()
-    intersection / max(MapSet.size(left), MapSet.size(right), 1)
+    denominator = max(max(MapSet.size(left), MapSet.size(right)), 1)
+    intersection / denominator
   end
 
   defp directed_pairs(values), do: for(source <- values, target <- values, source != target, do: {source, target})
