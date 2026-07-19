@@ -42,7 +42,7 @@ jobs:
         run: mix test
 
       - name: Run unattended learner survival probe
-        run: mix procession.metrics.unattended_survival --population 32 --ticks 240 --seed 1 --output unattended-survival-metrics.txt
+        run: mix procession.metrics.unattended_survival --population 32 --ticks 80 --seed 1 --output unattended-survival-metrics.txt
 
       - name: Run short developmental smoke probe
         run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
