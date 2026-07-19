@@ -29,6 +29,28 @@ defmodule Procession.Simulation.DevelopmentalFieldTest do
            end)
   end
 
+  test "familiar generated structure compresses learning but preserves raw activity" do
+    opts = [
+      micro_nodes: 96,
+      input_width: 3,
+      consolidation_threshold: 3,
+      coherence_threshold: 0.0,
+      reuse_threshold: 0.5,
+      compression_coverage_threshold: 0.5,
+      compression_support_attenuation: 0.01
+    ]
+
+    state = DevelopmentalField.run(List.duplicate(:familiar_pattern, 7), opts)
+    [node | _] = DevelopmentalField.generated_nodes(state)
+    state = DevelopmentalField.step(state, :familiar_pattern, opts)
+    snapshot = hd(state.history)
+
+    assert snapshot.explained_nodes > 0
+    assert snapshot.learning_field < snapshot.active_field
+    assert Map.get(state.activity, node.id, 0.0) > 0.0
+    assert Enum.all?(node.support, &(Map.get(state.activity, &1, 0.0) >= 0.18))
+  end
+
   test "single experiences do not become unique memories" do
     state = DevelopmentalField.run(Enum.map(1..20, &{:novel, &1}), consolidation_threshold: 4)
     assert DevelopmentalField.generated_nodes(state) == []
