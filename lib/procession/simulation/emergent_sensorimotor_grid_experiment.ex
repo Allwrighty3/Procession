@@ -50,7 +50,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       energy: Keyword.get(opts, :initial_energy, 0.62),
       resources: Keyword.get(opts, :resources, default_resources()),
       outputs: Map.new(@channels, &{&1, 0.0}),
-      tendencies: Map.new(@channels, &{&1, 0.0}),
+      tendencies: %{},
       compression: Compression.new(compression_opts)
     }
 
@@ -74,6 +74,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       intake: state.intake,
       appetitive_feedback: state.appetitive_feedback,
       mouth_watering: state.mouth_watering,
+      learned_sensorimotor_links: map_size(state.tendencies),
       hidden_cells_visited: map_size(state.visits),
       output_usage: output_usage(state.hidden_history),
       world_effects: world_effects(state.hidden_history),
@@ -89,8 +90,9 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   defp advance(state, tick, opts, compression_opts) do
     resources = regenerate(state.resources)
     before = senses(state.hidden_position, state.energy, state.strain, resources, state.previous_senses)
+    context = context_signature(before)
     mouth_watering = mouth_watering(before, opts)
-    outputs = emit_outputs(state, before, mouth_watering, tick, opts)
+    outputs = emit_outputs(state, context, before, mouth_watering, tick, opts)
 
     {position, resources, intake, resistance, hidden_effect} =
       apply_body(outputs, state.hidden_position, resources, before, opts)
@@ -101,7 +103,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     sensed_after = senses(position, energy, strain, resources, before)
     appetitive_feedback = appetitive_feedback(before, sensed_after, opts)
     reward = learning_feedback(before, sensed_after, resistance, strain, appetitive_feedback)
-    tendencies = update_tendencies(state.tendencies, outputs, reward, opts)
+    tendencies = update_tendencies(state.tendencies, context, outputs, reward, opts)
     tokens = sensorimotor_tokens(before, outputs, sensed_after, resistance, appetitive_feedback, mouth_watering)
     compression = Enum.reduce(tokens, state.compression, &Compression.observe(&2, &1, compression_opts))
 
@@ -119,6 +121,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       hidden_history: [
         %{
           position: position,
+          context: context,
           outputs: outputs,
           effect: hidden_effect,
           intake: intake,
@@ -162,14 +165,24 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     }
   end
 
-  defp emit_outputs(state, senses, mouth_watering, tick, opts) do
+  defp context_signature(senses) do
+    {
+      bin(senses.energy),
+      bin(senses.contact),
+      bin(senses.ambient),
+      signed_bin(senses.ambient_change),
+      bin(senses.strain)
+    }
+  end
+
+  defp emit_outputs(state, context, senses, mouth_watering, tick, opts) do
     retention = Keyword.get(opts, :output_retention, 0.55)
-    exploration = Keyword.get(opts, :exploration, 0.22)
+    exploration = Keyword.get(opts, :exploration, 0.24)
     urgency = 1.0 - senses.energy
 
     Map.new(@channels, fn channel ->
       prior = Map.fetch!(state.outputs, channel) * retention
-      learned = Map.fetch!(state.tendencies, channel) * urgency
+      learned = Map.get(state.tendencies, {context, channel}, 0.0) * urgency
       fluctuation = centered({tick, channel, state.hidden_position}) * exploration
       visceral_bias = if channel == 4, do: mouth_watering, else: 0.0
       {channel, clamp(prior + learned + fluctuation + visceral_bias)}
@@ -208,8 +221,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
   end
 
   defp hidden_intake(resources, position, pressure, senses, opts) do
-    threshold = Keyword.get(opts, :intake_threshold, 0.24)
-    capacity = Keyword.get(opts, :intake_rate, 0.15) * pressure * (1.0 - senses.energy)
+    threshold = Keyword.get(opts, :intake_threshold, 0.20)
+    capacity = Keyword.get(opts, :intake_rate, 0.18) * pressure * (1.0 - senses.energy)
 
     Enum.map_reduce(resources, 0.0, fn resource, total ->
       if pressure > threshold and resource.position == position and resource.amount > 0.0 do
@@ -223,8 +236,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
 
   defp mouth_watering(senses, opts) do
     urgency = 1.0 - senses.energy
-    contact_gain = Keyword.get(opts, :contact_mouth_watering_gain, 1.35)
-    approach_gain = Keyword.get(opts, :approach_mouth_watering_gain, 0.45)
+    contact_gain = Keyword.get(opts, :contact_mouth_watering_gain, 1.60)
+    approach_gain = Keyword.get(opts, :approach_mouth_watering_gain, 0.70)
     rising_signal = max(0.0, senses.ambient_change) + max(0.0, senses.contact_change) * 1.5
     clamp(urgency * (senses.contact * contact_gain + rising_signal * approach_gain))
   end
@@ -233,8 +246,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     urgency = 1.0 - before.energy
     ambient_delta = sensed_after.ambient - before.ambient
     contact_delta = sensed_after.contact - before.contact
-    ambient_gain = Keyword.get(opts, :ambient_feedback_gain, 0.85)
-    contact_gain = Keyword.get(opts, :contact_feedback_gain, 1.40)
+    ambient_gain = Keyword.get(opts, :ambient_feedback_gain, 1.30)
+    contact_gain = Keyword.get(opts, :contact_feedback_gain, 2.10)
     urgency * (ambient_delta * ambient_gain + contact_delta * contact_gain)
   end
 
@@ -243,13 +256,17 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     energy_feedback + appetitive_feedback - resistance * 0.08 - strain * 0.01
   end
 
-  defp update_tendencies(tendencies, outputs, reward, opts) do
-    retention = Keyword.get(opts, :tendency_retention, 0.995)
-    rate = Keyword.get(opts, :tendency_rate, 0.14)
+  defp update_tendencies(tendencies, context, outputs, reward, opts) do
+    retention = Keyword.get(opts, :tendency_retention, 0.997)
+    rate = Keyword.get(opts, :tendency_rate, 0.22)
 
-    Map.new(tendencies, fn {channel, value} ->
+    decayed = Map.new(tendencies, fn {key, value} -> {key, value * retention} end)
+
+    Enum.reduce(@channels, decayed, fn channel, acc ->
+      key = {context, channel}
+      value = Map.get(acc, key, 0.0)
       delta = Map.fetch!(outputs, channel) * reward * rate
-      {channel, (value * retention + delta) |> max(-0.35) |> min(0.65)}
+      Map.put(acc, key, (value + delta) |> max(-0.40) |> min(0.75))
     end)
   end
 
