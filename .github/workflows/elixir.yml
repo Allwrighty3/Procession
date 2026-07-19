@@ -86,6 +86,9 @@ jobs:
       - name: Compare developmental populations
         run: mix procession.metrics.developmental_population --population 8 --ticks 2880 --seed 1 --output developmental-population-metrics.txt
 
+      - name: Measure compression computational cost
+        run: mix procession.metrics.compression_cost --ticks 2880 --samples 5 --seed 1 --output compression-cost-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -106,3 +109,4 @@ jobs:
             developmental-origin-metrics.txt
             developmental-temporal-probe-metrics.txt
             developmental-population-metrics.txt
+            compression-cost-metrics.txt
