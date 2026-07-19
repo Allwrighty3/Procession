@@ -10,13 +10,15 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   Raw activity remains available to the simulation. A separate compressed learning
   field lets active generated nodes explain familiar support so new consolidation
-  is driven by generated structure plus unexplained residual activity.
+  is driven by generated structure plus unexplained residual activity. New nodes
+  must also amortize their own definition cost by reducing total description cost.
   """
 
   defmodule Node do
     @moduledoc false
     defstruct [:id, :kind, :formed_tick,
-      support: MapSet.new(), stability: 0.0, reuse: 0, formation_coherence: 0.0]
+      support: MapSet.new(), stability: 0.0, reuse: 0, formation_coherence: 0.0,
+      compression_gain: 0.0, direct_cost: 0.0, compressed_cost: 0.0]
   end
 
   defmodule State do
@@ -84,6 +86,23 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   def active_micro_nodes(%State{} = state, input, opts \\ []), do: encode(input, state.micro_nodes, opts)
   def edge_mass(edges), do: edges |> Map.values() |> Enum.sum()
+
+  def compression_gain(active, recurrence, opts \\ []) do
+    support_size = MapSet.size(active)
+    direct_unit_cost = Keyword.get(opts, :compression_direct_unit_cost, 1.0)
+    node_cost = Keyword.get(opts, :compression_node_cost, 5.0)
+    support_link_cost = Keyword.get(opts, :compression_support_link_cost, 1.0)
+    use_cost = Keyword.get(opts, :compression_use_cost, 1.0)
+
+    direct_cost = recurrence * support_size * direct_unit_cost
+    compressed_cost = node_cost + support_size * support_link_cost + recurrence * use_cost
+
+    %{
+      gain: direct_cost - compressed_cost,
+      direct_cost: direct_cost,
+      compressed_cost: compressed_cost
+    }
+  end
 
   defp encode({:features, features}, micro_nodes, opts) when is_list(features) do
     Enum.reduce(features, MapSet.new(), fn feature, acc ->
@@ -294,21 +313,25 @@ defmodule Procession.Simulation.DevelopmentalField do
     signature = active |> MapSet.to_list() |> Enum.sort() |> List.to_tuple()
     recurrence = Map.get(state.recurrence, signature, 0)
     coherence = coherence(state.edges, active)
+    gain = compression_gain(active, recurrence, opts)
 
     cond do
       MapSet.size(active) < 2 -> state
       recurrence < Keyword.get(opts, :consolidation_threshold, 5) -> state
+      gain.gain < Keyword.get(opts, :minimum_compression_gain, 2.0) -> state
       already_supported?(state, active) -> state
       coherence < Keyword.get(opts, :coherence_threshold, 0.08) -> state
-      true -> create_generated_node(state, active, coherence)
+      true -> create_generated_node(state, active, coherence, gain)
     end
   end
 
-  defp create_generated_node(state, active, formation_coherence) do
+  defp create_generated_node(state, active, formation_coherence, gain) do
     id = state.next_id
 
     node = %Node{id: id, kind: :generated, support: active, stability: 1.0,
-      reuse: 0, formed_tick: state.tick, formation_coherence: formation_coherence}
+      reuse: 0, formed_tick: state.tick, formation_coherence: formation_coherence,
+      compression_gain: gain.gain, direct_cost: gain.direct_cost,
+      compressed_cost: gain.compressed_cost}
 
     # Existing activity produces the generated region. Reverse edges are not
     # inserted; they can only emerge through later reciprocal competition.
