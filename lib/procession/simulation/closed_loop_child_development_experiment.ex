@@ -4,7 +4,8 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
 
   Caregiver policies alter environmental response without assigning psychological
   categories to the structures that emerge. Each run includes an exposure phase
-  followed by a policy reversal.
+  followed by a policy reversal. Field-blind controls use the same embodied rules
+  and histories but omit generated-field activity from action selection.
   """
 
   alias Procession.Simulation.DevelopmentalField
@@ -30,24 +31,31 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
 
     conditions =
       Enum.reduce(@policies, %{}, fn policy, acc ->
-        runs =
+        learned_runs =
           Enum.map(1..population, fn entity ->
-            run_entity(policy, reverse_policy(policy), phase_ticks, seed, entity, false)
+            run_entity(policy, reverse_policy(policy), phase_ticks, seed, entity, false, true)
           end)
 
-        Map.put(acc, policy, summarize(runs))
+        blind_runs =
+          Enum.map(1..population, fn entity ->
+            run_entity(policy, reverse_policy(policy), phase_ticks, seed, entity, false, false)
+          end)
+
+        learned = summarize(learned_runs, false)
+        blind = summarize(blind_runs, false)
+        Map.put(acc, policy, %{learned: learned, blind: blind, delta: behavioral_delta(learned, blind)})
       end)
 
     clones =
       Enum.map(1..3, fn _index ->
-        run_entity(:responsive, :absent, phase_ticks, seed, 0, true)
+        run_entity(:responsive, :absent, phase_ticks, seed, 0, true, true)
       end)
 
     %{
       population: population,
       phase_ticks: phase_ticks,
       conditions: conditions,
-      clone_control: summarize(clones)
+      clone_control: summarize(clones, true)
     }
   end
 
@@ -59,14 +67,20 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
     ]
 
     policy_lines =
-      Enum.map(@policies, fn policy ->
-        condition_line(policy, Map.fetch!(result.conditions, policy))
+      Enum.flat_map(@policies, fn policy ->
+        condition = Map.fetch!(result.conditions, policy)
+
+        [
+          condition_line("#{policy}_learned", condition.learned),
+          condition_line("#{policy}_blind", condition.blind),
+          delta_line(policy, condition.delta)
+        ]
       end)
 
     Enum.join(header ++ policy_lines, "\n")
   end
 
-  defp run_entity(initial_policy, later_policy, phase_ticks, seed, entity, clone?) do
+  defp run_entity(initial_policy, later_policy, phase_ticks, seed, entity, clone?, field_action?) do
     encoding_salt = if clone?, do: :clone, else: {:child, entity}
     rng_seed = if clone?, do: seed, else: seed + entity * 101
     field_opts = Keyword.put(@field_opts, :encoding_salt, encoding_salt)
@@ -83,14 +97,15 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
 
     phase_one =
       Enum.reduce(1..phase_ticks, initial, fn tick, state ->
-        advance(state, tick, initial_policy, rng_seed, field_opts)
+        advance(state, tick, initial_policy, rng_seed, field_opts, field_action?)
       end)
 
     phase_one_snapshot = observe_phase(phase_one)
+    phase_two_initial = %{phase_one | actions: [], caregiver_responses: 0}
 
     final =
-      Enum.reduce((phase_ticks + 1)..(phase_ticks * 2), phase_one, fn tick, state ->
-        advance(state, tick, later_policy, rng_seed, field_opts)
+      Enum.reduce((phase_ticks + 1)..(phase_ticks * 2), phase_two_initial, fn tick, state ->
+        advance(state, tick, later_policy, rng_seed, field_opts, field_action?)
       end)
 
     %{
@@ -102,8 +117,8 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
     }
   end
 
-  defp advance(state, tick, policy, seed, field_opts) do
-    action = choose_action(state, tick, seed)
+  defp advance(state, tick, policy, seed, field_opts, field_action?) do
+    action = choose_action(state, tick, seed, field_action?)
     response? = caregiver_response?(policy, action, state, tick, seed)
     caregiver_present? = response? or spontaneous_presence?(policy, tick, seed)
 
@@ -138,15 +153,19 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
     }
   end
 
-  defp choose_action(state, tick, seed) do
+  defp choose_action(state, tick, seed, field_action?) do
     generated_bias =
-      Enum.reduce(state.field.activity, 0, fn {id, value}, acc ->
-        if id >= state.field.micro_nodes and value >= 0.20 do
-          acc + round(id * value * 10)
-        else
-          acc
-        end
-      end)
+      if field_action? do
+        Enum.reduce(state.field.activity, 0, fn {id, value}, acc ->
+          if id >= state.field.micro_nodes and value >= 0.20 do
+            acc + round(id * value * 10)
+          else
+            acc
+          end
+        end)
+      else
+        0
+      end
 
     value =
       :erlang.phash2(
@@ -218,7 +237,7 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
     }
   end
 
-  defp summarize(runs) do
+  defp summarize(runs, exact_structure?) do
     %{
       phase_one_generated: mean(Enum.map(runs, fn run -> run.phase_one.generated end)),
       phase_two_generated: mean(Enum.map(runs, fn run -> run.phase_two.generated end)),
@@ -226,15 +245,23 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
       phase_two_signal_rate: mean(Enum.map(runs, fn run -> run.phase_two.signal_rate end)),
       phase_two_approach_rate: mean(Enum.map(runs, fn run -> run.phase_two.approach_rate end)),
       phase_two_withdraw_rate: mean(Enum.map(runs, fn run -> run.phase_two.withdraw_rate end)),
-      support_similarity: pair_mean(runs, fn left, right ->
+      support_similarity: if(exact_structure?, do: pair_mean(runs, fn left, right ->
         jaccard(left.support_fingerprint, right.support_fingerprint)
-      end),
-      edge_similarity: pair_mean(runs, fn left, right ->
+      end), else: nil),
+      edge_similarity: if(exact_structure?, do: pair_mean(runs, fn left, right ->
         jaccard(left.edge_fingerprint, right.edge_fingerprint)
-      end),
-      profile_similarity: pair_mean(runs, fn left, right ->
-        profile_similarity(left, right)
-      end)
+      end), else: nil),
+      profile_similarity: pair_mean(runs, fn left, right -> profile_similarity(left, right) end)
+    }
+  end
+
+  defp behavioral_delta(learned, blind) do
+    %{
+      arousal: learned.phase_two_arousal - blind.phase_two_arousal,
+      signal: learned.phase_two_signal_rate - blind.phase_two_signal_rate,
+      approach: learned.phase_two_approach_rate - blind.phase_two_approach_rate,
+      withdraw: learned.phase_two_withdraw_rate - blind.phase_two_withdraw_rate,
+      generated: learned.phase_two_generated - blind.phase_two_generated
     }
   end
 
@@ -298,6 +325,11 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
       "profile=#{fmt(summary.profile_similarity)}"
   end
 
+  defp delta_line(policy, delta) do
+    "#{policy}_learned_minus_blind: nodes=#{signed(delta.generated)} arousal=#{signed(delta.arousal)} " <>
+      "signal=#{signed(delta.signal)} approach=#{signed(delta.approach)} withdraw=#{signed(delta.withdraw)}"
+  end
+
   defp reverse_policy(:responsive), do: :absent
   defp reverse_policy(:inconsistent), do: :responsive
   defp reverse_policy(:aversive), do: :responsive
@@ -322,5 +354,8 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperiment do
   defp clamp(value), do: value |> max(0.0) |> min(1.0)
   defp mean([]), do: 0.0
   defp mean(values), do: Enum.sum(values) / length(values)
+  defp fmt(nil), do: "n/a"
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
+  defp signed(value) when value >= 0, do: "+" <> fmt(value)
+  defp signed(value), do: fmt(value)
 end
