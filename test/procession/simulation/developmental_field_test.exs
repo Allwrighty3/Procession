@@ -47,8 +47,10 @@ defmodule Procession.Simulation.DevelopmentalFieldTest do
     opts = [
       micro_nodes: 128,
       input_width: 1,
-      edge_gain: 0.0,
-      temporal_edge_gain: 0.5,
+      coactive_evidence_weight: 0.0,
+      temporal_evidence_weight: 2.0,
+      plasticity_budget: 0.5,
+      plasticity_fanout: 4,
       activity_retention: 0.8,
       consolidation_threshold: 99
     ]
