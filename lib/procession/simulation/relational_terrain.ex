@@ -6,7 +6,8 @@ defmodule Procession.Simulation.RelationalTerrain do
   occupy an arbitrary-dimensional relational space, including a viable one-dimensional
   space. New regions are placed relative to the currently experienced neighborhood;
   persistent memory is deformation of local geometry, and transient activity flows
-  through only the active neighborhood.
+  through only the active neighborhood. Dimensions may expand when distinct local
+  relationships cannot be represented without colliding in the current manifold.
   """
 
   defmodule Region do
@@ -16,7 +17,8 @@ defmodule Procession.Simulation.RelationalTerrain do
 
   defmodule State do
     @moduledoc false
-    defstruct dimensions: 8,
+    defstruct dimensions: 1,
+              dimension_expansions: 0,
               next_id: 0,
               regions: %{},
               label_index: %{},
@@ -29,7 +31,7 @@ defmodule Procession.Simulation.RelationalTerrain do
   @type vector :: [float()]
 
   def new(opts \\ []) do
-    dimensions = Keyword.get(opts, :dimensions, 8)
+    dimensions = Keyword.get(opts, :dimensions, 1)
 
     if not is_integer(dimensions) or dimensions < 1 do
       raise ArgumentError, "dimensions must be a positive integer"
@@ -39,7 +41,8 @@ defmodule Procession.Simulation.RelationalTerrain do
   end
 
   def observe(%State{} = state, observation, opts \\ []) do
-    proposal = contextual_proposal(state, observation, opts)
+    initial_proposal = contextual_proposal(state, observation, opts)
+    {state, proposal} = maybe_expand_for_conflict(state, observation, initial_proposal, opts)
     {state, region_id} = locate_or_create(state, observation, proposal, opts)
     state = adapt_region_center(state, region_id, proposal, opts)
     state = deform_from_previous(state, region_id, opts)
@@ -84,6 +87,8 @@ defmodule Procession.Simulation.RelationalTerrain do
 
   def region_count(%State{} = state), do: map_size(state.regions)
   def active_region_count(%State{} = state), do: MapSet.size(state.active_region_ids)
+  def dimension_count(%State{} = state), do: state.dimensions
+  def dimension_expansion_count(%State{} = state), do: state.dimension_expansions
 
   def local_region(%State{} = state, observation) do
     with region_id when not is_nil(region_id) <- Map.get(state.label_index, observation) do
@@ -128,6 +133,62 @@ defmodule Procession.Simulation.RelationalTerrain do
     else
       vector
     end
+  end
+
+  defp maybe_expand_for_conflict(state, observation, proposal, opts) do
+    cond do
+      Map.has_key?(state.label_index, observation) ->
+        {state, proposal}
+
+      is_nil(state.last_observed_region) ->
+        {state, proposal}
+
+      not Keyword.get(opts, :auto_expand_dimensions, true) ->
+        {state, proposal}
+
+      state.dimensions >= Keyword.get(opts, :max_dimensions, 64) ->
+        {state, proposal}
+
+      local_collision?(state, proposal, opts) ->
+        expand_dimension(state, observation, opts)
+
+      true ->
+        {state, proposal}
+    end
+  end
+
+  defp local_collision?(state, proposal, opts) do
+    source = Map.fetch!(state.regions, state.last_observed_region)
+    threshold = Keyword.get(opts, :dimension_conflict_radius, Keyword.get(opts, :reuse_radius, 0.08) * 1.5)
+
+    Enum.any?(Map.keys(source.geometry), fn target_id ->
+      target = Map.fetch!(state.regions, target_id)
+      distance(proposal, target.center) <= threshold
+    end)
+  end
+
+  defp expand_dimension(state, observation, opts) do
+    expanded_regions =
+      Map.new(state.regions, fn {id, region} ->
+        {id, %{region | center: region.center ++ [0.0]}}
+      end)
+
+    expanded = %{state |
+      dimensions: state.dimensions + 1,
+      dimension_expansions: state.dimension_expansions + 1,
+      regions: expanded_regions
+    }
+
+    previous = Map.fetch!(expanded.regions, expanded.last_observed_region)
+    step = Keyword.get(opts, :placement_step, 0.35)
+    sign = expansion_sign(observation, expanded.dimensions, opts)
+    proposal = add(previous.center, List.duplicate(0.0, expanded.dimensions - 1) ++ [step * sign])
+    {expanded, proposal}
+  end
+
+  defp expansion_sign(observation, dimensions, opts) do
+    salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
+    if :erlang.phash2({salt, observation, dimensions, :expansion}, 2) == 0, do: -1.0, else: 1.0
   end
 
   defp locate_or_create(state, observation, proposal, opts) do
