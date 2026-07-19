@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Procession.Metrics.EmergentSensorimotorGrid do
 
   alias Procession.Simulation.EmergentSensorimotorGridExperiment, as: Experiment
 
-  @shortdoc "Reports emergent sensorimotor behavior and compression in the hidden 4x4 world"
+  @shortdoc "Reports emergent multisensory behavior and compression in the hidden 4x4 world"
 
   @impl Mix.Task
   def run(_args) do
@@ -20,11 +20,15 @@ defmodule Mix.Tasks.Procession.Metrics.EmergentSensorimotorGrid do
       )
 
       IO.puts(
-        "hidden_cells_visited=#{metrics.hidden_cells_visited} " <>
+        "hidden_cells_visited=#{metrics.hidden_cells_visited} visual_channels=#{metrics.visual_channels} " <>
+          "learned_sensorimotor_links=#{metrics.learned_sensorimotor_links} " <>
           "output_usage=#{inspect(metrics.output_usage)}"
       )
 
-      IO.puts("world_effects=#{inspect(metrics.world_effects)}")
+      IO.puts(
+        "world_effects=#{inspect(metrics.world_effects)} " <>
+          "boundary_impacts=#{inspect(metrics.boundary_impacts)}"
+      )
 
       IO.puts(
         "assemblies=#{metrics.assembly_count} largest=#{metrics.maximum_assembly_size} " <>
