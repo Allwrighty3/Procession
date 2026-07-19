@@ -74,6 +74,9 @@ jobs:
       - name: Run relational field attachment metrics
         run: mix procession.metrics.relational_attachment --samples 20 --ticks 1800 --output relational-attachment-metrics.txt
 
+      - name: Observe developmental stream structure
+        run: mix procession.metrics.developmental_stream --ticks 720 --seed 1 --output developmental-stream-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -90,3 +93,4 @@ jobs:
             embodied-attachment-metrics.txt
             responsive-parent-metrics.txt
             relational-attachment-metrics.txt
+            developmental-stream-metrics.txt
