@@ -15,8 +15,12 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
   @directions [:north, :south, :east, :west]
   @actions @directions ++ [:manipulate, :wait]
   @resources %{{0, 0} => :rough_cool, {3, 0} => :sweet_soft, {2, 3} => :sharp_dry}
-  @distractors %{{1, 0} => :rough_cool, {0, 2} => :sweet_soft, {3, 2} => :sharp_dry,
-                 {1, 3} => :smooth_warm}
+  @distractors %{
+    {1, 0} => :rough_cool,
+    {0, 2} => :sweet_soft,
+    {3, 2} => :sharp_dry,
+    {1, 3} => :smooth_warm
+  }
 
   @field_opts [
     micro_nodes: 64,
@@ -52,16 +56,18 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
       "population=#{result.population} ticks=#{result.ticks} training_ticks=#{result.training_ticks} withdrawal_ticks=#{result.ticks - result.training_ticks}"
     ]
 
-    lines = Enum.map(@conditions, fn condition ->
-      s = Map.fetch!(result.conditions, condition)
-      "#{condition}: survived=#{s.survived}/#{result.population} lifetime=#{fmt(s.median_lifetime)} " <>
-        "intake=#{fmt(s.median_intake)} discoveries=#{fmt(s.median_discoveries)} " <>
-        "motionless=#{fmt(s.median_motionless_fraction)} self_originated=#{fmt(s.median_self_originated_actions)} " <>
-        "cells=#{fmt(s.median_cells_visited)} caregiver=#{fmt(s.median_caregiver_events)} " <>
-        "withdrawal_survived=#{s.withdrawal_survived}/#{result.population} " <>
-        "withdrawal_intake=#{fmt(s.median_withdrawal_intake)} withdrawal_actions=#{fmt(s.median_withdrawal_actions)} " <>
-        "nodes=#{fmt(s.median_nodes)}"
-    end)
+    lines =
+      Enum.map(@conditions, fn condition ->
+        s = Map.fetch!(result.conditions, condition)
+
+        "#{condition}: survived=#{s.survived}/#{result.population} lifetime=#{fmt(s.median_lifetime)} " <>
+          "intake=#{fmt(s.median_intake)} discoveries=#{fmt(s.median_discoveries)} " <>
+          "motionless=#{fmt(s.median_motionless_fraction)} self_originated=#{fmt(s.median_self_originated_actions)} " <>
+          "cells=#{fmt(s.median_cells_visited)} caregiver=#{fmt(s.median_caregiver_events)} " <>
+          "withdrawal_survived=#{s.withdrawal_survived}/#{result.population} " <>
+          "withdrawal_intake=#{fmt(s.median_withdrawal_intake)} withdrawal_actions=#{fmt(s.median_withdrawal_actions)} " <>
+          "nodes=#{fmt(s.median_nodes)}"
+      end)
 
     Enum.join(header ++ lines, "\n")
   end
@@ -141,20 +147,34 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
     }
   end
 
-  defp caregiver(:provisioned, true, state, amounts, hunger)
-       when hunger > 0.62 and state.ticks_without_intake >= 6 do
-    {Map.put(amounts, state.position, max(Map.get(amounts, state.position, 0.0), 0.28)), :provision, :none}
+  defp caregiver(:provisioned, true, state, amounts, hunger) do
+    if hunger > 0.62 and state.ticks_without_intake >= 6 do
+      provisioned =
+        Map.put(amounts, state.position, max(Map.get(amounts, state.position, 0.0), 0.28))
+
+      {provisioned, :provision, :none}
+    else
+      {amounts, :none, :none}
+    end
   end
 
-  defp caregiver(:contingent, true, state, amounts, hunger)
-       when hunger > 0.58 and state.ticks_without_intake >= 4 do
-    cue = if Map.get(amounts, state.position, 0.0) > 0.01,
-      do: :manipulate,
-      else: direction_toward(state.position, nearest_resource(state.position, amounts))
-    {amounts, :cue, cue}
+  defp caregiver(:contingent, true, state, amounts, hunger) do
+    if hunger > 0.58 and state.ticks_without_intake >= 4 do
+      cue =
+        if Map.get(amounts, state.position, 0.0) > 0.01 do
+          :manipulate
+        else
+          direction_toward(state.position, nearest_resource(state.position, amounts))
+        end
+
+      {amounts, :cue, cue}
+    else
+      {amounts, :none, :none}
+    end
   end
 
-  defp caregiver(_condition, _active?, _state, amounts, _hunger), do: {amounts, :none, :none}
+  defp caregiver(_condition, _active?, _state, amounts, _hunger),
+    do: {amounts, :none, :none}
 
   defp choose_action(state, condition, hunger, signature, cue, tick, seed, field_opts) do
     @actions
@@ -173,16 +193,19 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
 
   defp general_pressure(:inert, _action, _hunger, _fatigue), do: 0.0
   defp general_pressure(_condition, :wait, _hunger, _fatigue), do: 0.0
+
   defp general_pressure(_condition, _action, hunger, fatigue),
     do: hunger * 0.30 * (1.0 - fatigue * 0.65)
 
   defp move(position, :wait, fatigue), do: {position, max(0.0, fatigue - 0.07)}
   defp move(position, :manipulate, fatigue), do: {position, max(0.0, fatigue - 0.02)}
+
   defp move(position, direction, fatigue) when direction in @directions,
     do: {step(position, direction), min(1.0, fatigue + 0.045)}
 
   defp interact(amounts, position, :manipulate, hunger) do
     available = Map.get(amounts, position, 0.0)
+
     if available > 0.0 do
       intake = min(available, min(0.22, hunger * 0.32))
       {Map.put(amounts, position, available - intake), intake, intake > 0.0}
@@ -190,26 +213,29 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
       {amounts, 0.0, false}
     end
   end
+
   defp interact(amounts, _position, _action, _hunger), do: {amounts, 0.0, false}
 
   defp sensory_signature(position),
     do: Map.get(@resources, position, Map.get(@distractors, position, :empty))
 
-  defp regenerate(amounts), do: Map.new(amounts, fn {position, amount} ->
-    cap = if Map.has_key?(@resources, position), do: 0.75, else: 0.32
-    regen = if Map.has_key?(@resources, position), do: 0.010, else: 0.0
-    {position, min(cap, amount + regen)}
-  end)
+  defp regenerate(amounts) do
+    Map.new(amounts, fn {position, amount} ->
+      cap = if Map.has_key?(@resources, position), do: 0.75, else: 0.32
+      regen = if Map.has_key?(@resources, position), do: 0.010, else: 0.0
+      {position, min(cap, amount + regen)}
+    end)
+  end
 
   defp nearest_resource(position, amounts) do
     amounts
-    |> Enum.filter(fn {_position, amount} -> amount > 0.02 end)
+    |> Enum.filter(fn {_candidate, amount} -> amount > 0.02 end)
     |> Enum.min_by(fn {candidate, _amount} -> manhattan(position, candidate) end)
     |> elem(0)
   end
 
-  defp direction_toward({x, y}, {tx, ty}) when x < tx, do: :east
-  defp direction_toward({x, y}, {tx, ty}) when x > tx, do: :west
+  defp direction_toward({x, _y}, {tx, _ty}) when x < tx, do: :east
+  defp direction_toward({x, _y}, {tx, _ty}) when x > tx, do: :west
   defp direction_toward({_x, y}, {_tx, ty}) when y < ty, do: :south
   defp direction_toward({_x, y}, {_tx, ty}) when y > ty, do: :north
   defp direction_toward(_position, _target), do: :manipulate
@@ -221,11 +247,13 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
 
   defp learned_motor_score(field, action, field_opts) do
     targets = DevelopmentalField.active_micro_nodes(field, {:motor_channel, action}, field_opts)
+
     Enum.reduce(field.activity, 0.0, fn {source, activity}, total ->
       if activity >= 0.18 do
-        total + Enum.reduce(targets, 0.0, fn target, acc ->
-          acc + Map.get(field.edges, {source, target}, 0.0) * activity
-        end)
+        total +
+          Enum.reduce(targets, 0.0, fn target, acc ->
+            acc + Map.get(field.edges, {source, target}, 0.0) * activity
+          end)
       else
         total
       end
@@ -234,12 +262,14 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
 
   defp summarize(runs, ticks, training_ticks) do
     withdrawal = Enum.map(runs, &withdrawal_metrics(&1, training_ticks))
+
     %{
       survived: Enum.count(runs, & &1.alive?),
       median_lifetime: median(Enum.map(runs, & &1.tick)),
       median_intake: median(Enum.map(runs, & &1.intake)),
       median_discoveries: median(Enum.map(runs, &(&1.discoveries * 1.0))),
-      median_motionless_fraction: median(Enum.map(runs, &(Map.fetch!(&1.action_counts, :wait) / max(1, &1.tick)))),
+      median_motionless_fraction:
+        median(Enum.map(runs, &(Map.fetch!(&1.action_counts, :wait) / max(1, &1.tick)))),
       median_self_originated_actions: median(Enum.map(runs, &(self_actions(&1) * 1.0))),
       median_cells_visited: median(Enum.map(runs, &(MapSet.size(&1.visited) * 1.0))),
       median_caregiver_events: median(Enum.map(runs, &(&1.caregiver_events * 1.0))),
@@ -252,14 +282,19 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
 
   defp withdrawal_metrics(state, training_ticks) do
     records = Enum.filter(state.records, &(&1.tick > training_ticks))
-    %{intake: Enum.reduce(records, 0.0, &(&1.intake + &2)),
-      actions: Enum.count(records, &(&1.action != :wait)) * 1.0}
+
+    %{
+      intake: Enum.reduce(records, 0.0, &(&1.intake + &2)),
+      actions: Enum.count(records, &(&1.action != :wait)) * 1.0
+    }
   end
 
-  defp self_actions(state), do: Enum.reduce(state.action_counts, 0, fn
-    {:wait, _count}, total -> total
-    {_action, count}, total -> total + count
-  end)
+  defp self_actions(state) do
+    Enum.reduce(state.action_counts, 0, fn
+      {:wait, _count}, total -> total
+      {_action, count}, total -> total + count
+    end)
+  end
 
   defp manhattan({x1, y1}, {x2, y2}), do: abs(x1 - x2) + abs(y1 - y2)
   defp bucket(value) when value < 0.25, do: :very_low
@@ -272,12 +307,18 @@ defmodule Procession.Simulation.UntaughtGridLearningExperiment do
   defp bool_count(true), do: 1
   defp bool_count(false), do: 0
   defp median([]), do: 0.0
+
   defp median(values) do
     sorted = Enum.sort(values)
     count = length(sorted)
     middle = div(count, 2)
-    if rem(count, 2) == 1, do: Enum.at(sorted, middle) * 1.0,
-      else: (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
+
+    if rem(count, 2) == 1 do
+      Enum.at(sorted, middle) * 1.0
+    else
+      (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
+    end
   end
+
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
 end
