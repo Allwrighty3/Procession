@@ -22,7 +22,6 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
           elapsed_microseconds: non_neg_integer()
         }
 
-  @spec settle(State.t(), keyword()) :: {State.t(), metrics()}
   def settle(%State{} = state, opts \\ []) do
     ids = neighborhood_ids(state, opts)
     constraints = constraints(state, ids, opts)
@@ -61,7 +60,7 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
     hops = Keyword.get(opts, :hops, 2)
     seeds = seed_ids(state)
 
-    0..hops
+    1..max(hops, 0)
     |> Enum.reduce({seeds, seeds}, fn _, {visited, frontier} ->
       next =
         frontier
@@ -77,8 +76,14 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
   end
 
   defp seed_ids(%State{last_observed_region: id}) when not is_nil(id), do: MapSet.new([id])
-  defp seed_ids(%State{active_region_ids: ids}) when map_size(ids) > 0, do: ids
-  defp seed_ids(%State{regions: regions}), do: regions |> Map.keys() |> Enum.take(1) |> MapSet.new()
+
+  defp seed_ids(%State{active_region_ids: ids, regions: regions}) do
+    if MapSet.size(ids) > 0 do
+      ids
+    else
+      regions |> Map.keys() |> Enum.take(1) |> MapSet.new()
+    end
+  end
 
   defp neighbors(state, id) do
     outgoing = state.regions |> Map.fetch!(id) |> Map.get(:geometry) |> Map.keys()
@@ -93,7 +98,9 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
 
   defp constraints(state, ids, opts) do
     id_set = MapSet.new(ids)
-    desired_distance = Keyword.get(opts, :desired_distance, Keyword.get(opts, :placement_step, 0.35))
+    base_distance = Keyword.get(opts, :desired_distance, Keyword.get(opts, :placement_step, 0.35))
+    compression = Keyword.get(opts, :deformation_compression, 0.08)
+    minimum_distance = Keyword.get(opts, :minimum_distance, base_distance * 0.25)
     minimum_weight = Keyword.get(opts, :minimum_weight, 0.01)
 
     ids
@@ -103,7 +110,8 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
       |> Map.get(:geometry)
       |> Enum.filter(fn {target, weight} -> MapSet.member?(id_set, target) and weight >= minimum_weight end)
       |> Enum.map(fn {target, weight} ->
-        %{source: source, target: target, distance: desired_distance, weight: weight}
+        distance = max(minimum_distance, base_distance / (1.0 + compression * :math.log1p(weight)))
+        %{source: source, target: target, distance: distance, weight: weight}
       end)
     end)
   end
