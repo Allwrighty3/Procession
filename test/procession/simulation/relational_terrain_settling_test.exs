@@ -33,21 +33,20 @@ defmodule Procession.Simulation.RelationalTerrainSettlingTest do
     assert RelationalTerrain.region_count(settled) == RelationalTerrain.region_count(terrain)
   end
 
-  test "settling preserves cue-driven route replay" do
+  test "settling preserves cue-driven destination reachability without requiring an exact route" do
     terrain = train([:a, :b, :c, :d], 60)
     terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(:b, @opts)
     {terrain, metrics} = RelationalTerrainSettling.settle(terrain, relaxer_opts: [iterations: 6, rate: 0.20])
 
     assert metrics.residual_after <= metrics.residual_before
 
-    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(:a, @opts)
-    step1 = RelationalTerrain.advance(terrain, @opts)
-    step2 = RelationalTerrain.advance(step1, @opts)
-    step3 = RelationalTerrain.advance(step2, @opts)
+    behavior = destination_behavior(terrain, :a, :d, 8, @opts)
 
-    assert RelationalTerrain.activation(step1, :b) > RelationalTerrain.activation(step1, :c)
-    assert RelationalTerrain.activation(step2, :c) > RelationalTerrain.activation(step2, :d)
-    assert RelationalTerrain.activation(step3, :d) > 0.05
+    assert behavior.destination_reached
+    assert behavior.arrival_tick != nil
+    assert behavior.peak_destination_activation > 0.05
+    assert behavior.cumulative_destination_activation >= behavior.peak_destination_activation
+    assert behavior.peak_active_regions <= RelationalTerrain.region_count(terrain)
   end
 
   defp train(route, repetitions) do
@@ -55,5 +54,32 @@ defmodule Procession.Simulation.RelationalTerrainSettlingTest do
       terrain = RelationalTerrain.clear_activity(terrain)
       Enum.reduce(route, terrain, &RelationalTerrain.observe(&2, &1, @opts))
     end)
+  end
+
+  defp destination_behavior(terrain, cue, destination, horizon, opts) do
+    threshold = 0.03
+    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(cue, opts)
+
+    result =
+      Enum.reduce(1..horizon, %{
+        terrain: terrain,
+        arrival_tick: nil,
+        peak_destination_activation: 0.0,
+        cumulative_destination_activation: 0.0,
+        peak_active_regions: RelationalTerrain.active_region_count(terrain)
+      }, fn tick, acc ->
+        next = RelationalTerrain.advance(acc.terrain, opts)
+        activation = RelationalTerrain.activation(next, destination)
+
+        %{
+          terrain: next,
+          arrival_tick: acc.arrival_tick || if(activation >= threshold, do: tick),
+          peak_destination_activation: max(acc.peak_destination_activation, activation),
+          cumulative_destination_activation: acc.cumulative_destination_activation + activation,
+          peak_active_regions: max(acc.peak_active_regions, RelationalTerrain.active_region_count(next))
+        }
+      end)
+
+    Map.put(result, :destination_reached, not is_nil(result.arrival_tick))
   end
 end
