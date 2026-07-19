@@ -90,10 +90,10 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     moved = position != state.hidden_position
     strain = update_strain(state.strain, outputs, moved, opts)
     energy = clamp(state.energy - Keyword.get(opts, :metabolic_cost, 0.009) - output_cost(outputs, opts) + intake)
-    after = senses(position, energy, strain, resources, before)
-    reward = (after.energy - before.energy) - resistance * 0.08 - strain * 0.01
+    sensed_after = senses(position, energy, strain, resources, before)
+    reward = (sensed_after.energy - before.energy) - resistance * 0.08 - strain * 0.01
     tendencies = update_tendencies(state.tendencies, outputs, reward, opts)
-    tokens = sensorimotor_tokens(before, outputs, after, resistance)
+    tokens = sensorimotor_tokens(before, outputs, sensed_after, resistance)
     compression = Enum.reduce(tokens, state.compression, &Compression.observe(&2, &1, compression_opts))
 
     %{state |
@@ -104,7 +104,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       resources: resources,
       outputs: outputs,
       tendencies: tendencies,
-      previous_senses: after,
+      previous_senses: sensed_after,
       compression: compression,
       sensory_history: Enum.reverse(tokens) ++ state.sensory_history,
       hidden_history: [%{position: position, outputs: outputs, effect: hidden_effect, intake: intake} | state.hidden_history],
@@ -196,7 +196,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     end)
   end
 
-  defp sensorimotor_tokens(before, outputs, after, resistance) do
+  defp sensorimotor_tokens(before, outputs, sensed_after, resistance) do
     [
       {:sense, :energy, bin(before.energy)},
       {:sense, :contact, bin(before.contact)},
@@ -206,8 +206,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     ] ++
       Enum.map(@channels, fn channel -> {:output, channel, bin(Map.fetch!(outputs, channel))} end) ++
       [
-        {:sense, :energy_delta, signed_bin(after.energy - before.energy)},
-        {:sense, :ambient_delta, signed_bin(after.ambient - before.ambient)},
+        {:sense, :energy_delta, signed_bin(sensed_after.energy - before.energy)},
+        {:sense, :ambient_delta, signed_bin(sensed_after.ambient - before.ambient)},
         {:sense, :resistance, bin(resistance)}
       ]
   end
