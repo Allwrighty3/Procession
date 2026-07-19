@@ -60,7 +60,7 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
 
   def report(result) do
     header = [
-      "Independence development with bounded teaching",
+      "Independence development with productive struggle",
       "population=#{result.population} phase_ticks=#{result.phase_ticks} window=#{@window}",
       "clone_control: exact=#{fmt(result.clone_control.exact)} nodes=#{fmt(result.clone_control.nodes)}"
     ]
@@ -94,9 +94,11 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       field: DevelopmentalField.new(field_opts),
       teacher: TaskLocalTeachingController.new(condition),
       arousal: 0.20,
+      previous_arousal: 0.20,
       disturbance_age: 0,
       active_problem?: false,
       attempts: 0,
+      recent_problem_actions: [],
       records: []
     }
 
@@ -168,6 +170,7 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       {:caregiver_intervention_channel, caregiver_resolved?},
       {:teaching_action_channel, teacher_action},
       {:teaching_cue_channel, teacher.cue},
+      {:productive_struggle_channel, observation.productive_struggle?},
       {:effective_action_channel, effective_action}
     ]
 
@@ -178,6 +181,9 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       action: action,
       teacher_action: teacher_action,
       assistance_level: teacher.assistance_level,
+      productive_struggle?: observation.productive_struggle?,
+      high_urgency?: observation.urgency == :high,
+      rapid_deterioration?: observation.deterioration == :rapid,
       problem?: state.active_problem?,
       self_resolved?: self_resolved?,
       caregiver?: caregiver_resolved?,
@@ -186,15 +192,24 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       age: state.disturbance_age
     }
 
+    recent_problem_actions =
+      cond do
+        resolved? -> []
+        state.active_problem? -> [action | state.recent_problem_actions] |> Enum.take(4)
+        true -> []
+      end
+
     %{
       state
       | field: field,
         teacher: teacher,
+        previous_arousal: state.arousal,
         arousal: arousal,
         active_problem?: state.active_problem? and not resolved?,
         disturbance_age:
           if(resolved?, do: 0, else: state.disturbance_age + bool_count(state.active_problem?)),
         attempts: if(resolved?, do: 0, else: state.attempts + bool_count(state.active_problem?)),
+        recent_problem_actions: recent_problem_actions,
         records: [record | state.records]
     }
   end
@@ -208,6 +223,8 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
         | active_problem?: true,
           disturbance_age: 0,
           attempts: 0,
+          recent_problem_actions: [],
+          previous_arousal: state.arousal,
           arousal: max(state.arousal, 0.38)
       }
     else
@@ -301,6 +318,9 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
     signals = Enum.count(records, fn record -> record.action == :signal end)
     demonstrations = Enum.count(records, fn record -> record.teacher_action == :demonstrate end)
     highlights = Enum.count(records, fn record -> record.teacher_action == :highlight end)
+    productive = Enum.count(records, fn record -> record.productive_struggle? end)
+    high_urgency = Enum.count(records, fn record -> record.high_urgency? end)
+    rapid_deterioration = Enum.count(records, fn record -> record.rapid_deterioration? end)
 
     %{
       self_resolution_rate: ratio(self, max(resolutions, 1)),
@@ -309,6 +329,9 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       unresolved_rate: ratio(problems - resolutions, max(problems, 1)),
       demonstration_rate: ratio(demonstrations, length(records)),
       highlight_rate: ratio(highlights, length(records)),
+      productive_struggle_rate: ratio(productive, max(problems, 1)),
+      high_urgency_rate: ratio(high_urgency, max(problems, 1)),
+      rapid_deterioration_rate: ratio(rapid_deterioration, max(problems, 1)),
       mean_assistance_level: mean(Enum.map(records, fn record -> record.assistance_level end)),
       mean_arousal: mean(Enum.map(records, fn record -> record.arousal end)),
       mean_resolution_age:
@@ -394,6 +417,8 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
       "final_caregiver=#{stats_text(final.caregiver_rate)} " <>
       "final_signal=#{stats_text(final.signal_rate)} " <>
       "final_unresolved=#{stats_text(final.unresolved_rate)} " <>
+      "final_productive=#{stats_text(final.productive_struggle_rate)} " <>
+      "final_high_urgency=#{stats_text(final.high_urgency_rate)} " <>
       "final_demo=#{stats_text(final.demonstration_rate)} " <>
       "final_highlight=#{stats_text(final.highlight_rate)} " <>
       "final_assist_level=#{stats_text(final.mean_assistance_level)}"
@@ -406,7 +431,8 @@ defmodule Procession.Simulation.IndependenceDevelopmentExperiment do
 
         "#{inspect(key)}:self=#{fmt(window.self_resolution_rate.mean)}," <>
           "care=#{fmt(window.caregiver_rate.mean)}," <>
-          "signal=#{fmt(window.signal_rate.mean)}"
+          "signal=#{fmt(window.signal_rate.mean)}," <>
+          "productive=#{fmt(window.productive_struggle_rate.mean)}"
       end)
 
     "#{condition}_learned_minus_blind: #{window_text}"
