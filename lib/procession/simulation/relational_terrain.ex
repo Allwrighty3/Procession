@@ -7,7 +7,8 @@ defmodule Procession.Simulation.RelationalTerrain do
   space. New regions are placed relative to the currently experienced neighborhood;
   persistent memory is deformation of local geometry, and transient activity flows
   through only the active neighborhood. Dimensions may expand when distinct local
-  relationships cannot be represented without colliding in the current manifold.
+  relationships cannot be represented without collision or excessive directional
+  crowding in the current manifold.
   """
 
   defmodule Region do
@@ -142,14 +143,29 @@ defmodule Procession.Simulation.RelationalTerrain do
     do: innovation_direction(observation, state.dimensions, opts)
 
   defp innovation_direction(observation, dimensions, opts) do
-    salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
+    case Keyword.get(opts, :direction_provider) do
+      provider when is_function(provider, 2) ->
+        provider.(observation, dimensions)
+        |> fit_dimensions(dimensions)
+        |> normalize()
+        |> ensure_direction()
 
-    0..(dimensions - 1)
-    |> Enum.map(fn dimension ->
-      (:erlang.phash2({salt, observation, dimension}, 2_000_001) - 1_000_000) / 1_000_000
-    end)
-    |> normalize()
-    |> ensure_direction()
+      _ ->
+        salt = Keyword.get(opts, :encoding_salt, :relational_terrain)
+
+        0..(dimensions - 1)
+        |> Enum.map(fn dimension ->
+          (:erlang.phash2({salt, observation, dimension}, 2_000_001) - 1_000_000) / 1_000_000
+        end)
+        |> normalize()
+        |> ensure_direction()
+    end
+  end
+
+  defp fit_dimensions(vector, dimensions) when is_list(vector) do
+    vector
+    |> Enum.take(dimensions)
+    |> Kernel.++(List.duplicate(0.0, max(dimensions - length(vector), 0)))
   end
 
   defp ensure_direction(vector) do
@@ -174,12 +190,16 @@ defmodule Procession.Simulation.RelationalTerrain do
       state.dimensions >= Keyword.get(opts, :max_dimensions, 64) ->
         {state, proposal}
 
-      local_collision?(state, proposal, opts) ->
+      local_distortion?(state, proposal, opts) ->
         expand_dimension(state, observation, opts)
 
       true ->
         {state, proposal}
     end
+  end
+
+  defp local_distortion?(state, proposal, opts) do
+    local_collision?(state, proposal, opts) or local_direction_crowding?(state, proposal, opts)
   end
 
   defp local_collision?(state, proposal, opts) do
@@ -190,6 +210,27 @@ defmodule Procession.Simulation.RelationalTerrain do
       target = Map.fetch!(state.regions, target_id)
       distance(proposal, target.center) <= threshold
     end)
+  end
+
+  defp local_direction_crowding?(%State{dimensions: 1}, _proposal, _opts), do: false
+
+  defp local_direction_crowding?(state, proposal, opts) do
+    source = Map.fetch!(state.regions, state.last_observed_region)
+    proposed_direction = subtract(proposal, source.center) |> normalize()
+    cosine_limit = Keyword.get(opts, :direction_crowding_cosine, 0.965)
+    minimum_neighbors = Keyword.get(opts, :direction_crowding_min_neighbors, 1)
+
+    existing_directions =
+      source.geometry
+      |> Map.keys()
+      |> Enum.map(fn target_id ->
+        target = Map.fetch!(state.regions, target_id)
+        subtract(target.center, source.center) |> normalize()
+      end)
+      |> Enum.reject(&zero_vector?/1)
+
+    length(existing_directions) >= minimum_neighbors and
+      Enum.any?(existing_directions, fn direction -> dot(proposed_direction, direction) >= cosine_limit end)
   end
 
   defp expand_dimension(state, observation, opts) do
@@ -337,7 +378,10 @@ defmodule Procession.Simulation.RelationalTerrain do
     if magnitude == 0.0, do: vector, else: Enum.map(vector, &(&1 / magnitude))
   end
 
+  defp zero_vector?(vector), do: Enum.all?(vector, &(abs(&1) < 1.0e-12))
+  defp dot(left, right), do: Enum.zip_with(left, right, &(&1 * &2)) |> Enum.sum()
   defp add(left, right), do: Enum.zip_with(left, right, &(&1 + &2))
+  defp subtract(left, right), do: Enum.zip_with(left, right, &(&1 - &2))
   defp scale(vector, amount), do: Enum.map(vector, &(&1 * amount))
   defp interpolate(current, proposal, rate), do: Enum.zip_with(current, proposal, &(&1 + (&2 - &1) * rate))
 
