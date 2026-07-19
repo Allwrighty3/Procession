@@ -2,36 +2,22 @@ defmodule Procession.Simulation.DevelopmentalField do
   @moduledoc """
   Minimal self-constructing relational field.
 
-  Raw experience activates generic micro-nodes. Generated nodes reactivate from
-  overlapping support before plasticity, so prior structure can participate in
-  later learning. Edges are directed; reciprocal structure must be produced by
-  reciprocal experience rather than by canonical edge storage.
+  Raw experience activates generic micro-nodes. Generated nodes reactivate before
+  plasticity, allowing prior structure to participate in later learning. Edges are
+  directed; reciprocal structure develops only when experience strengthens both
+  directions.
   """
 
   defmodule Node do
     @moduledoc false
-    defstruct [
-      :id,
-      :kind,
-      :formed_tick,
-      support: MapSet.new(),
-      stability: 0.0,
-      reuse: 0,
-      formation_coherence: 0.0
-    ]
+    defstruct [:id, :kind, :formed_tick,
+      support: MapSet.new(), stability: 0.0, reuse: 0, formation_coherence: 0.0]
   end
 
   defmodule State do
     @moduledoc false
-    defstruct tick: 0,
-              micro_nodes: 0,
-              next_id: 0,
-              nodes: %{},
-              edges: %{},
-              activity: %{},
-              recurrence: %{},
-              generated: MapSet.new(),
-              history: []
+    defstruct tick: 0, micro_nodes: 0, next_id: 0, nodes: %{}, edges: %{},
+              activity: %{}, recurrence: %{}, generated: MapSet.new(), history: []
   end
 
   def new(opts \\ []) do
@@ -41,32 +27,28 @@ defmodule Procession.Simulation.DevelopmentalField do
   end
 
   def step(%State{} = state, input, opts \\ []) do
-    previous_activity = state.activity
+    previous = state.activity
     active_micro = encode(input, state.micro_nodes, opts)
 
-    activity =
-      previous_activity
-      |> decay_activity(opts)
-      |> inject_micro_activity(active_micro)
-      |> reactivate_generated(state, active_micro, opts)
-
-    rising = rising_nodes(previous_activity, activity, opts)
+    base_activity = previous |> decay_activity(opts) |> inject_micro_activity(active_micro)
+    {activity, nodes} = reactivate_generated(base_activity, state, active_micro, opts)
+    rising = rising_nodes(previous, activity, opts)
     active_field = plastic_nodes(activity, opts)
 
     edges =
       state.edges
       |> decay_edges(opts)
       |> strengthen_coactive_edges(active_field, activity, opts)
-      |> strengthen_temporal_edges(previous_activity, rising, activity, opts)
+      |> strengthen_temporal_edges(previous, rising, activity, opts)
 
     recurrence = update_recurrence(state.recurrence, active_field)
 
-    state = %{
-      state
-      | tick: state.tick + 1,
-        activity: activity,
-        edges: edges,
-        recurrence: recurrence
+    state = %{state |
+      tick: state.tick + 1,
+      nodes: nodes,
+      activity: activity,
+      edges: edges,
+      recurrence: recurrence
     }
 
     state = maybe_consolidate(state, active_field, opts)
@@ -83,20 +65,13 @@ defmodule Procession.Simulation.DevelopmentalField do
     %{state | history: [snapshot | state.history]}
   end
 
-  def run(inputs, opts \\ []) do
-    Enum.reduce(inputs, new(opts), fn input, state -> step(state, input, opts) end)
-  end
+  def run(inputs, opts \\ []), do: Enum.reduce(inputs, new(opts), &step(&2, &1, opts))
 
   def generated_nodes(%State{} = state) do
-    state.generated
-    |> Enum.map(&Map.fetch!(state.nodes, &1))
-    |> Enum.sort_by(& &1.id)
+    state.generated |> Enum.map(&Map.fetch!(state.nodes, &1)) |> Enum.sort_by(& &1.id)
   end
 
-  def active_micro_nodes(%State{} = state, input, opts \\ []) do
-    encode(input, state.micro_nodes, opts)
-  end
-
+  def active_micro_nodes(%State{} = state, input, opts \\ []), do: encode(input, state.micro_nodes, opts)
   def edge_mass(edges), do: edges |> Map.values() |> Enum.sum()
 
   defp encode({:features, features}, micro_nodes, opts) when is_list(features) do
@@ -107,7 +82,6 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp encode(input, micro_nodes, opts) do
     width = Keyword.get(opts, :input_width, 5)
-
     0..(width - 1)
     |> Enum.map(fn offset -> :erlang.phash2({input, offset}, micro_nodes) end)
     |> MapSet.new()
@@ -115,7 +89,6 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp decay_activity(activity, opts) do
     retention = Keyword.get(opts, :activity_retention, 0.70)
-
     activity
     |> Enum.map(fn {id, value} -> {id, value * retention} end)
     |> Enum.reject(fn {_id, value} -> value < 0.001 end)
@@ -129,43 +102,42 @@ defmodule Procession.Simulation.DevelopmentalField do
   end
 
   defp reactivate_generated(activity, state, active_micro, opts) do
-    match_threshold = Keyword.get(opts, :reuse_threshold, 0.60)
+    threshold = Keyword.get(opts, :reuse_threshold, 0.60)
 
-    Enum.reduce(state.generated, activity, fn id, acc ->
-      node = Map.fetch!(state.nodes, id)
-      support_activity = support_activation(node.support, acc, active_micro)
+    state.generated
+    |> Enum.sort()
+    |> Enum.reduce({activity, state.nodes}, fn id, {activity_acc, nodes_acc} ->
+      node = Map.fetch!(nodes_acc, id)
+      support_activity = support_activation(node.support, activity_acc, active_micro)
 
-      if support_activity >= match_threshold do
-        Map.update(acc, id, support_activity, &min(3.0, &1 + support_activity))
+      if support_activity >= threshold do
+        activity_acc = Map.update(activity_acc, id, support_activity, &min(3.0, &1 + support_activity))
+        node = %{node | reuse: node.reuse + 1, stability: min(10.0, node.stability + 0.05)}
+        {activity_acc, Map.put(nodes_acc, id, node)}
       else
-        acc
+        {activity_acc, nodes_acc}
       end
     end)
   end
 
   defp support_activation(support, activity, active_micro) do
-    total = max(MapSet.size(support), 1)
+    activated = Enum.count(support, fn id ->
+      MapSet.member?(active_micro, id) or Map.get(activity, id, 0.0) >= 0.20
+    end)
 
-    activated =
-      Enum.count(support, fn id ->
-        MapSet.member?(active_micro, id) or Map.get(activity, id, 0.0) >= 0.20
-      end)
-
-    activated / total
+    activated / max(MapSet.size(support), 1)
   end
 
   defp rising_nodes(previous, current, opts) do
-    rise_threshold = Keyword.get(opts, :rise_threshold, 0.20)
-
+    threshold = Keyword.get(opts, :rise_threshold, 0.20)
     current
-    |> Enum.filter(fn {id, value} -> value - Map.get(previous, id, 0.0) >= rise_threshold end)
+    |> Enum.filter(fn {id, value} -> value - Map.get(previous, id, 0.0) >= threshold end)
     |> Enum.map(&elem(&1, 0))
     |> MapSet.new()
   end
 
   defp plastic_nodes(activity, opts) do
     threshold = Keyword.get(opts, :plasticity_threshold, 0.18)
-
     activity
     |> Enum.filter(fn {_id, value} -> value >= threshold end)
     |> Enum.map(&elem(&1, 0))
@@ -174,7 +146,6 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp decay_edges(edges, opts) do
     retention = Keyword.get(opts, :edge_retention, 0.999)
-
     edges
     |> Enum.map(fn {edge, value} -> {edge, value * retention} end)
     |> Enum.reject(fn {_edge, value} -> value < 0.0005 end)
@@ -195,12 +166,9 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp strengthen_temporal_edges(edges, previous, rising, current, opts) do
     gain = Keyword.get(opts, :temporal_edge_gain, Keyword.get(opts, :edge_gain, 0.04) * 0.50)
-    source_threshold = Keyword.get(opts, :temporal_source_threshold, 0.18)
+    threshold = Keyword.get(opts, :temporal_source_threshold, 0.18)
 
-    sources =
-      previous
-      |> Enum.filter(fn {_id, value} -> value >= source_threshold end)
-      |> Enum.map(&elem(&1, 0))
+    sources = previous |> Enum.filter(fn {_id, value} -> value >= threshold end) |> Enum.map(&elem(&1, 0))
 
     Enum.reduce(sources, edges, fn source, acc ->
       Enum.reduce(rising, acc, fn target, inner ->
@@ -221,47 +189,34 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp maybe_consolidate(state, active, opts) do
     signature = active |> MapSet.to_list() |> Enum.sort() |> List.to_tuple()
-    threshold = Keyword.get(opts, :consolidation_threshold, 5)
     recurrence = Map.get(state.recurrence, signature, 0)
-    current_coherence = coherence(state.edges, active)
+    coherence = coherence(state.edges, active)
 
     cond do
       MapSet.size(active) < 2 -> state
-      recurrence < threshold -> state
+      recurrence < Keyword.get(opts, :consolidation_threshold, 5) -> state
       already_supported?(state, active) -> state
-      current_coherence < Keyword.get(opts, :coherence_threshold, 0.08) -> state
-      true -> create_generated_node(state, active, current_coherence)
+      coherence < Keyword.get(opts, :coherence_threshold, 0.08) -> state
+      true -> create_generated_node(state, active, coherence)
     end
   end
 
   defp create_generated_node(state, active, formation_coherence) do
     id = state.next_id
+    node = %Node{id: id, kind: :generated, support: active, stability: 1.0,
+      reuse: 0, formed_tick: state.tick, formation_coherence: formation_coherence}
 
-    node = %Node{
-      id: id,
-      kind: :generated,
-      support: active,
-      stability: 1.0,
-      reuse: 0,
-      formed_tick: state.tick,
-      formation_coherence: formation_coherence
-    }
-
-    # Support activity produces the generated region. Reverse relationships are
-    # not inserted here; they must be learned through later coactivation.
-    edges =
-      Enum.reduce(active, state.edges, fn member, acc ->
-        Map.put_new(acc, {member, id}, 0.10)
-      end)
-
-    activity = Map.put(state.activity, id, 1.0)
+    # Existing activity produces the generated region. Reverse edges are not
+    # inserted; they can only emerge through later reciprocal coactivation.
+    edges = Enum.reduce(active, state.edges, fn member, acc -> Map.put_new(acc, {member, id}, 0.10) end)
 
     %{state |
       next_id: id + 1,
       nodes: Map.put(state.nodes, id, node),
       edges: edges,
-      activity: activity,
-      generated: MapSet.put(state.generated, id)}
+      activity: Map.put(state.activity, id, 1.0),
+      generated: MapSet.put(state.generated, id)
+    }
   end
 
   defp already_supported?(state, active) do
@@ -272,20 +227,13 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   defp coherence(edges, active) do
     pairs = active |> MapSet.to_list() |> directed_pairs()
-
-    if pairs == [] do
-      0.0
-    else
-      Enum.sum(Enum.map(pairs, &Map.get(edges, &1, 0.0))) / length(pairs)
-    end
+    if pairs == [], do: 0.0, else: Enum.sum(Enum.map(pairs, &Map.get(edges, &1, 0.0))) / length(pairs)
   end
 
   defp overlap_ratio(left, right) do
     intersection = MapSet.intersection(left, right) |> MapSet.size()
-    intersection / max(MapSet.size(left), 1)
+    intersection / max(MapSet.size(left), MapSet.size(right), 1)
   end
 
-  defp directed_pairs(values) do
-    for source <- values, target <- values, source != target, do: {source, target}
-  end
+  defp directed_pairs(values), do: for(source <- values, target <- values, source != target, do: {source, target})
 end
