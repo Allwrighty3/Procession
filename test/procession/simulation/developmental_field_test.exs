@@ -14,6 +14,24 @@ defmodule Procession.Simulation.DevelopmentalFieldTest do
     assert length(DevelopmentalField.generated_nodes(state)) >= 1
   end
 
+  test "compression gain amortizes model cost across recurrence" do
+    support = MapSet.new([1, 2])
+    early = DevelopmentalField.compression_gain(support, 4)
+    repeated = DevelopmentalField.compression_gain(support, 10)
+
+    assert early.gain < 0.0
+    assert repeated.gain >= 2.0
+    assert repeated.direct_cost > repeated.compressed_cost
+  end
+
+  test "generated nodes record positive compression gain" do
+    state = DevelopmentalField.run(List.duplicate({:body, :unresolved}, 10), consolidation_threshold: 4)
+
+    assert Enum.all?(DevelopmentalField.generated_nodes(state), fn node ->
+             node.compression_gain >= 2.0 and node.direct_cost > node.compressed_cost
+           end)
+  end
+
   test "generated structure is reused before later plasticity" do
     opts = [consolidation_threshold: 4]
     state = DevelopmentalField.run(List.duplicate({:body, :unresolved}, 8), opts)
@@ -34,6 +52,7 @@ defmodule Procession.Simulation.DevelopmentalFieldTest do
       micro_nodes: 96,
       input_width: 3,
       consolidation_threshold: 3,
+      minimum_compression_gain: -100.0,
       coherence_threshold: 0.0,
       reuse_threshold: 0.5,
       compression_coverage_threshold: 0.5,
@@ -92,6 +111,7 @@ defmodule Procession.Simulation.DevelopmentalFieldTest do
       micro_nodes: 96,
       input_width: 2,
       consolidation_threshold: 3,
+      minimum_compression_gain: -100.0,
       coherence_threshold: 0.0,
       reuse_threshold: 0.5,
       activity_retention: 0.55,
