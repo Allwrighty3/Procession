@@ -192,6 +192,8 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
   defp sensorimotor_member?({kind, _name, _channel, _value}) when kind in [:sense, :output], do: true
   defp sensorimotor_member?(_observation), do: false
 
+  # The final resistance receptor is present every tick, so it acts only as an
+  # implementation boundary. Its value remains part of the simultaneous experience.
   defp packet_boundary?({:sense, :resistance, _value}), do: true
   defp packet_boundary?(_observation), do: false
 
