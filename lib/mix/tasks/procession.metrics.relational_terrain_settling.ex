@@ -33,8 +33,7 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
           "reduction_pct=#{format(metrics.residual_reduction * 100.0)}",
           "elapsed_us=#{metrics.elapsed_microseconds}",
           "replay_score=#{format(metrics.replay_score)}"
-        ], " "
-        )
+        ], " ")
       )
     end)
   end
@@ -55,7 +54,7 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
     route = Enum.map(1..scenario.route_size, &{scenario.name, &1})
     terrain = train(route, 20, opts)
     middle = Enum.at(route, div(length(route), 2))
-    terrain = RelationalTerrain.observe(terrain, middle, opts)
+    terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(middle, opts)
 
     {terrain, metrics} =
       RelationalTerrainSettling.settle(terrain,
