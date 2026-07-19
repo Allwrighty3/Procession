@@ -35,7 +35,14 @@ jobs:
         run: mix deps.get
 
       - name: Compile with warnings as errors
-        run: mix compile --warnings-as-errors
+        run: mix compile --warnings-as-errors 2>&1 | tee relational-terrain-compile.txt
+
+      - name: Upload compiler output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-compile-output
+          path: relational-terrain-compile.txt
 
       - name: Run relational terrain tests
         run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs test/procession/simulation/relational_terrain_natural_compression_test.exs test/procession/simulation/closed_grid_action_compression_experiment_test.exs test/procession/simulation/emergent_sensorimotor_grid_experiment_test.exs 2>&1 | tee relational-terrain-tests.txt
