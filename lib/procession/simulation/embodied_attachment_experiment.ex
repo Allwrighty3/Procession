@@ -5,7 +5,7 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
   The child has no follow-parent force and no hunger-to-direction mapping. Capacity,
   temperature, fatigue, strain, and unresolved activation alter motor effectiveness.
   Caregiver contact supplies heat, provisioning, and recovery. Movements that increase
-  caregiver cues while unresolved activation falls leave local sensory-motor traces.
+  caregiver cues while regulation reduces unresolved activation leave local traces.
   """
 
   @directions [:north, :south, :east, :west]
@@ -14,30 +14,18 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
 
   defmodule Child do
     @moduledoc false
-    defstruct position: {1, 1},
-              capacity: 0.72,
-              temperature: 0.55,
-              fatigue: 0.0,
-              strain: 0.0,
-              unresolved: 0.0,
+    defstruct position: {1, 1}, capacity: 0.72, temperature: 0.55,
+              fatigue: 0.0, strain: 0.0, unresolved: 0.22,
               cue_memory: %{},
               motor: %{north: 0.0, south: 0.0, east: 0.0, west: 0.0},
-              independent_moves: 0,
-              cue_reuse: 0,
-              independent_intake: 0.0,
-              independent_resource_visits: MapSet.new(),
-              alive: true
+              independent_moves: 0, cue_reuse: 0, independent_intake: 0.0,
+              independent_resource_visits: MapSet.new(), alive: true
   end
 
   defmodule State do
     @moduledoc false
-    defstruct seed: 1,
-              tick: 0,
-              parent_present: true,
-              parent_position: {1, 1},
-              child: %Child{},
-              resources: %{},
-              history: []
+    defstruct seed: 1, tick: 0, parent_present: true,
+              parent_position: {1, 1}, child: %Child{}, resources: %{}, history: []
   end
 
   defmodule Summary do
@@ -49,10 +37,7 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
 
   def run(opts \\ []) do
     ticks = Keyword.get(opts, :ticks, 1_800)
-    initial = %State{
-      seed: Keyword.get(opts, :seed, 1),
-      resources: Map.new(@resource_positions, &{&1, 0.50})
-    }
+    initial = %State{seed: Keyword.get(opts, :seed, 1), resources: Map.new(@resource_positions, &{&1, 0.50})}
 
     Enum.reduce_while(1..ticks, initial, fn tick, state ->
       next = advance(state, tick, opts)
@@ -65,15 +50,13 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
     states = Enum.map(seeds, &run(Keyword.put(opts, :seed, &1)))
 
     %Summary{
-      samples: length(states),
-      survived: Enum.count(states, & &1.child.alive),
+      samples: length(states), survived: Enum.count(states, & &1.child.alive),
       median_lifetime: median(Enum.map(states, & &1.tick)),
       median_independent_intake: median(Enum.map(states, & &1.child.independent_intake)),
       median_resource_visits: median(Enum.map(states, &(MapSet.size(&1.child.independent_resource_visits)))),
       median_cue_reuse: median(Enum.map(states, fn state -> state.child.cue_reuse / max(state.child.independent_moves, 1) end)),
       median_memory: median(Enum.map(states, &(map_size(&1.child.cue_memory)))),
-      median_parent_distance_before_departure:
-        median(Enum.map(states, &median_parent_distance/1))
+      median_parent_distance_before_departure: median(Enum.map(states, &median_parent_distance/1))
     }
   end
 
@@ -90,24 +73,25 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
     parent_position = parent_position(tick)
     child = passive_body_update(state.child, opts)
     resources = regenerate(state.resources, opts)
-    caregiver_cue = caregiver_cue(child.position, parent_position, parent_present)
-    pressures = motor_pressures(state, child, caregiver_cue, tick, opts)
-    action = choose(pressures, Keyword.get(opts, :movement_threshold, 0.075))
+    previous_cue = caregiver_cue(child.position, parent_position, parent_present)
+    pressures = motor_pressures(state, child, previous_cue, tick, opts)
+    action = choose(pressures, Keyword.get(opts, :movement_threshold, 0.0025))
     next_position = move(child.position, action)
     moved? = next_position != child.position
     next_cue = caregiver_cue(next_position, parent_position, parent_present)
+    before_regulation = child.unresolved
     child = pay_movement(child, moved?, opts)
     {resources, intake, resource_id} = consume(resources, next_position, child.capacity, opts)
     child = apply_environment(child, parent_present, next_position, parent_position, intake, opts)
-    relief = max(0.0, child.unresolved - unresolved_after_regulation(child))
-    child = %{child | unresolved: unresolved_after_regulation(child)}
-    child = learn(child, caregiver_cue, next_cue, action, relief, moved?, opts)
+    regulated_unresolved = unresolved_after_regulation(child)
+    relief = max(0.0, before_regulation - regulated_unresolved)
+    child = %{child | unresolved: regulated_unresolved}
+    child = learn(child, previous_cue, next_cue, action, relief, moved?, opts)
     child = update_independent(child, action, moved?, resource_id, intake, parent_present)
     child = %{child | position: next_position, motor: pressures, alive: viable?(child)}
 
-    entry = %{tick: tick, child: next_position, parent: if(parent_present, do: parent_position),
-              cue: next_cue, action: action, unresolved: child.unresolved, capacity: child.capacity,
-              temperature: child.temperature}
+    entry = %{tick: tick, child: next_position, parent: if(parent_present, do: parent_position), cue: next_cue,
+      action: action, unresolved: child.unresolved, capacity: child.capacity, temperature: child.temperature}
 
     %{state | tick: tick, parent_present: parent_present, parent_position: parent_position,
       child: child, resources: resources, history: [entry | state.history]}
@@ -131,8 +115,8 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
     Map.new(@directions, fn direction ->
       remembered = Map.get(child.cue_memory, {cue_bucket(cue), direction}, 0.0)
       persistence = Map.get(child.motor, direction, 0.0) * 0.35
-      fluctuation = centered({state.seed, tick, direction}) * 0.045
-      unresolved_output = child.unresolved * (remembered + max(fluctuation, 0.0))
+      fluctuation = max(centered({state.seed, tick, direction}) * 0.11, 0.0)
+      unresolved_output = child.unresolved * (remembered + fluctuation)
       {direction, maturity * effectiveness * (unresolved_output + persistence)}
     end)
   end
@@ -143,16 +127,11 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
     provision = if contact, do: Keyword.get(opts, :caregiver_provision, 0.030), else: 0.0
     recovery = if contact, do: Keyword.get(opts, :caregiver_recovery, 0.025), else: 0.0
 
-    %{child |
-      capacity: clamp(child.capacity + intake + provision),
-      temperature: clamp(child.temperature + warmth),
-      fatigue: max(0.0, child.fatigue - recovery),
-      strain: max(0.0, child.strain - recovery * 0.5)}
+    %{child | capacity: clamp(child.capacity + intake + provision), temperature: clamp(child.temperature + warmth),
+      fatigue: max(0.0, child.fatigue - recovery), strain: max(0.0, child.strain - recovery * 0.5)}
   end
 
-  defp unresolved_after_regulation(child) do
-    clamp(child.unresolved - child.capacity * 0.018 - child.temperature * 0.020)
-  end
+  defp unresolved_after_regulation(child), do: clamp(child.unresolved - child.capacity * 0.018 - child.temperature * 0.020)
 
   defp learn(child, previous_cue, next_cue, action, relief, moved?, opts)
        when action != :rest and moved? and next_cue > previous_cue and relief > 0.0 do
@@ -162,9 +141,8 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
     %{child | cue_memory: memory}
   end
 
-  defp learn(child, _previous_cue, _next_cue, _action, _relief, _moved?, opts) do
-    %{child | cue_memory: decay_memory(child.cue_memory, opts)}
-  end
+  defp learn(child, _previous_cue, _next_cue, _action, _relief, _moved?, opts),
+    do: %{child | cue_memory: decay_memory(child.cue_memory, opts)}
 
   defp pay_movement(child, true, opts) do
     cost = Keyword.get(opts, :movement_cost, 0.009)
@@ -174,7 +152,8 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
   defp pay_movement(child, false, _opts), do: child
 
   defp update_independent(child, action, moved?, resource_id, intake, false) do
-    visits = if resource_id, do: MapSet.put(child.independent_resource_visits, resource_id), else: child.independent_resource_visits
+    visits = if is_nil(resource_id), do: child.independent_resource_visits,
+      else: MapSet.put(child.independent_resource_visits, resource_id)
     reused = if moved? and action != :rest and remembered?(child, action), do: 1, else: 0
     %{child | independent_moves: child.independent_moves + if(moved?, do: 1, else: 0),
       cue_reuse: child.cue_reuse + reused, independent_intake: child.independent_intake + intake,
@@ -182,14 +161,12 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperiment do
   end
   defp update_independent(child, _action, _moved?, _resource_id, _intake, true), do: child
 
-  defp remembered?(child, action) do
-    Enum.any?(child.cue_memory, fn {{_bucket, direction}, value} -> direction == action and value > 0.01 end)
-  end
+  defp remembered?(child, action),
+    do: Enum.any?(child.cue_memory, fn {{_bucket, direction}, value} -> direction == action and value > 0.01 end)
 
   defp caregiver_cue(_position, _parent_position, false), do: 0.0
   defp caregiver_cue(position, parent_position, true), do: 1.0 / (1.0 + manhattan(position, parent_position))
   defp cue_bucket(cue), do: cue |> Kernel.*(4) |> round() |> min(4) |> max(0)
-
   defp parent_position(tick), do: Enum.at(@parent_route, rem(div(tick - 1, 14), length(@parent_route)))
 
   defp regenerate(resources, opts) do
