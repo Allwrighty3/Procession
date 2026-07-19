@@ -11,31 +11,41 @@ defmodule Procession.Simulation.ClosedLoopChildDevelopmentExperimentTest do
     assert result.clone_control.profile_similarity == 1.0
   end
 
-  test "all caregiver policies produce observable closed-loop populations" do
+  test "all caregiver policies produce learned and field-blind populations" do
     result = ClosedLoopChildDevelopmentExperiment.run(population: 2, phase_ticks: 72, seed: 4)
 
     Enum.each([:responsive, :inconsistent, :aversive, :absent], fn policy ->
-      summary = Map.fetch!(result.conditions, policy)
+      condition = Map.fetch!(result.conditions, policy)
 
-      assert summary.phase_one_generated >= 0.0
-      assert summary.phase_two_generated >= summary.phase_one_generated
-      assert summary.phase_two_arousal >= 0.0
-      assert summary.phase_two_arousal <= 1.0
-      assert summary.phase_two_signal_rate >= 0.0
-      assert summary.phase_two_signal_rate <= 1.0
-      assert summary.support_similarity >= 0.0
-      assert summary.support_similarity <= 1.0
+      Enum.each([condition.learned, condition.blind], fn summary ->
+        assert summary.phase_one_generated >= 0.0
+        assert summary.phase_two_generated >= summary.phase_one_generated
+        assert summary.phase_two_arousal >= 0.0
+        assert summary.phase_two_arousal <= 1.0
+        assert summary.phase_two_signal_rate >= 0.0
+        assert summary.phase_two_signal_rate <= 1.0
+        assert summary.support_similarity == nil
+        assert summary.edge_similarity == nil
+        assert summary.profile_similarity >= 0.0
+        assert summary.profile_similarity <= 1.0
+      end)
+
+      assert is_number(condition.delta.signal)
+      assert is_number(condition.delta.approach)
+      assert is_number(condition.delta.withdraw)
     end)
   end
 
-  test "report does not assign psychological labels" do
+  test "report separates learned and field-blind behavior without psychological labels" do
     report =
       [population: 2, phase_ticks: 48, seed: 2]
       |> ClosedLoopChildDevelopmentExperiment.run()
       |> ClosedLoopChildDevelopmentExperiment.report()
 
     assert report =~ "Closed-loop child development"
-    assert report =~ "responsive:"
+    assert report =~ "responsive_learned:"
+    assert report =~ "responsive_blind:"
+    assert report =~ "responsive_learned_minus_blind:"
     refute report =~ "attachment style"
     refute report =~ "secure"
     refute report =~ "anxious"
