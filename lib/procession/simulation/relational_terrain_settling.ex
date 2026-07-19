@@ -57,20 +57,25 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
 
   defp neighborhood_ids(%State{} = state, opts) do
     max_regions = Keyword.get(opts, :max_regions, 32)
-    hops = Keyword.get(opts, :hops, 2)
+    hops = max(Keyword.get(opts, :hops, 2), 0)
     seeds = seed_ids(state)
 
-    1..max(hops, 0)
-    |> Enum.reduce({seeds, seeds}, fn _, {visited, frontier} ->
-      next =
-        frontier
-        |> Enum.flat_map(&neighbors(state, &1))
-        |> MapSet.new()
-        |> MapSet.difference(visited)
+    {visited, _frontier} =
+      Enum.reduce(1..max(hops, 1), {seeds, seeds}, fn step, {visited, frontier} ->
+        if step > hops do
+          {visited, MapSet.new()}
+        else
+          next =
+            frontier
+            |> Enum.flat_map(&neighbors(state, &1))
+            |> MapSet.new()
+            |> MapSet.difference(visited)
 
-      {MapSet.union(visited, next), next}
-    end)
-    |> elem(0)
+          {MapSet.union(visited, next), next}
+        end
+      end)
+
+    visited
     |> Enum.sort()
     |> Enum.take(max_regions)
   end
@@ -110,7 +115,7 @@ defmodule Procession.Simulation.RelationalTerrainSettling do
       |> Map.get(:geometry)
       |> Enum.filter(fn {target, weight} -> MapSet.member?(id_set, target) and weight >= minimum_weight end)
       |> Enum.map(fn {target, weight} ->
-        distance = max(minimum_distance, base_distance / (1.0 + compression * :math.log1p(weight)))
+        distance = max(minimum_distance, base_distance / (1.0 + compression * :math.log(1.0 + weight)))
         %{source: source, target: target, distance: distance, weight: weight}
       end)
     end)
