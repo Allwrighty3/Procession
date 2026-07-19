@@ -38,7 +38,14 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run relational terrain tests
-        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs
+        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs 2>&1 | tee relational-terrain-tests.txt
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-test-output
+          path: relational-terrain-tests.txt
 
       - name: Run relational terrain settling metrics
         if: always()
