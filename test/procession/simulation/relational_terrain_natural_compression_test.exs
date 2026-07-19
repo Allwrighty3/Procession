@@ -68,6 +68,45 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompressionTest do
     assert Enum.any?(NaturalCompression.assemblies(state), &(&1.members == shared))
   end
 
+  test "sensorimotor packet members become one order-independent cooccurring experience" do
+    first_order = [
+      {:sense, :energy, 2},
+      {:sense, :vision, 0, 1},
+      {:output, 0, 3},
+      {:sense, :resistance, 0}
+    ]
+
+    second_order = [
+      {:output, 0, 3},
+      {:sense, :vision, 0, 1},
+      {:sense, :energy, 2},
+      {:sense, :resistance, 0}
+    ]
+
+    state = Enum.reduce(first_order, NaturalCompression.new(@opts), &NaturalCompression.observe(&2, &1, @opts))
+    state = Enum.reduce(second_order, state, &NaturalCompression.observe(&2, &1, @opts))
+    metrics = NaturalCompression.instrumentation(state)
+
+    assert metrics.trace_window_size == 2
+    assert metrics.pending_cooccurrence_members == 0
+    assert state.tick == 2
+    assert Enum.at(state.trace_window, 0) == Enum.at(state.trace_window, 1)
+  end
+
+  test "compression planning normalizes serialized packets into tick transitions" do
+    packet = [
+      {:sense, :energy, 2},
+      {:output, 0, 1},
+      {:sense, :resistance, 0}
+    ]
+
+    trace = List.duplicate(packet, 10) |> List.flatten()
+    state = Enum.reduce(trace, NaturalCompression.new(@opts), &NaturalCompression.observe(&2, &1, @opts))
+    plan = NaturalCompression.compression_plan(state, trace)
+
+    assert plan.detailed_transitions == 9
+  end
+
   defp train(route, repetitions) do
     Enum.reduce(1..repetitions, NaturalCompression.new(@opts), fn _, state ->
       state |> traverse(route) |> NaturalCompression.clear_activity()
