@@ -39,4 +39,48 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run tests
-        run: mix test
+        shell: bash
+        run: |
+          set -o pipefail
+          mix test 2>&1 | tee full-test-output.txt
+
+      - name: Upload full test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-output
+          path: full-test-output.txt
+
+      - name: Run unattended learner survival probe
+        run: mix procession.metrics.unattended_survival --population 32 --ticks 80 --seed 1 --output unattended-survival-metrics.txt
+
+      - name: Run untaught 4x4 learning experiment
+        run: mix procession.metrics.untaught_grid_learning --population 48 --ticks 240 --training-ticks 160 --seed 1 --output untaught-grid-learning-metrics.txt
+
+      - name: Run dependent baby development experiment
+        run: mix procession.metrics.dependent_development --population 48 --baby-ticks 120 --participation-ticks 120 --withdrawal-ticks 100 --seed 1 --output dependent-development-metrics.txt
+
+      - name: Analyze participatory survivor trajectories
+        run: mix procession.metrics.dependent_survivor_analysis --population 48 --baby-ticks 120 --participation-ticks 120 --withdrawal-ticks 100 --seed 1 --output dependent-survivor-analysis-metrics.txt
+
+      - name: Run short developmental smoke probe
+        run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
+
+      - name: Measure compression computational cost
+        run: mix procession.metrics.compression_cost --ticks 1440 --samples 3 --seed 1 --output compression-cost-metrics.txt
+
+      - name: Run active developmental tendencies experiment
+        run: mix procession.metrics.developmental_tendencies --population 8 --phase-ticks 1000 --seed 1 --output developmental-tendencies-metrics.txt
+
+      - name: Upload active simulation metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-metrics
+          path: |
+            unattended-survival-metrics.txt
+            untaught-grid-learning-metrics.txt
+            dependent-development-metrics.txt
+            dependent-survivor-analysis-metrics.txt
+            developmental-stream-metrics.txt
+            compression-cost-metrics.txt
+            developmental-tendencies-metrics.txt

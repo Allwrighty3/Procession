@@ -1,0 +1,110 @@
+name: Relational Terrain Prototype
+
+on:
+  push:
+    branches:
+      - agent/**
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-otp-25-elixir-1.14-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp-25-elixir-1.14-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: set -o pipefail; mix compile --warnings-as-errors 2>&1 | tee relational-terrain-compile.txt
+
+      - name: Upload compiler output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-compile-output
+          path: relational-terrain-compile.txt
+
+      - name: Run relational terrain tests
+        run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs test/procession/simulation/relational_terrain_compression_test.exs test/procession/simulation/relational_terrain_natural_compression_test.exs test/procession/simulation/closed_grid_action_compression_experiment_test.exs test/procession/simulation/emergent_sensorimotor_grid_experiment_test.exs 2>&1 | tee relational-terrain-tests.txt
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-test-output
+          path: relational-terrain-tests.txt
+
+      - name: Run relational terrain settling metrics
+        if: always()
+        run: mix procession.metrics.relational_terrain_settling | tee relational-terrain-settling-metrics.txt
+
+      - name: Upload settling metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-settling-metrics
+          path: relational-terrain-settling-metrics.txt
+
+      - name: Run relational terrain compression metrics
+        if: always()
+        run: mix procession.metrics.relational_terrain_compression | tee relational-terrain-compression-metrics.txt
+
+      - name: Upload compression metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-compression-metrics
+          path: relational-terrain-compression-metrics.txt
+
+      - name: Run natural compression discovery metrics
+        if: always()
+        run: mix procession.metrics.relational_terrain_natural_compression | tee relational-terrain-natural-compression-metrics.txt
+
+      - name: Upload natural compression metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-terrain-natural-compression-metrics
+          path: relational-terrain-natural-compression-metrics.txt
+
+      - name: Run robust 4x4 action compression metrics
+        if: always()
+        run: mix procession.metrics.closed_grid_action_compression | tee closed-grid-action-compression-metrics.txt
+
+      - name: Upload robust 4x4 action compression metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-grid-action-compression-metrics
+          path: closed-grid-action-compression-metrics.txt
+
+      - name: Run emergent sensorimotor grid metrics
+        if: always()
+        run: mix procession.metrics.emergent_sensorimotor_grid | tee emergent-sensorimotor-grid-metrics.txt
+
+      - name: Upload emergent sensorimotor grid metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emergent-sensorimotor-grid-metrics
+          path: emergent-sensorimotor-grid-metrics.txt

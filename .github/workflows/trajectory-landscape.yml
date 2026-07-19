@@ -1,0 +1,50 @@
+name: Trajectory Landscape Probe
+
+on:
+  push:
+    branches:
+      - agent/**
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-otp-25-elixir-1.14-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp-25-elixir-1.14-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests
+        run: mix test
+
+      - name: Run trajectory landscape probe
+        run: mix procession.metrics.trajectory_landscape --repetitions 40 --idle-ticks 80 --output trajectory-landscape-metrics.txt
+
+      - name: Upload trajectory metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectory-landscape-metrics
+          path: trajectory-landscape-metrics.txt
