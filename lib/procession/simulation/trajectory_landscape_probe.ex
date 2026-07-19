@@ -40,12 +40,14 @@ defmodule Procession.Simulation.TrajectoryLandscapeProbe do
       single: inspect_field(single),
       branched: inspect_field(branched),
       rested: inspect_field(rested),
-      single_probe: probe(single, :a, [:b, :c, :d]),
-      branched_probe: probe(branched, :a, [:b, :c, :d, :e, :f]),
+      residual_single_probe: probe(single, :a, [:b, :c, :d], false),
+      structural_single_probe: probe(single, :a, [:b, :c, :d, :g], true),
+      structural_branched_probe: probe(branched, :a, [:b, :c, :d, :e, :f, :g], true),
       route_edges: %{
         single_forward: route_edge_strength(single, @route_a),
         single_reverse: route_edge_strength(single, Enum.reverse(@route_a)),
         single_skip: edge_strength(single, :a, :d),
+        single_untrained: edge_strength(single, :a, :g),
         branched_shared: edge_strength(branched, :a, :b),
         branched_left: route_edge_strength(branched, [:b, :c, :d]),
         branched_right: route_edge_strength(branched, [:b, :e, :f]),
@@ -60,11 +62,12 @@ defmodule Procession.Simulation.TrajectoryLandscapeProbe do
     [
       "Developmental field trajectory landscape probe",
       "repetitions=#{result.repetitions} idle_ticks=#{result.idle_ticks}",
-      "single_forward=#{fmt(edges.single_forward)} single_reverse=#{fmt(edges.single_reverse)} single_skip=#{fmt(edges.single_skip)}",
+      "single_forward=#{fmt(edges.single_forward)} single_reverse=#{fmt(edges.single_reverse)} single_skip=#{fmt(edges.single_skip)} single_untrained=#{fmt(edges.single_untrained)}",
       "branched_shared=#{fmt(edges.branched_shared)} branched_left=#{fmt(edges.branched_left)} branched_right=#{fmt(edges.branched_right)}",
       "rested_forward=#{fmt(edges.rested_forward)} retention_ratio=#{fmt(ratio(edges.rested_forward, edges.single_forward))}",
-      "single_probe=#{format_probe(result.single_probe)}",
-      "branched_probe=#{format_probe(result.branched_probe)}",
+      "residual_single_probe=#{format_probe(result.residual_single_probe)}",
+      "structural_single_probe=#{format_probe(result.structural_single_probe)}",
+      "structural_branched_probe=#{format_probe(result.structural_branched_probe)}",
       "single_nodes=#{result.single.generated_nodes} single_edges=#{result.single.edge_count} single_edge_mass=#{fmt(result.single.edge_mass)}",
       "branched_nodes=#{result.branched.generated_nodes} branched_edges=#{result.branched.edge_count} branched_edge_mass=#{fmt(result.branched.edge_mass)}"
     ]
@@ -87,8 +90,9 @@ defmodule Procession.Simulation.TrajectoryLandscapeProbe do
     end)
   end
 
-  defp probe(field, cue, targets) do
-    cued = DevelopmentalField.step(field, {:trajectory_symbol, cue}, @opts)
+  defp probe(field, cue, targets, clear_activity?) do
+    initial = if clear_activity?, do: %{field | activity: %{}}, else: field
+    cued = DevelopmentalField.step(initial, {:trajectory_symbol, cue}, @opts)
 
     {samples, _field} =
       Enum.map_reduce(1..4, cued, fn tick, acc ->
