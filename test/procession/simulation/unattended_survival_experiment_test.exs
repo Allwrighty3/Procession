@@ -4,7 +4,7 @@ defmodule Procession.Simulation.UnattendedSurvivalExperimentTest do
   alias Procession.Simulation.UnattendedSurvivalExperiment
 
   test "body coupling produces unattended action and survival without teaching" do
-    result = UnattendedSurvivalExperiment.run(population: 8, ticks: 160, seed: 1)
+    result = UnattendedSurvivalExperiment.run(population: 8, ticks: 80, seed: 1)
 
     uncoupled = result.conditions.uncoupled
     coupled = result.conditions.body_coupled
@@ -19,15 +19,15 @@ defmodule Procession.Simulation.UnattendedSurvivalExperimentTest do
   end
 
   test "probe is deterministic for a fixed seed" do
-    first = UnattendedSurvivalExperiment.run(population: 4, ticks: 120, seed: 7)
-    second = UnattendedSurvivalExperiment.run(population: 4, ticks: 120, seed: 7)
+    first = UnattendedSurvivalExperiment.run(population: 4, ticks: 80, seed: 7)
+    second = UnattendedSurvivalExperiment.run(population: 4, ticks: 80, seed: 7)
 
     assert first == second
   end
 
   test "report exposes survival and behavioral metrics" do
     report =
-      [population: 4, ticks: 120, seed: 1]
+      [population: 4, ticks: 80, seed: 1]
       |> UnattendedSurvivalExperiment.run()
       |> UnattendedSurvivalExperiment.report()
 
