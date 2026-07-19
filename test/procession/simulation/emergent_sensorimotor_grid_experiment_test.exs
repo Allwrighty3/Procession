@@ -15,6 +15,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperimentTest do
     refute text =~ "rest"
     refute text =~ "resource"
     refute text =~ "position"
+    refute text =~ "location"
   end
 
   test "anonymous outputs affect hidden world physics" do
@@ -25,6 +26,33 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperimentTest do
     assert map_size(state.visits) > 1
     assert Enum.sum(Map.values(metrics.output_usage)) > 0
     assert Map.get(metrics.world_effects, :displaced, 0) > 0
+  end
+
+  test "panoramic vision exposes sixteen uninterpreted channels and distinguishes places" do
+    left = Experiment.run(ticks: 1, initial_position: {0, 0}, exploration: 0.0)
+    right = Experiment.run(ticks: 1, initial_position: {3, 3}, exploration: 0.0)
+
+    assert map_size(left.previous_senses.vision) == 16
+    assert map_size(right.previous_senses.vision) == 16
+    refute left.previous_senses.vision == right.previous_senses.vision
+
+    assert Enum.count(left.sensory_history, fn
+             {:sense, :vision, _channel, _value} -> true
+             _ -> false
+           end) == 16
+  end
+
+  test "movement produces proprioceptive feedback and grid edges produce impact feedback" do
+    state = Experiment.run(ticks: 320)
+    metrics = Experiment.instrumentation(state)
+
+    assert Enum.any?(state.hidden_history, fn event -> event.proprioception != {0.0, 0.0} end)
+    assert Enum.sum(Map.values(metrics.boundary_impacts)) > 0
+
+    assert Enum.any?(state.sensory_history, fn
+             {:sense, :impact, _channel, value} when value > 0 -> true
+             _ -> false
+           end)
   end
 
   test "rising food signal reinforces the preceding anonymous outputs" do
@@ -54,7 +82,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperimentTest do
     assert metrics.intake > 0.0
   end
 
-  test "raw sensorimotor experience produces compression candidates" do
+  test "raw multisensory experience produces compression candidates" do
     state = Experiment.run(ticks: 320)
     metrics = Experiment.instrumentation(state)
 
