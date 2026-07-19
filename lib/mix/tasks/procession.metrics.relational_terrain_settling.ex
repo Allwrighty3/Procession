@@ -4,27 +4,32 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
   alias Procession.Simulation.RelationalTerrain
   alias Procession.Simulation.RelationalTerrainSettling
 
-  @shortdoc "Measures local terrain relaxation quality, cost, and destination behavior"
+  @shortdoc "Measures terrain relaxation and destination behavior across dimensions and route lengths"
+
+  @dimensions [1, 8, 32]
+  @route_sizes [16, 32, 64]
 
   @impl Mix.Task
   def run(_args) do
     Mix.Task.run("app.start")
 
-    scenarios = [
-      %{name: "chain_1d", dimensions: 1, route_size: 16, max_regions: 12},
-      %{name: "chain_8d", dimensions: 8, route_size: 32, max_regions: 16},
-      %{name: "chain_32d", dimensions: 32, route_size: 64, max_regions: 24}
-    ]
+    IO.puts("Relational terrain dimension/route-length matrix")
 
-    IO.puts("Relational terrain settling metrics")
+    for dimensions <- @dimensions, route_size <- @route_sizes do
+      scenario = %{
+        name: "chain_#{dimensions}d_#{route_size}",
+        dimensions: dimensions,
+        route_size: route_size,
+        max_regions: 24
+      }
 
-    Enum.each(scenarios, fn scenario ->
       metrics = run_scenario(scenario)
 
       IO.puts(
         Enum.join([
           "scenario=#{scenario.name}",
           "dimensions=#{metrics.dimensions}",
+          "route_size=#{scenario.route_size}",
           "stored_regions=#{metrics.stored_regions}",
           "settled_regions=#{metrics.region_count}",
           "constraints=#{metrics.constraint_count}",
@@ -39,7 +44,7 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
           "peak_active_regions=#{metrics.peak_active_regions}"
         ], " ")
       )
-    end)
+    end
   end
 
   defp run_scenario(scenario) do
@@ -52,10 +57,10 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
       active_threshold: 0.03,
       auto_expand_dimensions: false,
       reuse_radius: 0.001,
-      encoding_salt: {:settling_metric, scenario.name}
+      encoding_salt: {:settling_matrix, scenario.dimensions}
     ]
 
-    route = Enum.map(1..scenario.route_size, &{scenario.name, &1})
+    route = Enum.map(1..scenario.route_size, &{{:matrix, scenario.dimensions}, &1})
     terrain = train(route, 20, opts)
     middle = Enum.at(route, div(length(route), 2))
     terrain = terrain |> RelationalTerrain.clear_activity() |> RelationalTerrain.observe(middle, opts)
