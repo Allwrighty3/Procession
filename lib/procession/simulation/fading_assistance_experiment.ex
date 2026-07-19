@@ -8,7 +8,6 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
 
   @conditions [:provision_only, :abrupt_guidance, :staged_fading]
   @actions [:reach, :manipulate, :wait, :north, :south, :east, :west]
-  @directions [:north, :south, :east, :west]
   @field_opts [micro_nodes: 64, input_width: 3, consolidation_threshold: 4,
     coherence_threshold: 0.06, reuse_threshold: 0.50, edge_retention: 0.9995,
     activity_retention: 0.72, plasticity_fanout: 6, plasticity_budget: 0.08,
@@ -106,7 +105,7 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
   defp execute(:provision_only, _stage, intended, _position, _resource, _hunger),
     do: {intended, :position_resource, 1.0}
 
-  defp execute(:abrupt_guidance, stage, intended, position, resource, hunger)
+  defp execute(:abrupt_guidance, stage, _intended, position, resource, hunger)
        when stage != :withdrawal and hunger > 0.42 do
     {guided_action(position, resource), :full_guidance, 0.0}
   end
