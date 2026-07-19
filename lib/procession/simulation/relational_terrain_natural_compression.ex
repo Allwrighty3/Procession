@@ -5,6 +5,11 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
   Detailed relational terrain remains authoritative. Ordinary observations update both
   the terrain and a short local history. Repeated suffixes become candidate assemblies
   without receiving a named behavior or an externally supplied route.
+
+  Sensorimotor observations may arrive as a serialized implementation detail. When a
+  packet ends with a resistance reading, its members are committed as one canonical,
+  order-independent cooccurring experience. Temporal motifs then span experiences rather
+  than the arbitrary order in which simultaneous receptors were enumerated.
   """
 
   alias Procession.Simulation.RelationalTerrain
@@ -16,7 +21,14 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
 
   defmodule State do
     @moduledoc false
-    defstruct [:terrain, trace_window: [], motif_counts: %{}, assemblies: %{}, tick: 0]
+    defstruct [
+      :terrain,
+      trace_window: [],
+      motif_counts: %{},
+      assemblies: %{},
+      pending_cooccurrence: [],
+      tick: 0
+    ]
   end
 
   @motif_sizes [4, 8, 16]
@@ -27,19 +39,21 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
   end
 
   def observe(%State{} = state, observation, opts \\ []) do
-    terrain = RelationalTerrain.observe(state.terrain, observation, opts)
-    max_window = Keyword.get(opts, :compression_window, 16)
-    window = Enum.take(state.trace_window ++ [observation], -max_window)
-    counts = update_suffix_counts(state.motif_counts, window, opts)
-    assemblies = discover(counts, opts)
+    if sensorimotor_member?(observation) do
+      observe_cooccurring_member(state, observation, opts)
+    else
+      commit_observation(state, observation, opts)
+    end
+  end
 
-    %{state |
-      terrain: terrain,
-      trace_window: window,
-      motif_counts: counts,
-      assemblies: assemblies,
-      tick: state.tick + 1
-    }
+  @doc """
+  Commits an explicitly supplied group as one simultaneous experience.
+
+  Member ordering and duplicates have no meaning. The canonical experience is suitable
+  for both terrain observation and temporal motif discovery.
+  """
+  def observe_cooccurrence(%State{} = state, members, opts \\ []) when is_list(members) do
+    commit_observation(state, cooccurring_experience(members), opts)
   end
 
   def advance(%State{} = state, opts \\ []) do
@@ -47,7 +61,12 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
   end
 
   def clear_activity(%State{} = state) do
-    %{state | terrain: RelationalTerrain.clear_activity(state.terrain), trace_window: []}
+    %{
+      state
+      | terrain: RelationalTerrain.clear_activity(state.terrain),
+        trace_window: [],
+        pending_cooccurrence: []
+    }
   end
 
   def terrain(%State{} = state), do: state.terrain
@@ -69,15 +88,20 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
       assemblies_by_size: Enum.frequencies_by(assemblies, & &1.size),
       maximum_assembly_size: assemblies |> Enum.map(& &1.size) |> Enum.max(fn -> 0 end),
       total_candidate_savings: Enum.sum(Enum.map(assemblies, & &1.transitions_saved)),
-      trace_window_size: length(state.trace_window)
+      trace_window_size: length(state.trace_window),
+      pending_cooccurrence_members: length(state.pending_cooccurrence)
     }
   end
 
   @doc """
   Evaluates how discovered assemblies cover a trace. The trace is evaluation-only and
   never contributes to motif counts or assembly discovery.
+
+  Serialized sensorimotor members are normalized into the same cooccurring experiences
+  used during learning before coverage is calculated.
   """
   def compression_plan(%State{} = state, trace, opts \\ []) when is_list(trace) do
+    trace = normalize_trace(trace)
     disturbed = MapSet.new(Keyword.get(opts, :disturbances, []))
     registry = usable_registry(state, disturbed)
     {units, used} = consume(trace, registry, [], [])
@@ -95,6 +119,81 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
       disturbances: MapSet.to_list(disturbed)
     }
   end
+
+  defp observe_cooccurring_member(state, observation, opts) do
+    pending = [observation | state.pending_cooccurrence]
+
+    if packet_boundary?(observation) do
+      state
+      |> Map.put(:pending_cooccurrence, [])
+      |> commit_observation(cooccurring_experience(Enum.reverse(pending)), opts)
+    else
+      %{state | pending_cooccurrence: pending}
+    end
+  end
+
+  defp commit_observation(state, observation, opts) do
+    terrain = RelationalTerrain.observe(state.terrain, observation, opts)
+    max_window = Keyword.get(opts, :compression_window, 16)
+    window = Enum.take(state.trace_window ++ [observation], -max_window)
+    counts = update_suffix_counts(state.motif_counts, window, opts)
+    assemblies = discover(counts, opts)
+
+    %{
+      state
+      | terrain: terrain,
+        trace_window: window,
+        motif_counts: counts,
+        assemblies: assemblies,
+        tick: state.tick + 1
+    }
+  end
+
+  defp normalize_trace(trace) do
+    {normalized, pending} =
+      Enum.reduce(trace, {[], []}, fn observation, {experiences, pending} ->
+        if sensorimotor_member?(observation) do
+          pending = [observation | pending]
+
+          if packet_boundary?(observation) do
+            experience = pending |> Enum.reverse() |> cooccurring_experience()
+            {[experience | experiences], []}
+          else
+            {experiences, pending}
+          end
+        else
+          experiences = flush_pending(experiences, pending)
+          {[observation | experiences], []}
+        end
+      end)
+
+    normalized
+    |> flush_pending(pending)
+    |> Enum.reverse()
+  end
+
+  defp flush_pending(experiences, []), do: experiences
+
+  defp flush_pending(experiences, pending) do
+    [pending |> Enum.reverse() |> cooccurring_experience() | experiences]
+  end
+
+  defp cooccurring_experience(members) do
+    canonical_members =
+      members
+      |> MapSet.new()
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    {:cooccurrence, List.to_tuple(canonical_members)}
+  end
+
+  defp sensorimotor_member?({kind, _name, _value}) when kind in [:sense, :output], do: true
+  defp sensorimotor_member?({kind, _name, _channel, _value}) when kind in [:sense, :output], do: true
+  defp sensorimotor_member?(_observation), do: false
+
+  defp packet_boundary?({:sense, :resistance, _value}), do: true
+  defp packet_boundary?(_observation), do: false
 
   defp update_suffix_counts(counts, window, opts) do
     decay = Keyword.get(opts, :motif_decay, 1.0)
@@ -167,7 +266,12 @@ defmodule Procession.Simulation.RelationalTerrainNaturalCompression do
     case Map.get(registry, hd(trace)) do
       %Assembly{} = assembly ->
         if Enum.take(trace, assembly.size) == assembly.members do
-          consume(Enum.drop(trace, assembly.size), registry, [{:assembly, assembly.members} | units], [assembly | used])
+          consume(
+            Enum.drop(trace, assembly.size),
+            registry,
+            [{:assembly, assembly.members} | units],
+            [assembly | used]
+          )
         else
           [head | tail] = trace
           consume(tail, registry, [{:region, head} | units], used)
