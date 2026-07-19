@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Procession.Metrics.EmergentSensorimotorGrid do
 
   alias Procession.Simulation.EmergentSensorimotorGridExperiment, as: Experiment
 
-  @shortdoc "Reports emergent multisensory behavior and compression in the hidden 4x4 world"
+  @shortdoc "Reports emergent sensorimotor behavior and compression in the hidden 4x4 world"
 
   @impl Mix.Task
   def run(_args) do
@@ -14,14 +14,16 @@ defmodule Mix.Tasks.Procession.Metrics.EmergentSensorimotorGrid do
       metrics = Experiment.instrumentation(state)
 
       IO.puts(
-        "ticks=#{ticks} alive=#{metrics.alive} energy=#{fmt(metrics.energy)} " <>
-          "intake=#{fmt(metrics.intake)} appetitive_feedback=#{fmt(metrics.appetitive_feedback)} " <>
+        "requested_ticks=#{ticks} lived_ticks=#{metrics.ticks} alive=#{metrics.alive} " <>
+          "energy=#{fmt(metrics.energy)} intake=#{fmt(metrics.intake)} " <>
+          "appetitive_feedback=#{fmt(metrics.appetitive_feedback)} " <>
           "mouth_watering=#{fmt(metrics.mouth_watering)}"
       )
 
       IO.puts(
-        "hidden_cells_visited=#{metrics.hidden_cells_visited} visual_channels=#{metrics.visual_channels} " <>
-          "learned_sensorimotor_links=#{metrics.learned_sensorimotor_links} " <>
+        "cooccurring_experiences=#{metrics.detailed_transitions + 1} " <>
+          "pending_members=#{metrics.pending_cooccurrence_members} " <>
+          "hidden_cells_visited=#{metrics.hidden_cells_visited} " <>
           "output_usage=#{inspect(metrics.output_usage)}"
       )
 
@@ -36,7 +38,7 @@ defmodule Mix.Tasks.Procession.Metrics.EmergentSensorimotorGrid do
       )
 
       IO.puts(
-        "transitions=#{metrics.detailed_transitions}->#{metrics.effective_transitions} " <>
+        "tick_transitions=#{metrics.detailed_transitions}->#{metrics.effective_transitions} " <>
           "saved=#{metrics.transitions_saved} ratio=#{fmt(metrics.compression_ratio)}"
       )
 
