@@ -58,4 +58,4 @@ jobs:
           name: relational-terrain-settling-metrics
           path: relational-terrain-settling-metrics.txt
 
-# Metric matrix trigger: dimensions x route lengths
+# Propagation-profile trigger
