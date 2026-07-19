@@ -57,3 +57,5 @@ jobs:
         with:
           name: relational-terrain-settling-metrics
           path: relational-terrain-settling-metrics.txt
+
+# Metric-only trigger: destination-based evaluation
