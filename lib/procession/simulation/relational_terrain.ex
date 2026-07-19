@@ -332,7 +332,8 @@ defmodule Procession.Simulation.RelationalTerrain do
 
   defp propagate(activity, regions, opts) do
     flow_fraction = Keyword.get(opts, :flow_fraction, 0.82)
-    flow_floor = Keyword.get(opts, :flow_floor, 0.01)
+    flow_share_floor = Keyword.get(opts, :flow_share_floor, 0.01)
+    flow_floor = Keyword.get(opts, :flow_floor, 0.0)
 
     Enum.reduce(activity, %{}, fn {source, source_activity}, acc ->
       geometry = Map.fetch!(regions, source).geometry
@@ -342,8 +343,14 @@ defmodule Procession.Simulation.RelationalTerrain do
         acc
       else
         Enum.reduce(geometry, acc, fn {target, deformation}, flow_acc ->
-          amount = source_activity * flow_fraction * deformation / total
-          if amount < flow_floor, do: flow_acc, else: Map.update(flow_acc, target, amount, &(&1 + amount))
+          share = deformation / total
+          amount = source_activity * flow_fraction * share
+
+          if share < flow_share_floor or amount < flow_floor do
+            flow_acc
+          else
+            Map.update(flow_acc, target, amount, &(&1 + amount))
+          end
         end)
       end
     end)
