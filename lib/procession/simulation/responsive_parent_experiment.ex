@@ -3,6 +3,11 @@ defmodule Procession.Simulation.ResponsiveParentExperiment do
 
   alias Procession.Simulation.EmbodiedAttachmentExperiment, as: Body
 
+  @route [
+    {1, 1}, {1, 0}, {0, 0}, {1, 0}, {2, 0}, {3, 0},
+    {3, 1}, {3, 2}, {3, 3}, {2, 3}, {1, 3}, {1, 2}
+  ]
+
   def run(opts \\ []) do
     ticks = Keyword.get(opts, :ticks, 1_800)
     initial = initial_state(opts)
