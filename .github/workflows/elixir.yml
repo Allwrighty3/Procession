@@ -80,6 +80,9 @@ jobs:
       - name: Compare developmental structure origins
         run: mix procession.metrics.developmental_origin --ticks 720 --seed 1 --output developmental-origin-metrics.txt
 
+      - name: Probe extended temporal emergence
+        run: mix procession.metrics.developmental_temporal_probe --seed 1 --output developmental-temporal-probe-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -98,3 +101,4 @@ jobs:
             relational-attachment-metrics.txt
             developmental-stream-metrics.txt
             developmental-origin-metrics.txt
+            developmental-temporal-probe-metrics.txt
