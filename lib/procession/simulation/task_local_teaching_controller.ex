@@ -38,7 +38,11 @@ defmodule Procession.Simulation.TaskLocalTeachingController do
       end
 
     urgency = urgency(state.arousal, state.disturbance_age)
-    deterioration = deterioration(state.arousal - Map.get(state, :previous_arousal, state.arousal))
+
+    deterioration =
+      if state.disturbance_age == 0,
+        do: :stable,
+        else: deterioration(state.arousal - Map.get(state, :previous_arousal, state.arousal))
 
     viable_options_remaining? =
       state.active_problem? and
