@@ -10,10 +10,38 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
   @route_sizes [16, 32, 64]
   @propagation_route_sizes [32, 64, 128]
   @propagation_profiles [
-    %{name: "current", activity_retention: 0.12, flow_fraction: 0.90, flow_floor: 0.01, reverse_deformation_ratio: 0.10},
-    %{name: "no_cutoff", activity_retention: 0.12, flow_fraction: 0.90, flow_floor: 0.0, reverse_deformation_ratio: 0.10},
-    %{name: "no_reverse", activity_retention: 0.12, flow_fraction: 0.90, flow_floor: 0.0, reverse_deformation_ratio: 0.0},
-    %{name: "conserved_forward", activity_retention: 0.02, flow_fraction: 0.98, flow_floor: 0.0, reverse_deformation_ratio: 0.0}
+    %{
+      name: "relative_default",
+      activity_retention: 0.12,
+      flow_fraction: 0.90,
+      flow_floor: 0.0,
+      flow_share_floor: 0.01,
+      reverse_deformation_ratio: 0.10
+    },
+    %{
+      name: "legacy_absolute",
+      activity_retention: 0.12,
+      flow_fraction: 0.90,
+      flow_floor: 0.01,
+      flow_share_floor: 0.0,
+      reverse_deformation_ratio: 0.10
+    },
+    %{
+      name: "no_reverse",
+      activity_retention: 0.12,
+      flow_fraction: 0.90,
+      flow_floor: 0.0,
+      flow_share_floor: 0.01,
+      reverse_deformation_ratio: 0.0
+    },
+    %{
+      name: "conserved_forward",
+      activity_retention: 0.02,
+      flow_fraction: 0.98,
+      flow_floor: 0.0,
+      flow_share_floor: 0.01,
+      reverse_deformation_ratio: 0.0
+    }
   ]
 
   @impl Mix.Task
@@ -82,6 +110,7 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalTerrainSettling do
       activity_retention: profile.activity_retention,
       flow_fraction: profile.flow_fraction,
       flow_floor: profile.flow_floor,
+      flow_share_floor: profile.flow_share_floor,
       reverse_deformation_ratio: profile.reverse_deformation_ratio,
       active_threshold: 0.03,
       auto_expand_dimensions: false,
