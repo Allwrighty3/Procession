@@ -179,7 +179,8 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
     retention = Keyword.get(opts, :output_retention, 0.55)
     exploration = Keyword.get(opts, :exploration, 0.24)
     urgency = 1.0 - senses.energy
-    motor_quieting = Keyword.get(opts, :visceral_motor_quieting, 0.72)
+    contact_quieting_gain = Keyword.get(opts, :contact_motor_quieting, 1.05)
+    contact_quieting = senses.contact * urgency * contact_quieting_gain
 
     Map.new(@channels, fn channel ->
       prior = Map.fetch!(state.outputs, channel) * retention
@@ -189,7 +190,7 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
       visceral_bias =
         if channel == 4,
           do: mouth_watering,
-          else: -mouth_watering * motor_quieting
+          else: -contact_quieting
 
       {channel, clamp(prior + learned + fluctuation + visceral_bias)}
     end)
@@ -242,9 +243,9 @@ defmodule Procession.Simulation.EmergentSensorimotorGridExperiment do
 
   defp mouth_watering(senses, opts) do
     urgency = 1.0 - senses.energy
-    ambient_gain = Keyword.get(opts, :ambient_mouth_watering_gain, 0.32)
-    contact_gain = Keyword.get(opts, :contact_mouth_watering_gain, 1.60)
-    approach_gain = Keyword.get(opts, :approach_mouth_watering_gain, 0.70)
+    ambient_gain = Keyword.get(opts, :ambient_mouth_watering_gain, 0.10)
+    contact_gain = Keyword.get(opts, :contact_mouth_watering_gain, 1.85)
+    approach_gain = Keyword.get(opts, :approach_mouth_watering_gain, 0.80)
     rising_signal = max(0.0, senses.ambient_change) + max(0.0, senses.contact_change) * 1.5
 
     clamp(
