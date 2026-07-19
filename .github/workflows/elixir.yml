@@ -77,6 +77,9 @@ jobs:
       - name: Observe developmental stream structure
         run: mix procession.metrics.developmental_stream --ticks 720 --seed 1 --output developmental-stream-metrics.txt
 
+      - name: Compare developmental structure origins
+        run: mix procession.metrics.developmental_origin --ticks 720 --seed 1 --output developmental-origin-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -94,3 +97,4 @@ jobs:
             responsive-parent-metrics.txt
             relational-attachment-metrics.txt
             developmental-stream-metrics.txt
+            developmental-origin-metrics.txt
