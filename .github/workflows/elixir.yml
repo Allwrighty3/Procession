@@ -44,6 +44,9 @@ jobs:
       - name: Run unattended learner survival probe
         run: mix procession.metrics.unattended_survival --population 32 --ticks 80 --seed 1 --output unattended-survival-metrics.txt
 
+      - name: Run untaught 4x4 learning experiment
+        run: mix procession.metrics.untaught_grid_learning --population 48 --ticks 240 --training-ticks 160 --seed 1 --output untaught-grid-learning-metrics.txt
+
       - name: Run short developmental smoke probe
         run: mix procession.metrics.developmental_stream --ticks 360 --seed 1 --output developmental-stream-metrics.txt
 
@@ -59,6 +62,7 @@ jobs:
           name: simulation-metrics
           path: |
             unattended-survival-metrics.txt
+            untaught-grid-learning-metrics.txt
             developmental-stream-metrics.txt
             compression-cost-metrics.txt
             developmental-tendencies-metrics.txt
