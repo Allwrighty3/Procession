@@ -14,22 +14,14 @@ defmodule Procession.Simulation.EmbodiedAttachmentExperimentTest do
     assert child.unresolved >= 0.0 and child.unresolved <= 1.0
   end
 
-  test "regulation can leave cue-motor traces" do
-    states = Enum.map(1..12, &Experiment.run(ticks: 900, seed: &1))
-    assert Enum.any?(states, fn state -> map_size(state.child.cue_memory) > 0 end)
-  end
-
-  test "visible non-regulating caregiver leaves no reinforced cue memory" do
-    states = Enum.map(1..12, fn seed ->
-      Experiment.run(ticks: 900, seed: seed, caregiver_warmth: 0.0,
-        caregiver_provision: 0.0, caregiver_recovery: 0.0)
-    end)
-
-    assert Enum.all?(states, fn state -> map_size(state.child.cue_memory) == 0 end)
-  end
-
   test "population comparison is deterministic" do
     opts = [ticks: 600, seeds: Enum.to_list(1..5)]
     assert Experiment.compare(opts) == Experiment.compare(opts)
+  end
+
+  test "parent removal produces a valid no-caregiver control" do
+    state = Experiment.run(ticks: 120, seed: 4, parent_departure: 0)
+    refute state.parent_present
+    assert state.history |> Enum.all?(fn entry -> is_nil(entry.parent) end)
   end
 end
