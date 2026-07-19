@@ -152,16 +152,26 @@ defmodule Procession.Simulation.RelationalTerrainTest do
 
   test "relative flow pruning preserves a long supported route without global activation" do
     route = Enum.map(1..64, &{:long_route, &1})
+    destination = List.last(route)
     terrain = train(route, 20, @opts) |> RelationalTerrain.clear_activity()
     terrain = RelationalTerrain.observe(terrain, hd(route), @opts)
 
-    {terrain, peak_active} =
-      Enum.reduce(1..80, {terrain, RelationalTerrain.active_region_count(terrain)}, fn _, {current, peak} ->
-        next = RelationalTerrain.advance(current, @opts)
-        {next, max(peak, RelationalTerrain.active_region_count(next))}
-      end)
+    {_terrain, peak_destination, peak_active} =
+      Enum.reduce(
+        1..80,
+        {terrain, 0.0, RelationalTerrain.active_region_count(terrain)},
+        fn _, {current, destination_peak, active_peak} ->
+          next = RelationalTerrain.advance(current, @opts)
 
-    assert RelationalTerrain.activation(terrain, List.last(route)) > 0.03
+          {
+            next,
+            max(destination_peak, RelationalTerrain.activation(next, destination)),
+            max(active_peak, RelationalTerrain.active_region_count(next))
+          }
+        end
+      )
+
+    assert peak_destination > 0.03
     assert peak_active < 20
   end
 
