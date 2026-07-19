@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.ResponsiveParentExperiment do
-  @moduledoc """Responsive caregiver scaffolding without a child follow force."""
+  @moduledoc "Responsive caregiver scaffolding without a child follow force."
 
   alias Procession.Simulation.EmbodiedAttachmentExperiment, as: Body
 
