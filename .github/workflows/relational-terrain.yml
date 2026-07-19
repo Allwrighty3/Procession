@@ -41,9 +41,11 @@ jobs:
         run: mix test test/procession/simulation/relational_terrain_test.exs test/procession/simulation/terrain_relaxer_test.exs test/procession/simulation/relational_terrain_settling_test.exs
 
       - name: Run relational terrain settling metrics
+        if: always()
         run: mix procession.metrics.relational_terrain_settling | tee relational-terrain-settling-metrics.txt
 
       - name: Upload settling metrics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: relational-terrain-settling-metrics
