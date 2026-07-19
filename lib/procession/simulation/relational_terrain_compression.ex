@@ -41,6 +41,7 @@ defmodule Procession.Simulation.RelationalTerrainCompression do
       links
       |> contiguous_runs(eligible)
       |> Enum.flat_map(fn run -> build_assemblies(run, max_assembly_size, support_scale) end)
+      |> Enum.filter(&(&1.detailed_transitions > &1.compressed_transitions))
       |> Enum.with_index(1)
       |> Enum.map(fn {assembly, id} -> %{assembly | id: id} end)
 
