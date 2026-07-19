@@ -37,7 +37,7 @@ defmodule Procession.Simulation.DevelopmentalField do
   end
 
   def step(%State{} = state, input, opts \\ []) do
-    active = encode(input, state.micro_nodes, opts)
+    active = active_micro_nodes(state, input, opts)
     activity = update_activity(state.activity, active, opts)
     edges = strengthen_edges(state.edges, active, opts)
     recurrence = update_recurrence(state.recurrence, active)
@@ -61,6 +61,14 @@ defmodule Procession.Simulation.DevelopmentalField do
     Enum.reduce(inputs, new(opts), fn input, state -> step(state, input, opts) end)
   end
 
+  def active_micro_nodes(%State{} = state, input, opts \\ []) do
+    input
+    |> normalize_features()
+    |> Enum.reduce(MapSet.new(), fn feature, active ->
+      MapSet.union(active, encode_feature(feature, state.micro_nodes, opts))
+    end)
+  end
+
   def generated_nodes(%State{} = state) do
     state.generated
     |> Enum.map(&Map.fetch!(state.nodes, &1))
@@ -69,11 +77,14 @@ defmodule Procession.Simulation.DevelopmentalField do
 
   def edge_mass(edges), do: edges |> Map.values() |> Enum.sum()
 
-  defp encode(input, micro_nodes, opts) do
-    width = Keyword.get(opts, :input_width, 5)
+  defp normalize_features({:features, features}) when is_list(features), do: features
+  defp normalize_features(input), do: [input]
+
+  defp encode_feature(feature, micro_nodes, opts) do
+    width = Keyword.get(opts, :input_width, 3)
 
     0..(width - 1)
-    |> Enum.map(fn offset -> :erlang.phash2({input, offset}, micro_nodes) end)
+    |> Enum.map(fn offset -> :erlang.phash2({feature, offset}, micro_nodes) end)
     |> MapSet.new()
   end
 
