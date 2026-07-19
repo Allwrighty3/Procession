@@ -68,6 +68,9 @@ jobs:
       - name: Run embodied caregiver regulation metrics
         run: mix procession.metrics.embodied_attachment --samples 20 --ticks 1800
 
+      - name: Run responsive parent development metrics
+        run: mix procession.metrics.responsive_parent --samples 20 --ticks 1800 --output responsive-parent-metrics.txt
+
       - name: Upload simulation metrics
         uses: actions/upload-artifact@v4
         with:
@@ -82,3 +85,4 @@ jobs:
             closed-grid-world-metrics.txt
             parent-guided-development-metrics.txt
             embodied-attachment-metrics.txt
+            responsive-parent-metrics.txt
