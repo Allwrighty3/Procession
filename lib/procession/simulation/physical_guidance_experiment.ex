@@ -102,8 +102,8 @@ defmodule Procession.Simulation.PhysicalGuidanceExperiment do
   defp execute(_condition, :assisted, intended, _position, _resource, _hunger), do: {intended, :none, 1.0}
 
   defp guided_action(position, position), do: :manipulate
-  defp guided_action({x, y}, {tx, _ty}) when x < tx, do: :east
-  defp guided_action({x, y}, {tx, _ty}) when x > tx, do: :west
+  defp guided_action({x, _y}, {tx, _ty}) when x < tx, do: :east
+  defp guided_action({x, _y}, {tx, _ty}) when x > tx, do: :west
   defp guided_action({_x, y}, {_tx, ty}) when y < ty, do: :south
   defp guided_action({_x, y}, {_tx, ty}) when y > ty, do: :north
 
