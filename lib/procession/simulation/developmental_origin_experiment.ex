@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.DevelopmentalOriginExperiment do
-  @moduledoc """Compares history sensitivity with modest rule sensitivity for generated field structure."""
+  @moduledoc "Compares history sensitivity with modest rule sensitivity for generated field structure."
 
   alias Procession.Simulation.DevelopmentalField
 
@@ -93,9 +93,14 @@ defmodule Procession.Simulation.DevelopmentalOriginExperiment do
   defp support_similarity([], []), do: 1.0
   defp support_similarity([], _), do: 0.0
   defp support_similarity(_, []), do: 0.0
+
   defp support_similarity(left, right) do
     left
-    |> Enum.map(fn node -> right |> Enum.map(&jaccard(node.support, &1.support)) |> Enum.max(fn -> 0.0 end) end)
+    |> Enum.map(fn node ->
+      right
+      |> Enum.map(fn candidate -> jaccard(node.support, candidate.support) end)
+      |> Enum.max(fn -> 0.0 end)
+    end)
     |> mean()
   end
 
@@ -132,21 +137,22 @@ defmodule Procession.Simulation.DevelopmentalOriginExperiment do
     inputs
   end
 
-  defp deterministic_shuffle(inputs, seed), do: Enum.sort_by(inputs, &:erlang.phash2({seed, &1}))
+  defp deterministic_shuffle(inputs, seed) do
+    Enum.sort_by(inputs, fn input -> :erlang.phash2({seed, input}) end)
+  end
 
   defp shuffle_channels(inputs) do
     rows = Enum.map(inputs, fn {:features, features} -> features end)
     count = length(rows)
     channels = rows |> List.first() |> length()
 
-    rebuilt = for row_index <- 0..(count - 1) do
+    for row_index <- 0..(count - 1) do
       features = for channel <- 0..(channels - 1) do
         source = rem(row_index + (channel + 1) * 37, count)
         rows |> Enum.at(source) |> Enum.at(channel)
       end
       {:features, features}
     end
-    rebuilt
   end
 
   defp decouple_outcomes(inputs) do
