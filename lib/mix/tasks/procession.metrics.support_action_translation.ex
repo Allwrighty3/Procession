@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Procession.Metrics.SupportActionTranslation do
       Enum.map(result.transfer_rows, &Map.put(&1, :commit_sha, commit_sha)) ++
         Enum.map(result.scenario_rows, &Map.put(&1, :commit_sha, commit_sha))
 
-    raw = Enum.map_join(rows, "\n", &Jason.encode!/1) <> "\n"
+    raw = Enum.map_join(rows, "\n", &(normalize_json(&1) |> Jason.encode!())) <> "\n"
     summary = render_summary(result.summary, options, commit_sha)
     write!(output, raw)
     write!(summary_output, summary)
@@ -81,12 +81,27 @@ defmodule Mix.Tasks.Procession.Metrics.SupportActionTranslation do
       [
         "Iteration 003 support-to-action translation",
         "experiment_id=#{Experiment.experiment_id()} commit_sha=#{commit_sha || "unavailable"}",
-        "options=#{Jason.encode!(Map.new(options))}"
+        "options=#{options |> Map.new() |> normalize_json() |> Jason.encode!()}"
       ] ++ transfer_lines ++ scenario_lines ++
         ["interpretation=diagnostic only; no learner mechanism or architecture is promoted"],
       "\n"
     ) <> "\n"
   end
+
+  defp normalize_json(value) when is_map(value) do
+    Map.new(value, fn {key, nested} -> {json_key(key), normalize_json(nested)} end)
+  end
+
+  defp normalize_json(value) when is_list(value), do: Enum.map(value, &normalize_json/1)
+  defp normalize_json(value) when is_tuple(value), do: value |> Tuple.to_list() |> normalize_json()
+  defp normalize_json(value) when is_atom(value) and value not in [true, false, nil], do: Atom.to_string(value)
+  defp normalize_json(value), do: value
+
+  defp json_key(key) when is_binary(key), do: key
+  defp json_key(key) when is_atom(key), do: Atom.to_string(key)
+  defp json_key(key) when is_integer(key), do: Integer.to_string(key)
+  defp json_key(key) when is_float(key), do: :erlang.float_to_binary(key, [:compact])
+  defp json_key(key), do: inspect(key)
 
   defp ensure_parent!(path) do
     case File.mkdir_p(Path.dirname(path)) do
