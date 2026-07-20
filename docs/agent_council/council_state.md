@@ -6,9 +6,9 @@ This file is the durable handoff between council iterations. The Experimental Co
 
 - **Last completed iteration:** 001
 - **Active iteration:** 002
-- **Current phase:** specified
-- **Active question:** In the unchanged association-reversal scenario, does adaptation improve through local contradiction-sensitive weakening, competitive displacement by successful alternatives, or their interaction?
-- **Current authority:** Level 1 specification only; Level 2 implementation has not yet been granted for Iteration 002
+- **Current phase:** blocked
+- **Active question:** Given that the existing association-reversal learner already applies locally attributed contradiction disturbance, why does that operation fail to produce behavioral revision, and can finite competitive displacement improve the net balance without adding learner-visible information?
+- **Current authority:** Level 1 re-specification only; the prior Level 2 implementation boundary is suspended because its C0/V1 distinction contradicted repository evidence
 - **Architectural promotions:** none
 - **Current specification:** `docs/agent_council/iterations/iteration_002_revision_displacement.md`
 
@@ -20,32 +20,30 @@ This file is the durable handoff between council iterations. The Experimental Co
 - The tested outcome-only attribution variant did not produce a meaningful recovery.
 - Behavioral and resistance classifications agreed; measurement disagreement did not explain the result.
 - The registered failure criterion was met.
-- Iteration 002 has selected learner revision behavior as the next bounded variable while preserving the same world and entity-visible information stream.
+- The existing association-reversal learner already applies contradiction-sensitive terminal disturbance after a locally attributed negative experienced effect.
+- The original Iteration 002 specification incorrectly treated contradiction weakening as absent from C0.
+- No Iteration 002 simulation implementation was made after that mismatch was discovered.
 
 ## Unresolved explanations
 
 The council must carry these forward until evidence resolves or retires them:
 
-1. Obsolete support may persist because locally contradicted traces are not weakened.
-2. Successful competing activity may be unable to displace entrenched support.
-3. Both processes may be required together.
-4. All tested variants may fail because the present learner substrate lacks a more general revision process.
-5. Passive time-based decay remains deferred because forgetting does not isolate experience-driven revision and may erase stable useful learning.
+1. Existing contradiction disturbance may be too weak to offset accumulated support.
+2. Disturbed obsolete support may be immediately restored by ordinary subsequent reinforcement.
+3. Local attribution decay may make too few negative effects eligible for meaningful disturbance.
+4. Successful competing activity may be unable to displace entrenched support.
+5. A combination of bounded disturbance and finite competition may be required.
+6. All such variants may fail because the present learner substrate lacks a more general revision process.
 
-## Current bounded design
+## Retired design assumption
 
-Iteration 002 specifies four paired variants over seeds `1..100`:
+The council must not describe V1 as introducing contradiction-sensitive weakening. C0 already contains that operation through delayed local effects, local action/displacement traces, and `CognitiveField.disturb_terminal/3`.
 
-- C0: current local-adaptive behavior;
-- V1: bounded local contradiction-sensitive weakening;
-- V2: competition-only displacement by successful competing traces;
-- V3: both processes together.
-
-The scenario, sensory stream, action availability, attribution mode, observer logic, and initial state remain fixed across variants. A short restoration probe checks whether apparent revision is indiscriminate erasure.
+Any revised Iteration 002 factorial must preserve C0 exactly and vary an accurately named property such as contradiction magnitude, contradiction persistence, later reinforcement balance, or competitive displacement.
 
 ## Next council action
 
-Decide whether to grant Level 2 authority for the exact Iteration 002 implementation boundary in `docs/agent_council/iterations/iteration_002_revision_displacement.md`. If authorized, implement only the isolated experiment, metrics task, focused tests, retained artifact workflow, and required documentation/state updates. Do not modify default learner behavior or promote a mechanism into core architecture.
+Resume Iteration 002 from the specification phase using the standing roles. Re-specify one bounded factorial that measures the existing contradiction operation directly and distinguishes ineffective disturbance from reinforcement recovery and absent competitive displacement. Preserve the unchanged world and entity-visible stream. Do not invent a semantic expected-continuation model, create a new council, advance to Iteration 003, modify default learner behavior, or promote architecture.
 
 ## State update rule
 
