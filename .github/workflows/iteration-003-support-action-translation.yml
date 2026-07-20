@@ -1,0 +1,123 @@
+name: Iteration 003 Support Action Translation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/iteration-003-support-action-translation.yml"
+      - "lib/procession/simulation/support_action_translation_experiment.ex"
+      - "lib/mix/tasks/procession.metrics.support_action_translation.ex"
+      - "test/procession/simulation/support_action_translation_experiment_test.exs"
+      - "docs/agent_council/**"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MIX_ENV: test
+      OUTPUT_DIR: tmp/agent_council/iteration_003
+      PRIMARY_JSONL: tmp/agent_council/iteration_003/support-action-translation.jsonl
+      REPLAY_JSONL: tmp/agent_council/iteration_003/support-action-translation-replay.jsonl
+      PRIMARY_SUMMARY: tmp/agent_council/iteration_003/support-action-translation-summary.txt
+      REPLAY_SUMMARY: tmp/agent_council/iteration_003/support-action-translation-replay-summary.txt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-iteration-003-otp-25-elixir-1.14-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-iteration-003-otp-25-elixir-1.14-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run focused diagnostic tests
+        run: mix test test/procession/simulation/support_action_translation_experiment_test.exs
+
+      - name: Run full test suite
+        run: mix test
+
+      - name: Run Iteration 003 diagnostic
+        run: |
+          mix procession.metrics.support_action_translation \
+            --output "$PRIMARY_JSONL" \
+            --summary-output "$PRIMARY_SUMMARY"
+
+      - name: Replay Iteration 003 diagnostic
+        run: |
+          mix procession.metrics.support_action_translation \
+            --output "$REPLAY_JSONL" \
+            --summary-output "$REPLAY_SUMMARY"
+
+      - name: Verify row coverage and deterministic replay
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from collections import Counter, defaultdict
+
+          primary = os.environ["PRIMARY_JSONL"]
+          replay = os.environ["REPLAY_JSONL"]
+
+          with open(primary, "r", encoding="utf-8") as handle:
+              rows = [json.loads(line) for line in handle if line.strip()]
+
+          transfer = [row for row in rows if row.get("component") == "transfer"]
+          scenario = [row for row in rows if row.get("component") == "scenario"]
+
+          if len(transfer) != 1200:
+              raise SystemExit(f"expected 1200 transfer rows, found {len(transfer)}")
+          if len(scenario) != 200:
+              raise SystemExit(f"expected 200 scenario rows, found {len(scenario)}")
+
+          variants = Counter(row["variant_id"] for row in transfer)
+          if dict(variants) != {"C0": 300, "V1": 300, "V2": 300, "V3": 300}:
+              raise SystemExit(f"unexpected transfer variants: {dict(variants)}")
+
+          boundaries = Counter(row["boundary"] for row in transfer)
+          expected_boundaries = {"pre_end": 400, "post_end": 400, "restoration_end": 400}
+          if dict(boundaries) != expected_boundaries:
+              raise SystemExit(f"unexpected boundaries: {dict(boundaries)}")
+
+          scenarios = Counter(row["scenario_id"] for row in scenario)
+          if dict(scenarios) != {"S0": 100, "S1": 100}:
+              raise SystemExit(f"unexpected scenarios: {dict(scenarios)}")
+
+          with open(primary, "rb") as left, open(replay, "rb") as right:
+              if left.read() != right.read():
+                  raise SystemExit("deterministic replay mismatch")
+
+          print("verified 1200 transfer rows, 200 scenario rows, paired seeds, and identical replay")
+          PY
+
+      - name: Upload Iteration 003 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration-003-support-action-translation
+          path: |
+            ${{ env.PRIMARY_JSONL }}
+            ${{ env.REPLAY_JSONL }}
+            ${{ env.PRIMARY_SUMMARY }}
+            ${{ env.REPLAY_SUMMARY }}
+          if-no-files-found: error
+          retention-days: 90
