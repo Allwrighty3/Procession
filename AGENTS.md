@@ -28,6 +28,13 @@ Procession is an experimental single-player RPG simulation engine built around E
 - Never claim behavioral support merely because tests pass.
 - Use terms such as learner, teacher, suffering, and compression only where repository evidence supports the usage. Do not describe structural stress as cognitive suffering, FlowLearning as a full independent learner, or model-training/review tooling as developmental teaching experiments.
 
+## Codex environment bootstrap
+
+- From the repository root, run `bash scripts/codex_setup.sh` before implementation when dependencies are not already available.
+- The setup script installs Hex and Rebar noninteractively, fetches and compiles dependencies, and runs `mix compile --warnings-as-errors` under `MIX_ENV=test` by default.
+- Internet access is expected during setup for Hex and GitHub dependency retrieval. If access fails, record the exact command and error rather than substituting isolated stubs for project validation.
+- Do not modify dependencies, lockfiles, or workflow configuration merely to accommodate a restricted agent environment unless the task explicitly authorizes that change.
+
 ## Experimental workflow
 
 1. Read the relevant implementation, tests, metrics tasks, committed findings, and CI evidence before proposing a change.
@@ -42,10 +49,16 @@ Procession is an experimental single-player RPG simulation engine built around E
 - Create one task branch per bounded change.
 - Do not merge branches or pull requests.
 - Keep each pull request reviewable, focused, and explicit about evidence and limitations.
+- Before editing an existing PR, verify the actual remote PR head and work from that branch or commit. Do not assume the task checkout contains the latest PR state.
+- Update the existing PR rather than creating a replacement PR unless explicitly authorized.
+- A local commit is not published evidence. Confirm that the remote PR head changed and that a new GitHub Actions run was scheduled.
+- Treat GitHub Actions as authoritative for repository-wide validation. Local or isolated compilation may diagnose syntax, but it does not replace project compilation or ExUnit execution.
 
 ## Evidence and validation requirements
 
-- Run focused tests and `mix test` when the environment permits.
+- Run `mix compile --warnings-as-errors` after setup.
+- Run the narrowest relevant test file first, then run `mix test` for repository-wide validation when the change can affect shared behavior.
+- Report exact test counts and failures from the actual command or GitHub Actions output.
 - Report environmental restrictions that prevent validation; do not present blocked checks as passing.
 - Record exact commands, exact seeds, and raw-output locations for executed experiments.
 - Separate measured results from interpretation and from any architectural recommendation.
@@ -59,4 +72,11 @@ Procession is an experimental single-player RPG simulation engine built around E
 
 ## Completion requirements
 
-Before declaring work complete, ensure the bounded change is documented, focused checks have been attempted when permitted, limitations are reported, and `git diff`/`git status` are reviewed. Commit only on the task branch, prepare the change for review, and do not merge.
+Before declaring work complete:
+
+1. Ensure the bounded change is documented.
+2. Run or attempt the setup, compilation, focused tests, and full suite as appropriate.
+3. Review `git diff --check`, the final diff, and `git status`.
+4. Commit only on the task branch and publish the commit to the intended remote branch.
+5. Verify the PR head and CI run on GitHub.
+6. Report limitations accurately and leave the PR unmerged for review.
