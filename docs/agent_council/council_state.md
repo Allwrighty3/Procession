@@ -4,58 +4,54 @@ This file is the durable handoff between council iterations. The Experimental Co
 
 ## Current cycle
 
-- **Last completed iteration:** 001
-- **Active iteration:** 002
-- **Current phase:** implementing
-- **Active question:** Is the existing contradiction disturbance ineffective because its magnitude is insufficient, because later reinforcement restores obsolete support, or because successful alternatives cannot competitively displace entrenched support?
-- **Current authority:** Level 2 implementation granted only for the corrected Iteration 002 boundary merged in PR #20
+- **Last completed iteration:** 002
+- **Active iteration:** 003
+- **Current phase:** evidence review
+- **Active question:** Do learner-local support changes fail to influence action-selection dynamics strongly enough to alter behavior, or is the current reversal scenario and intake measurement too degenerate to evaluate useful revision?
+- **Current authority:** Level 1 evidence review only; no Iteration 003 implementation is authorized
 - **Architectural promotions:** none
-- **Current specification:** `docs/agent_council/iterations/iteration_002_revision_displacement.md`
-- **Current implementation PR:** #21
+- **Last result:** `docs/agent_council/results/iteration_002_revision_displacement.md`
 
 ## Retained findings
 
-- Iteration 001 executed 100 paired seeds across C0, V1, V2, and V3.
-- Additional post-reversal opportunity did not materially improve behavioral correction.
-- Additional pre-reversal exposure did not improve correction.
-- The tested outcome-only attribution variant did not produce a meaningful recovery.
-- Behavioral and resistance classifications agreed; measurement disagreement did not explain the result.
-- The registered failure criterion was met.
-- The existing association-reversal learner already applies contradiction-sensitive terminal disturbance after a locally attributed negative experienced effect.
-- The original Iteration 002 specification incorrectly treated contradiction weakening as absent from C0.
-- PR #19 recorded the blocker and confirmed that no simulation implementation was made under the invalid design.
-- Iteration 002 was re-specified around the efficacy and net persistence of the existing disturbance operation.
-- The corrected isolated implementation, tests, metrics task, and retained-evidence workflow are now under validation in PR #21.
+- Iteration 001 found no material correction benefit from additional post-reversal opportunity, additional pre-reversal exposure, or the tested outcome-only attribution change.
+- The existing learner already applies locally attributed contradiction disturbance after negative experienced effects.
+- Iteration 002 executed 100 paired seeds across C0, amplified disturbance, finite competition, and their combination.
+- Doubling disturbance magnitude increased median support removal from `0.114` to `0.166` without changing correction or obsolete-action behavior.
+- Finite competition displaced support and lowered the obsolete-action median from `0.944` to `0.928`, but correction decreased from `2/100` to `1/100`.
+- The combined treatment did not outperform either single treatment.
+- Activity and restoration stayed near control; inactivity and broad erasure did not explain the result.
+- Median post-reversal intake was `0.000` in every variant, making the intake safeguard non-informative.
+- The Iteration 002 failure classifier compared support removed with recovery ratio, which are different units. The raw evidence is retained, but that classifier cannot support a clean failure claim.
+- Iteration 002 is therefore inconclusive, and no mechanism is promoted.
+
+## Explanations weakened or retired
+
+- **Weakened:** existing contradiction disturbance fails only because its magnitude is too small.
+- **Weakened:** simple finite competition is sufficient to produce revision.
+- **Not supported:** amplified disturbance and competition produce a useful interaction under the tested conditions.
+- **Retired:** contradiction-sensitive weakening is absent from the control learner.
+- **Retired:** Iteration 002 may be retuned or relabeled after observing its result.
 
 ## Unresolved explanations
 
-1. Existing contradiction disturbance may be too weak to offset accumulated support.
-2. Disturbed obsolete support may be rapidly restored by ordinary subsequent reinforcement.
-3. Local attribution decay may make too few negative effects eligible for meaningful disturbance.
-4. Successful competing activity may be unable to displace entrenched support.
-5. Amplified disturbance and finite competition may interact.
-6. All treatments may fail because the learner lacks a more general revision process.
-
-## Corrected bounded design
-
-Paired seeds `1..100` use an unchanged world and entity-visible stream:
-
-- **C0:** current contradiction magnitude, no competition;
-- **V1:** existing contradiction operation with fixed `2.0x` bounded magnitude;
-- **V2:** current magnitude plus finite support-conserving local competition;
-- **V3:** amplified magnitude plus the same finite competition.
-
-The experiment directly measures eligible negative effects, support removed, same-path reinforcement during a five-tick recovery window, net retained support, competing deposits, and displaced support. A restoration probe and activity/intake safeguards prevent broad erasure or inactivity from being counted as revision.
-
-## Retired assumptions
-
-- Contradiction-sensitive weakening is not absent from C0.
-- No semantic expected-continuation model may be added.
-- V1 tests magnitude of the existing operation, not introduction of a new mechanism.
+1. Support changes may be real but too weakly coupled to action selection to alter behavior.
+2. The action-selection dynamics may saturate or preserve the dominant path despite measurable residue changes.
+3. The current reversal scenario may be behaviorally degenerate because most runs obtain zero post-reversal intake.
+4. Intake accumulation may be the wrong safeguard or may be calculated at the wrong behavioral level.
+5. Attribution eligibility may occur often enough in count but target support that is not decision-relevant.
+6. A more general revision process may still be missing, but that conclusion is premature until support-to-action translation and measurement adequacy are distinguished.
 
 ## Next council action
 
-Validate PR #21 through its focused tests, full suite, deterministic 400-row replay, support-conservation checks, and retained artifact. If validation succeeds, review measured evidence before merging or promoting any mechanism. If validation fails, correct only defects within the authorized Iteration 002 implementation boundary.
+Convene the standing roles for Iteration 003 and specify one bounded diagnostic experiment that:
+
+- repairs net-support accounting prospectively using like-for-like units;
+- replaces or supplements the zero-median intake safeguard with a meaningful local utility or access measure;
+- measures how support differences map into action-selection probability without exposing correct actions or reversal state;
+- distinguishes a translation failure from a scenario/measurement failure;
+- preserves the existing world and learner information boundary unless the council explicitly justifies a new diagnostic scenario;
+- does not modify default learner behavior or promote architecture.
 
 ## State update rule
 
