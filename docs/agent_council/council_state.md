@@ -6,11 +6,12 @@ This file is the durable handoff between council iterations. The Experimental Co
 
 - **Last completed iteration:** 002
 - **Active iteration:** 003
-- **Current phase:** specified
+- **Current phase:** implementing
 - **Active question:** Do learner-local support changes fail to influence action-selection dynamics strongly enough to alter behavior, or is the current reversal scenario and intake measurement too degenerate to evaluate useful revision?
-- **Current authority:** Level 1 specification only; no Iteration 003 implementation is authorized
+- **Current authority:** Level 2 implementation granted only for the Iteration 003 diagnostic boundary merged in PR #22
 - **Architectural promotions:** none
 - **Current specification:** `docs/agent_council/iterations/iteration_003_support_action_translation.md`
+- **Current implementation branch:** `agent/iteration-003-implementation`
 - **Last result:** `docs/agent_council/results/iteration_002_revision_displacement.md`
 
 ## Retained findings
@@ -55,7 +56,7 @@ The iteration prospectively repairs net-support accounting using support units a
 
 ## Next council action
 
-Review `docs/agent_council/iterations/iteration_003_support_action_translation.md` and decide whether to grant Level 2 authority for exactly one isolated diagnostic experiment, read-only snapshot probes, a deterministic metrics task, focused tests, and a retained evidence workflow. Do not modify default learner behavior, `PermeableFlow`, `CognitiveField`, or global action sampling.
+Validate the isolated diagnostic through compile-with-warnings-as-errors, focused tests, the full suite, exact transfer/scenario row coverage, byte-identical replay, and retained evidence. Review the measured transfer and scenario sections separately before making any architecture or learner-mechanism decision.
 
 ## State update rule
 
