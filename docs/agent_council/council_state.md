@@ -6,11 +6,12 @@ This file is the durable handoff between council iterations. The Experimental Co
 
 - **Last completed iteration:** 001
 - **Active iteration:** 002
-- **Current phase:** specified
+- **Current phase:** implementing
 - **Active question:** Is the existing contradiction disturbance ineffective because its magnitude is insufficient, because later reinforcement restores obsolete support, or because successful alternatives cannot competitively displace entrenched support?
-- **Current authority:** Level 1 corrected specification only; Level 2 implementation has not yet been granted
+- **Current authority:** Level 2 implementation granted only for the corrected Iteration 002 boundary merged in PR #20
 - **Architectural promotions:** none
 - **Current specification:** `docs/agent_council/iterations/iteration_002_revision_displacement.md`
+- **Current implementation PR:** #21
 
 ## Retained findings
 
@@ -23,7 +24,8 @@ This file is the durable handoff between council iterations. The Experimental Co
 - The existing association-reversal learner already applies contradiction-sensitive terminal disturbance after a locally attributed negative experienced effect.
 - The original Iteration 002 specification incorrectly treated contradiction weakening as absent from C0.
 - PR #19 recorded the blocker and confirmed that no simulation implementation was made under the invalid design.
-- Iteration 002 has now been re-specified around the efficacy and net persistence of the existing disturbance operation.
+- Iteration 002 was re-specified around the efficacy and net persistence of the existing disturbance operation.
+- The corrected isolated implementation, tests, metrics task, and retained-evidence workflow are now under validation in PR #21.
 
 ## Unresolved explanations
 
@@ -53,7 +55,7 @@ The experiment directly measures eligible negative effects, support removed, sam
 
 ## Next council action
 
-Review the corrected specification and decide whether to grant Level 2 authority for its exact implementation boundary. If authorized, implement only the isolated factorial, experiment-local accounting/update helpers, metrics task, focused tests, retained evidence workflow, and iteration documentation updates. Do not modify default learner behavior or promote architecture.
+Validate PR #21 through its focused tests, full suite, deterministic 400-row replay, support-conservation checks, and retained artifact. If validation succeeds, review measured evidence before merging or promoting any mechanism. If validation fails, correct only defects within the authorized Iteration 002 implementation boundary.
 
 ## State update rule
 
