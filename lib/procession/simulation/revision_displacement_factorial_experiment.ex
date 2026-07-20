@@ -268,7 +268,7 @@ defmodule Procession.Simulation.RevisionDisplacementFactorialExperiment do
   defp maybe_compete(field, _effect, _requested, %State{competition?: false}, _tick, _options),
     do: {field, 0.0, nil}
 
-  defp maybe_compete(field, effect, requested, state, tick, options) do
+  defp maybe_compete(field, effect, requested, _state, tick, options) do
     active =
       @actions
       |> Enum.reject(&(&1 == effect.action))
