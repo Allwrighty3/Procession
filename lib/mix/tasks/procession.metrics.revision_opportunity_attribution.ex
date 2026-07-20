@@ -26,7 +26,10 @@ defmodule Mix.Tasks.Procession.Metrics.RevisionOpportunityAttribution do
     commit_sha = commit_sha()
     metadata = %{schema_version: Experiment.schema_version(), experiment_id: Experiment.experiment_id(),
       commit_sha: commit_sha, options: Map.new(options), environment: %{elixir: System.version(), otp: to_string(:erlang.system_info(:otp_release))}}
-    raw = Enum.map_join(result.rows, "\n", &(Jason.encode!(Map.put(&1, :commit_sha, commit_sha))) <> "\n"
+    raw =
+      Enum.map_join(result.rows, "\n", fn row ->
+        Jason.encode!(Map.put(row, :commit_sha, commit_sha))
+      end) <> "\n"
     summary = summary(result.summary, metadata)
     write!(output, raw)
     write!(summary_output, summary)
@@ -52,7 +55,7 @@ defmodule Mix.Tasks.Procession.Metrics.RevisionOpportunityAttribution do
   defp summary(result, metadata) do
     lines = [
       "Revision opportunity and attribution factorial",
-      "experiment_id=#{metadata.experiment_id} commit_sha=#{metadata.commit_sha || \"unavailable\"}",
+      "experiment_id=#{metadata.experiment_id} commit_sha=#{metadata.commit_sha || "unavailable"}",
       "options=#{Jason.encode!(metadata.options)}",
       "environment=elixir=#{metadata.environment.elixir} otp=#{metadata.environment.otp}",
       "behavioral_correction_delay=post-reversal ending tick of the first qualifying sliding window"
