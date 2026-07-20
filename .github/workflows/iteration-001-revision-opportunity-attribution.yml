@@ -1,0 +1,120 @@
+name: Iteration 001 Revision Opportunity and Attribution
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/iteration-001-revision-opportunity-attribution.yml"
+      - "lib/procession/simulation/revision_opportunity_attribution_factorial_experiment.ex"
+      - "lib/mix/tasks/procession.metrics.revision_opportunity_attribution.ex"
+      - "test/procession/simulation/revision_opportunity_attribution_factorial_experiment_test.exs"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MIX_ENV: test
+      OUTPUT_DIR: tmp/agent_council/iteration_001
+      PRIMARY_JSONL: tmp/agent_council/iteration_001/revision-opportunity-attribution.jsonl
+      REPLAY_JSONL: tmp/agent_council/iteration_001/revision-opportunity-attribution-replay.jsonl
+      PRIMARY_SUMMARY: tmp/agent_council/iteration_001/revision-opportunity-attribution-summary.txt
+      REPLAY_SUMMARY: tmp/agent_council/iteration_001/revision-opportunity-attribution-replay-summary.txt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-iteration-001-otp-25-elixir-1.14-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-iteration-001-otp-25-elixir-1.14-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run focused factorial tests
+        run: mix test test/procession/simulation/revision_opportunity_attribution_factorial_experiment_test.exs
+
+      - name: Run full test suite
+        run: mix test
+
+      - name: Run Iteration 001 factorial
+        run: |
+          mix procession.metrics.revision_opportunity_attribution \
+            --output "$PRIMARY_JSONL" \
+            --summary-output "$PRIMARY_SUMMARY"
+
+      - name: Replay Iteration 001 factorial
+        run: |
+          mix procession.metrics.revision_opportunity_attribution \
+            --output "$REPLAY_JSONL" \
+            --summary-output "$REPLAY_SUMMARY"
+
+      - name: Verify row count, variants, seeds, and deterministic replay
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from collections import Counter, defaultdict
+
+          primary = os.environ["PRIMARY_JSONL"]
+          replay = os.environ["REPLAY_JSONL"]
+
+          with open(primary, "r", encoding="utf-8") as handle:
+              rows = [json.loads(line) for line in handle if line.strip()]
+
+          if len(rows) != 400:
+              raise SystemExit(f"expected 400 rows, found {len(rows)}")
+
+          variants = Counter(row.get("variant_id") for row in rows)
+          expected_variants = {"C0": 100, "V1": 100, "V2": 100, "V3": 100}
+          if dict(variants) != expected_variants:
+              raise SystemExit(f"unexpected variant counts: {dict(variants)}")
+
+          seeds = defaultdict(set)
+          for row in rows:
+              seeds[row["variant_id"]].add(row["seed"])
+
+          expected_seeds = set(range(1, 101))
+          for variant, observed in seeds.items():
+              if observed != expected_seeds:
+                  raise SystemExit(
+                      f"{variant} seeds differ: missing={sorted(expected_seeds-observed)} extra={sorted(observed-expected_seeds)}"
+                  )
+
+          with open(primary, "rb") as left, open(replay, "rb") as right:
+              if left.read() != right.read():
+                  raise SystemExit("deterministic replay mismatch in raw JSONL")
+
+          print("verified 400 rows, four balanced variants, paired seeds 1..100, and identical replay")
+          PY
+
+      - name: Upload Iteration 001 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration-001-revision-opportunity-attribution
+          path: |
+            ${{ env.PRIMARY_JSONL }}
+            ${{ env.REPLAY_JSONL }}
+            ${{ env.PRIMARY_SUMMARY }}
+            ${{ env.REPLAY_SUMMARY }}
+          if-no-files-found: error
+          retention-days: 90
