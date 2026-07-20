@@ -1,0 +1,110 @@
+name: Iteration 002 Revision Displacement
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/iteration-002-revision-displacement.yml"
+      - "lib/procession/simulation/revision_displacement_factorial_experiment.ex"
+      - "lib/mix/tasks/procession.metrics.revision_displacement.ex"
+      - "test/procession/simulation/revision_displacement_factorial_experiment_test.exs"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MIX_ENV: test
+      OUTPUT_DIR: tmp/agent_council/iteration_002
+      PRIMARY_JSONL: tmp/agent_council/iteration_002/revision-displacement.jsonl
+      REPLAY_JSONL: tmp/agent_council/iteration_002/revision-displacement-replay.jsonl
+      PRIMARY_SUMMARY: tmp/agent_council/iteration_002/revision-displacement-summary.txt
+      REPLAY_SUMMARY: tmp/agent_council/iteration_002/revision-displacement-replay-summary.txt
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-iteration-002-otp-25-elixir-1.14-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-iteration-002-otp-25-elixir-1.14-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run focused factorial tests
+        run: mix test test/procession/simulation/revision_displacement_factorial_experiment_test.exs
+
+      - name: Run full test suite
+        run: mix test
+
+      - name: Run Iteration 002 factorial
+        run: |
+          mix procession.metrics.revision_displacement \
+            --output "$PRIMARY_JSONL" \
+            --summary-output "$PRIMARY_SUMMARY"
+
+      - name: Replay Iteration 002 factorial
+        run: |
+          mix procession.metrics.revision_displacement \
+            --output "$REPLAY_JSONL" \
+            --summary-output "$REPLAY_SUMMARY"
+
+      - name: Verify balanced rows and deterministic replay
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from collections import Counter, defaultdict
+
+          primary = os.environ["PRIMARY_JSONL"]
+          replay = os.environ["REPLAY_JSONL"]
+          with open(primary, "r", encoding="utf-8") as handle:
+              rows = [json.loads(line) for line in handle if line.strip()]
+          if len(rows) != 400:
+              raise SystemExit(f"expected 400 rows, found {len(rows)}")
+          expected_variants = {"C0": 100, "V1": 100, "V2": 100, "V3": 100}
+          if dict(Counter(row["variant_id"] for row in rows)) != expected_variants:
+              raise SystemExit("variant counts are not balanced")
+          seeds = defaultdict(set)
+          for row in rows:
+              seeds[row["variant_id"]].add(row["seed"])
+          expected_seeds = set(range(1, 101))
+          for variant, observed in seeds.items():
+              if observed != expected_seeds:
+                  raise SystemExit(f"unexpected seeds for {variant}")
+          with open(primary, "rb") as left, open(replay, "rb") as right:
+              if left.read() != right.read():
+                  raise SystemExit("deterministic replay mismatch")
+          print("verified 400 balanced rows, paired seeds 1..100, and byte-identical replay")
+          PY
+
+      - name: Upload Iteration 002 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: iteration-002-revision-displacement
+          path: |
+            ${{ env.PRIMARY_JSONL }}
+            ${{ env.REPLAY_JSONL }}
+            ${{ env.PRIMARY_SUMMARY }}
+            ${{ env.REPLAY_SUMMARY }}
+          if-no-files-found: error
+          retention-days: 90
