@@ -161,10 +161,20 @@ Record this as **unvalidated execution** in the current environment, not as a Pr
 - **Limitations / non-claims:** This is explicitly a noncognitive reference experiment demonstrating architecture rather than engineering accuracy. Structural stress must not be described as cognitive suffering.
 - **Council status:** catalogued; not a learner experiment.
 
+### Revision opportunity and attribution factorial (Iteration 001)
+
+- **Paths:** `lib/procession/simulation/revision_opportunity_attribution_factorial_experiment.ex`; `lib/mix/tasks/procession.metrics.revision_opportunity_attribution.ex`; `test/procession/simulation/revision_opportunity_attribution_factorial_experiment_test.exs`.
+- **Approved bounded question:** In the existing association-reversal world, does unsuccessful adaptation primarily reflect insufficient post-reversal opportunity, additional pre-reversal acquisition opportunity, local versus outcome-only attribution, or disagreement between resistance and behavioral correction measurements?
+- **Design:** paired deterministic seeds `1..100` across four variants: C0 local-adaptive 90 pre/90 post, V1 local-adaptive 90 pre/180 post, V2 local-adaptive 180 pre/90 post, and V3 outcome-adaptive 90 pre/180 post. Observer-only metrics retain behavioral and resistance correction, post-reversal obsolete-action rates, action windows, attribution diagnostics, and metric agreement.
+- **Authority status:** Level 2 implementation authorized for this isolated experiment only.
+- **Evidence available after this change:** implementation existence and test assertions only unless a later command successfully executes. Raw rows and aggregate output are not results until retained from an identified run.
+- **Limitations / non-claims:** No result document, measured outcome, or architectural promotion exists yet. The runner must not expose coordinates, correct actions, reversal state, causal explanations, or observer diagnostics to the entity.
+- **Council status:** implemented experiment pending validation and evidence review; not promoted.
+
 ## Unresolved council question
 
 > How much of unsuccessful independent adaptive behavior is caused by learner organization, teaching or environmental exposure, revision capacity, causal attribution, developmental opportunity, or measurement artifacts?
 
-- **Current authority level:** Level 1.
-- **Next council action:** produce Iteration 001 as a report-only causal analysis and bounded experiment specification.
-- **No experiment implementation is authorized yet.**
+- **Current authority level:** Level 2 is narrowly authorized for the Iteration 001 revision-opportunity-and-attribution factorial only.
+- **Next council action:** validate the isolated factorial and review retained raw output before any further authority decision.
+- **No result or architectural promotion exists yet.**
