@@ -40,7 +40,8 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
   test "behavioral correction boundary requires a strict right majority and obsolete rate at most one quarter" do
     assert Experiment.behavioral_correct?(%{left: 1, right: 3, remain: 0})
     refute Experiment.behavioral_correct?(%{left: 2, right: 2, remain: 0})
-    refute Experiment.behavioral_correct?(%{left: 2, right: 3, remain: 3})
+    assert Experiment.behavioral_correct?(%{left: 2, right: 3, remain: 3})
+    refute Experiment.behavioral_correct?(%{left: 2, right: 3, remain: 2})
   end
 
   test "behavioral correction delay is the ending tick of the first qualifying sliding window and censors absent correction" do
