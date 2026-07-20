@@ -43,11 +43,12 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
     refute Experiment.behavioral_correct?(%{left: 2, right: 3, remain: 3})
   end
 
-  test "behavioral correction delay finds the first passing window and right-censors absent correction" do
-    failed = [%{action: :left}, %{action: :remain}, %{action: :remain}, %{action: :remain}]
-    corrected = [%{action: :right}, %{action: :right}, %{action: :remain}, %{action: :remain}]
-    assert Experiment.behavioral_delay_for_windows([failed, corrected], 4, 8) == 5
-    assert Experiment.behavioral_delay_for_windows([failed], 4, 4) == 5
+  test "behavioral correction delay is the ending tick of the first qualifying sliding window and censors absent correction" do
+    history = [
+      %{action: :left}, %{action: :right}, %{action: :right}, %{action: :right}, %{action: :remain}
+    ]
+    assert Experiment.behavioral_delay_for_history(history, 4, 5) == 4
+    assert Experiment.behavioral_delay_for_history([%{action: :left}] ++ List.duplicate(%{action: :remain}, 3), 4, 4) == 5
   end
 
   test "normalized obsolete action rate uses all post-reversal actions" do
@@ -65,8 +66,13 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
 
   test "summary includes paired deltas and disagreement reporting" do
     summary = Experiment.run(@small).summary
-    assert Map.has_key?(summary.paired_deltas, "C0_to_V1")
+    paired = summary.paired_deltas["C0_to_V1"]
+    assert paired.behavioral_correction.denominator == 2
+    assert paired.normalized_obsolete_action_rate.denominator == 2
+    assert paired.behavioral_correction.improved + paired.behavioral_correction.tied + paired.behavioral_correction.worsened == 2
+    assert paired.normalized_obsolete_action_rate.improved + paired.normalized_obsolete_action_rate.tied + paired.normalized_obsolete_action_rate.worsened == 2
     assert summary.variants["C0"].metric_disagreement.denominator == 2
+    assert is_boolean(summary.criteria.measurement_disagreement)
     assert is_boolean(summary.criteria.inconclusive)
   end
 

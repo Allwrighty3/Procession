@@ -54,7 +54,8 @@ defmodule Mix.Tasks.Procession.Metrics.RevisionOpportunityAttribution do
       "Revision opportunity and attribution factorial",
       "experiment_id=#{metadata.experiment_id} commit_sha=#{metadata.commit_sha || \"unavailable\"}",
       "options=#{Jason.encode!(metadata.options)}",
-      "environment=elixir=#{metadata.environment.elixir} otp=#{metadata.environment.otp}"
+      "environment=elixir=#{metadata.environment.elixir} otp=#{metadata.environment.otp}",
+      "behavioral_correction_delay=post-reversal ending tick of the first qualifying sliding window"
     ]
 
     variant_lines =
@@ -71,11 +72,14 @@ defmodule Mix.Tasks.Procession.Metrics.RevisionOpportunityAttribution do
     paired_lines =
       for id <- ["C0_to_V1", "V1_to_V2", "V1_to_V3"] do
         delta = result.paired_deltas[id]
-        "#{id}: improved=#{delta.improved}/#{delta.denominator} tied=#{delta.tied}/#{delta.denominator} worsened=#{delta.worsened}/#{delta.denominator}"
+        behavioral = delta.behavioral_correction
+        obsolete = delta.normalized_obsolete_action_rate
+        "#{id}.behavioral_correction: improved=#{behavioral.improved}/#{behavioral.denominator} tied=#{behavioral.tied}/#{behavioral.denominator} worsened=#{behavioral.worsened}/#{behavioral.denominator}\n" <>
+          "#{id}.normalized_obsolete_action_rate: improved=#{obsolete.improved}/#{obsolete.denominator} tied=#{obsolete.tied}/#{obsolete.denominator} worsened=#{obsolete.worsened}/#{obsolete.denominator}"
       end
 
     criteria_lines =
-      Enum.map([:success, :failure, :attribution_dominance, :inconclusive], fn name ->
+      Enum.map([:success, :failure, :attribution_dominance, :measurement_disagreement, :inconclusive], fn name ->
         definition = Map.fetch!(result.criteria.definitions, name)
         "criterion.#{name}=#{definition}; met=#{Map.fetch!(result.criteria, name)}"
       end)

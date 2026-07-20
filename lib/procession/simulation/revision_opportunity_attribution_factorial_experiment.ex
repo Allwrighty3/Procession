@@ -75,7 +75,7 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
     post_windows = windows(post_history, window_ticks)
     final_window = List.last(post_windows) || []
     final_counts = action_counts(final_window)
-    behavioral_delay = behavioral_delay_for_windows(post_windows, window_ticks, post_ticks)
+    behavioral_delay = behavioral_delay_for_history(post_history, window_ticks, post_ticks)
     behavioral_corrected = behavioral_delay <= post_ticks
     resistance_delay = if state.corrected_at, do: state.corrected_at - pre_ticks, else: post_ticks + 1
     resistance_corrected = resistance_delay <= post_ticks
@@ -100,6 +100,7 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
       },
       post_reversal_windows: Enum.map(post_windows, &action_counts/1),
       behavioral_corrected: behavioral_corrected,
+      behavioral_correction_delay_definition: "post_reversal_window_ending_tick",
       behavioral_correction_delay: behavioral_delay,
       resistance_corrected: resistance_corrected,
       resistance_correction_delay: resistance_delay,
@@ -142,10 +143,11 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
 
   def behavioral_correct?(counts), do: counts.right > counts.left and counts.left / max(total(counts), 1) <= 0.25
 
-  def behavioral_delay_for_windows(post_windows, window_ticks, post_ticks) do
-    case Enum.find_index(post_windows, &(behavioral_correct?(action_counts(&1))) do
+  @doc false
+  def behavioral_delay_for_history(post_history, window_ticks, post_ticks) do
+    case post_history |> Enum.chunk_every(window_ticks, 1, :discard) |> Enum.find_index(&(behavioral_correct?(action_counts(&1)))) do
       nil -> post_ticks + 1
-      index -> index * window_ticks + 1
+      index -> index + window_ticks
     end
   end
 
@@ -158,11 +160,18 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
     end
   end
 
-  defp validate_windows(options) when rem(options[:control_post_ticks], options[:window_ticks]) != 0,
-    do: {:error, "control_post_ticks must be divisible by window_ticks"}
-  defp validate_windows(options) when rem(options[:extended_post_ticks], options[:window_ticks]) != 0,
-    do: {:error, "extended_post_ticks must be divisible by window_ticks"}
-  defp validate_windows(_options), do: :ok
+  defp validate_windows(options) do
+    cond do
+      rem(options[:control_post_ticks], options[:window_ticks]) != 0 ->
+        {:error, "control_post_ticks must be divisible by window_ticks"}
+
+      rem(options[:extended_post_ticks], options[:window_ticks]) != 0 ->
+        {:error, "extended_post_ticks must be divisible by window_ticks"}
+
+      true ->
+        :ok
+    end
+  end
 
   defp windows(history, window_ticks), do: Enum.chunk_every(history, window_ticks)
   defp action_count(history, action), do: Enum.count(history, &(&1.action == action))
@@ -203,20 +212,33 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
 
   defp paired_delta(from_rows, to_rows) do
     from = Map.new(from_rows, &{&1.seed, &1})
-    {improved, tied, worsened} =
-      Enum.reduce(to_rows, {0, 0, 0}, fn row, {improved, tied, worsened} ->
-        before = Map.fetch!(from, row.seed)
-        delta = correction_score(row) - correction_score(before)
-        cond do
-          delta > 0 -> {improved + 1, tied, worsened}
-          delta < 0 -> {improved, tied, worsened + 1}
-          true -> {improved, tied + 1, worsened}
+
+    behavioral =
+      paired_counts(to_rows, from, fn before_row, after_row ->
+        case {before_row.behavioral_corrected, after_row.behavioral_corrected} do
+          {false, true} -> :improved
+          {true, false} -> :worsened
+          _ -> :tied
         end
       end)
-    %{improved: improved, tied: tied, worsened: worsened, denominator: length(to_rows)}
+
+    obsolete_action_rate =
+      paired_counts(to_rows, from, fn before_row, after_row ->
+        compare_numeric(after_row.normalized_obsolete_action_rate, before_row.normalized_obsolete_action_rate)
+      end)
+
+    %{behavioral_correction: behavioral, normalized_obsolete_action_rate: obsolete_action_rate}
   end
 
-  defp correction_score(row), do: (if row.behavioral_corrected, do: 1, else: 0) - row.normalized_obsolete_action_rate
+  defp paired_counts(rows, before_by_seed, comparison) do
+    counts = Enum.frequencies_by(rows, fn row -> comparison.(Map.fetch!(before_by_seed, row.seed), row) end)
+    %{improved: Map.get(counts, :improved, 0), tied: Map.get(counts, :tied, 0),
+      worsened: Map.get(counts, :worsened, 0), denominator: length(rows)}
+  end
+
+  defp compare_numeric(after_value, before_value) when after_value < before_value, do: :improved
+  defp compare_numeric(after_value, before_value) when after_value > before_value, do: :worsened
+  defp compare_numeric(_after_value, _before_value), do: :tied
 
   defp criteria(variants) do
     c0 = variants["C0"]
@@ -232,12 +254,17 @@ defmodule Procession.Simulation.RevisionOpportunityAttributionFactorialExperimen
       v1.behavioral_corrected.rate - v2.behavioral_corrected.rate < 0.10
     attribution = v1.behavioral_corrected.rate - v3.behavioral_corrected.rate >= 0.20 and
       v3.obsolete_action_rate.median - v1.obsolete_action_rate.median >= 0.15
+    measurement_disagreement = v1.metric_disagreement.rate > 0.15
+    clean_success = success and not measurement_disagreement
+    clean_failure = failure and not measurement_disagreement
     %{definitions: %{
         success: "V1-C0 correction >= 0.20; C0-V1 median obsolete >= 0.20; V1-V2 correction >= 0.15; V1 disagreement <= 0.15",
         failure: "V1-C0 correction < 0.10; C0-V1 median obsolete < 0.10; V1-V2 correction < 0.10",
         attribution_dominance: "V1-V3 correction >= 0.20; V3-V1 median obsolete >= 0.15",
-        inconclusive: "neither predeclared success nor failure criterion is met"
-      }, success: success, failure: failure, attribution_dominance: attribution,
-      inconclusive: not success and not failure}
+        measurement_disagreement: "V1 behavioral and resistance classifications disagree in more than 15% of histories",
+        inconclusive: "no clean success or failure, or measurement disagreement is flagged"
+      }, success: clean_success, failure: clean_failure, attribution_dominance: attribution,
+      measurement_disagreement: measurement_disagreement,
+      inconclusive: not clean_success and not clean_failure}
   end
 end
