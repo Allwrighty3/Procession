@@ -1,0 +1,67 @@
+name: Obsolete Path Balance Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/obsolete-path-balance.yml"
+      - "lib/procession/simulation/obsolete_path_balance_experiment.ex"
+      - "lib/mix/tasks/procession.metrics.obsolete_path_balance.ex"
+      - "test/procession/simulation/obsolete_path_balance_experiment_test.exs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MIX_ENV: test
+      OUTPUT: tmp/obsolete-path-balance/rows.jsonl
+      SUMMARY: tmp/obsolete-path-balance/summary.txt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run focused tests
+        run: mix test test/procession/simulation/obsolete_path_balance_experiment_test.exs
+
+      - name: Run full suite
+        run: mix test
+
+      - name: Run 100-seed diagnostic
+        run: |
+          mix procession.metrics.obsolete_path_balance \
+            --seeds 100 \
+            --output "$OUTPUT" \
+            --summary-output "$SUMMARY"
+          echo "## Obsolete Path Balance Results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          cat "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify output
+        run: |
+          test "$(wc -l < "$OUTPUT")" -eq 100
+          grep -q '^seeds=100$' "$SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obsolete-path-balance-results
+          path: |
+            ${{ env.OUTPUT }}
+            ${{ env.SUMMARY }}
+          if-no-files-found: error
+          retention-days: 30
