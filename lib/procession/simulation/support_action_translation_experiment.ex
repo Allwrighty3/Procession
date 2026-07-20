@@ -124,7 +124,10 @@ defmodule Procession.Simulation.SupportActionTranslationExperiment do
       obsolete_action_rate: Map.get(counts, :left, 0) / max(length(post), 1),
       behavioral_corrected: corrected,
       expression_rate: (length(post) - Map.get(counts, :remain, 0)) / max(length(post), 1),
-      post_position_counts: Enum.frequencies_by(post, & &1.position_after)
+      post_position_counts:
+        post
+        |> Enum.frequencies_by(& &1.position_after)
+        |> Map.new(fn {position, count} -> {Integer.to_string(position), count} end)
     }
   end
 
