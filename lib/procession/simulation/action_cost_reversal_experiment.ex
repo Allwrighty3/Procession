@@ -93,7 +93,11 @@ defmodule Procession.Simulation.ActionCostReversalExperiment do
     before = intake(state.position, source)
     {action, activation} = choose_action(state, tick)
     next_position = move(state.position, action)
-    actual_delta = intake(next_position, source) - before - cost(state.variant, action, state.position, next_position)
+
+    actual_delta =
+      intake(next_position, source) - before -
+        cost(state.variant, action, state.position, next_position)
+
     experienced_delta = actual_delta + coincidence(state.seed, tick)
     obsolete? = tick >= reversal_tick and action == :left
     boundary? = obsolete? and state.position == 0
@@ -119,49 +123,112 @@ defmodule Procession.Simulation.ActionCostReversalExperiment do
     }
 
     {due, pending} = Enum.split_with([effect | state.pending], &(&1.due <= tick))
-    state = %{state | obsolete: state.obsolete + bool(obsolete?), boundary: state.boundary + bool(boundary?)}
+
+    state = %{
+      state
+      | obsolete: state.obsolete + bool(obsolete?),
+        boundary: state.boundary + bool(boundary?)
+    }
+
     state = Enum.reduce(due, state, &learn(&2, &1, traces, opts))
     corrected = state.corrected_at || correction_tick(state.field, tick, reversal_tick)
     %{state | position: next_position, traces: traces, pending: pending, corrected_at: corrected}
   end
 
   defp learn(state, effect, traces, _opts) do
-    scale = min(LocalTrace.magnitude(traces, effect.action_key), LocalTrace.magnitude(traces, effect.displacement_key))
+    scale =
+      min(
+        LocalTrace.magnitude(traces, effect.action_key),
+        LocalTrace.magnitude(traces, effect.displacement_key)
+      )
 
     cond do
       effect.experienced_delta > 1.0e-9 and scale > 0.0 ->
         before = residue(state.field, effect.action)
-        field = FlowLearning.apply(state.field, Map.take(effect.activation.flows, [{:strain, effect.action}]), deposit: 0.11 * scale, decay_slowing: 0.10, decay_scale: 0.0)
+
+        field =
+          FlowLearning.apply(
+            state.field,
+            Map.take(effect.activation.flows, [{:strain, effect.action}]),
+            deposit: 0.11 * scale,
+            decay_slowing: 0.10,
+            decay_scale: 0.0
+          )
+
         added = max(0.0, residue(field, effect.action) - before)
-        if effect.obsolete?, do: %{state | field: field, positive: state.positive + 1, added: state.added + added}, else: %{state | field: field}
+
+        if effect.obsolete?,
+          do: %{
+            state
+            | field: field,
+              positive: state.positive + 1,
+              added: state.added + added
+          },
+          else: %{state | field: field}
 
       effect.experienced_delta < -1.0e-9 and scale > 0.0 ->
         before = residue(state.field, effect.action)
-        field = CognitiveField.disturb_terminal(state.field, [:strain, effect.action], magnitude: 0.16 * scale, fraction: 1.0)
-        removed = max(0.0, before - residue(field, effect.action))
-        if effect.obsolete?, do: %{state | field: field, negative: state.negative + 1, removed: state.removed + removed}, else: %{state | field: field}
 
-      effect.obsolete? -> %{state | neutral: state.neutral + 1}
-      true -> state
+        field =
+          CognitiveField.disturb_terminal(
+            state.field,
+            [:strain, effect.action],
+            magnitude: 0.16 * scale,
+            fraction: 1.0
+          )
+
+        removed = max(0.0, before - residue(field, effect.action))
+
+        if effect.obsolete?,
+          do: %{
+            state
+            | field: field,
+              negative: state.negative + 1,
+              removed: state.removed + removed
+          },
+          else: %{state | field: field}
+
+      effect.obsolete? ->
+        %{state | neutral: state.neutral + 1}
+
+      true ->
+        state
     end
   end
 
   defp cost(:control, _, _, _), do: 0.0
   defp cost(:action_cost, :remain, _, _), do: 0.002
-  defp cost(:action_cost, _, p, p), do: 0.008
+  defp cost(:action_cost, _, position, position), do: 0.008
   defp cost(:action_cost, _, _, _), do: 0.010
 
   defp choose_action(state, tick) do
-    result = PermeableFlow.run(state.field, %{strain: 0.10}, @actions, threshold: 0.0001, attenuation: 0.995, permeability_scale: 0.32, max_ticks: 2)
+    result =
+      PermeableFlow.run(
+        state.field,
+        %{strain: 0.10},
+        @actions,
+        threshold: 0.0001,
+        attenuation: 0.995,
+        permeability_scale: 0.32,
+        max_ticks: 2
+      )
+
     {weighted_action(result.exit_activation, {state.seed, tick}), result}
   end
 
   defp correction_tick(field, tick, reversal_tick) when tick >= reversal_tick do
-    if CognitiveField.resistance(field, :strain, :right) < CognitiveField.resistance(field, :strain, :left), do: tick, else: nil
+    if CognitiveField.resistance(field, :strain, :right) <
+         CognitiveField.resistance(field, :strain, :left),
+      do: tick,
+      else: nil
   end
+
   defp correction_tick(_, _, _), do: nil
 
-  defp new_field, do: Enum.reduce(@actions, CognitiveField.new(), &CognitiveField.add_transition(&2, :strain, &1))
+  defp new_field do
+    Enum.reduce(@actions, CognitiveField.new(), &CognitiveField.add_transition(&2, :strain, &1))
+  end
+
   defp residue(field, action), do: CognitiveField.transition(field, :strain, action).residue
   defp intake(position, source), do: max(0.0, 0.22 - 0.032 * abs(position - source))
   defp coincidence(seed, tick), do: if(unit({seed, tick, :coincidence}) < 0.18, do: 0.05, else: 0.0)
@@ -174,13 +241,24 @@ defmodule Procession.Simulation.ActionCostReversalExperiment do
     total = Enum.reduce(entries, 0.0, fn {_, weight}, acc -> acc + weight end)
     if total <= 0.0, do: :remain, else: pick(entries, unit(seed) * total)
   end
+
   defp pick([{action, _}], _), do: action
   defp pick([{action, weight} | _], threshold) when threshold <= weight, do: action
   defp pick([{_, weight} | rest], threshold), do: pick(rest, threshold - weight)
 
   defp sum(rows, key), do: Enum.reduce(rows, 0, &(&2 + Map.fetch!(&1, key)))
   defp median(rows, key), do: rows |> Enum.map(&Map.fetch!(&1, key)) |> Enum.sort() |> median_sorted()
-  defp median_sorted(values), do: (Enum.at(values, 49) + Enum.at(values, 50)) / 2
+  defp median_sorted([]), do: 0.0
+
+  defp median_sorted(values) do
+    count = length(values)
+    middle = div(count, 2)
+
+    if rem(count, 2) == 1,
+      do: Enum.at(values, middle) * 1.0,
+      else: (Enum.at(values, middle - 1) + Enum.at(values, middle)) / 2
+  end
+
   defp sign(value) when value < 0, do: :negative
   defp sign(value) when value > 0, do: :positive
   defp sign(_), do: :none
