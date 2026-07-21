@@ -14,7 +14,22 @@ jobs:
           elixir-version: '1.18.4'
           otp-version: '27.3.4.2'
       - run: mix deps.get
-      - run: mix compile --warnings-as-errors
+      - name: Compile with diagnostics
+        id: compile
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile --warnings-as-errors 2>&1 | tee emergent-motor-compile.txt
+      - name: Upload compile diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emergent-motor-compile-diagnostics
+          path: emergent-motor-compile.txt
+      - name: Stop after compile failure
+        if: steps.compile.outcome == 'failure'
+        run: exit 1
       - run: mix test
       - name: Run emergent movement no-teacher control
         run: mix procession.metrics.home_foraging_emergent_motor_control | tee home-foraging-emergent-motor-control.txt
