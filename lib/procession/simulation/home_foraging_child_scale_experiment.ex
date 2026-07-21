@@ -39,13 +39,13 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperiment do
         "food=#{summary.food}/#{result.population} collected=#{summary.collected}/#{result.population} " <>
         "consumed=#{summary.consumed}/#{result.population} stable=#{fmt(summary.stable)} " <>
         "coordination=#{fmt(summary.coordination)} independent_moves=#{fmt(summary.independent_moves)} " <>
-        "provisioned=#{fmt(summary.provisioned)}"
+        "care_buffer=#{fmt(summary.provisioned)}"
     end
 
     Enum.join([
       "Human-scale emergent-motor comparison",
       "1 tick ~= 1 waking hour; birth-age 21 supported development plus age 21-25 independence",
-      "motor learning scale=0.01; physical support fades early while care fades through young adulthood",
+      "motor learning scale=0.01; physical support fades early while reliable care fades through young adulthood",
       phase_line | lines
     ], "\n")
   end
@@ -62,7 +62,8 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperiment do
       care = if condition == :taught, do: phase.care, else: 0.0
       baseline = max(0.0, state.vitality - physics.metabolic)
       warmth_loss = physics.warmth_loss * (1.0 - care * 0.80)
-      warmth = update_warmth(state.warmth, state.position, warmth_loss)
+      raw_warmth = update_warmth(state.warmth, state.position, warmth_loss)
+      warmth = protect_warmth(raw_warmth, care)
       hunger = 1.0 - baseline
       cold = 1.0 - warmth
       goal = goal(state)
@@ -77,18 +78,19 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperiment do
 
       repeat = contact_repeat(state, pattern, position, outcome)
       {carrying, intake, event} = interact(state.carrying, position, outcome, repeat, hunger)
-      provision = caregiver_provision(care, baseline, hunger)
       effort = if assisted?, do: max(0.25, 1.0 - motor_support * 0.75), else: 1.0
       cost = motor_cost(outcome) * physics.action_scale * effort
       cold_cost = cold * physics.cold_cost * (1.0 - care * 0.85)
-      vitality = max(0.0, min(1.0, baseline - cost - cold_cost + intake + provision))
+      raw_vitality = max(0.0, min(1.0, baseline - cost - cold_cost + intake))
+      vitality = protect_vitality(raw_vitality, care)
+      care_buffer = max(0.0, vitality - raw_vitality) + max(0.0, warmth - raw_warmth)
 
       record = %{tick: tick, displaced?: outcome.displaced?, position: position,
-        event: event, assisted?: assisted?, provision: provision}
+        event: event, assisted?: assisted?, provision: care_buffer}
       next = %{state | body: body, position: position, vitality: vitality, warmth: warmth,
         carrying: carrying, alive?: vitality > 0.0 and warmth > 0.0, tick: tick,
         last_pattern: pattern, contact_repeat: repeat, repertoire: repertoire,
-        provisioned: state.provisioned + provision, records: [record | state.records]}
+        provisioned: state.provisioned + care_buffer, records: [record | state.records]}
 
       if next.alive?, do: {:cont, next}, else: {:halt, next}
     end)
@@ -107,11 +109,13 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperiment do
       teaching_completed: final.tick > teaching}
   end
 
-  defp caregiver_provision(care, baseline, hunger) when care > 0.0 and baseline < 0.82 do
-    care * min(0.0012, 0.00015 + hunger * 0.0014)
-  end
+  defp protect_vitality(value, care) when care > 0.0,
+    do: max(value, 0.20 + care * 0.65)
+  defp protect_vitality(value, _care), do: value
 
-  defp caregiver_provision(_care, _baseline, _hunger), do: 0.0
+  defp protect_warmth(value, care) when care > 0.0,
+    do: max(value, 0.25 + care * 0.65)
+  defp protect_warmth(value, _care), do: value
 
   defp phase_at(phases, tick) do
     phases |> Enum.reduce_while(0, fn phase, elapsed ->
