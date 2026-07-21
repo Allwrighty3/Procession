@@ -2,6 +2,10 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
   @moduledoc """
   Tests whether caregiver action guidance can fade through progressively larger
   learner-owned feeding sequences in the existing 4x4 world.
+
+  Action costs are optional experiment physics. They are charged in proportion
+  to the learner's contribution so caregiver-owned motion is not treated as if
+  the learner performed it unaided.
   """
 
   alias Procession.Simulation.DevelopmentalField
@@ -18,16 +22,28 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
     stage_ticks = Keyword.get(opts, :stage_ticks, 40)
     withdrawal_ticks = Keyword.get(opts, :withdrawal_ticks, 100)
     seed = Keyword.get(opts, :seed, 1)
+    action_costs? = Keyword.get(opts, :action_costs, false)
     assisted_ticks = stage_ticks * 5
     total = assisted_ticks + withdrawal_ticks
 
     conditions = Map.new(@conditions, fn condition ->
-      runs = Enum.map(1..population, &run_entity(condition, stage_ticks, total, seed, &1))
+      runs =
+        Enum.map(1..population, fn entity ->
+          run_entity(condition, stage_ticks, total, seed, entity, action_costs?)
+        end)
+
       {condition, summarize(runs, assisted_ticks, total)}
     end)
 
     %{population: population, stage_ticks: stage_ticks,
-      withdrawal_ticks: withdrawal_ticks, conditions: conditions}
+      withdrawal_ticks: withdrawal_ticks, action_costs: action_costs?, conditions: conditions}
+  end
+
+  def compare_action_costs(opts \\ []) do
+    %{
+      control: run(Keyword.put(opts, :action_costs, false)),
+      action_cost: run(Keyword.put(opts, :action_costs, true))
+    }
   end
 
   def report(result) do
@@ -37,16 +53,22 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
         "independent_self_feeders=#{s.independent_self_feeders}/#{result.population} " <>
         "transfer_reached=#{s.transfer_reached}/#{result.population} " <>
         "withdrawal_intake=#{fmt(s.median_withdrawal_intake)} " <>
+        "withdrawal_cost=#{fmt(s.median_withdrawal_cost)} " <>
         "learner_share=#{fmt(s.median_learner_share)} " <>
         "guided_actions=#{fmt(s.median_guided_actions)} " <>
         "cells=#{fmt(s.median_cells)} nodes=#{fmt(s.median_nodes)}"
     end)
 
     Enum.join(["Staged caregiver assistance fading in 4x4 world",
-      "population=#{result.population} stage_ticks=#{result.stage_ticks} withdrawal_ticks=#{result.withdrawal_ticks}" | lines], "\n")
+      "population=#{result.population} stage_ticks=#{result.stage_ticks} " <>
+        "withdrawal_ticks=#{result.withdrawal_ticks} action_costs=#{result.action_costs}" | lines], "\n")
   end
 
-  defp run_entity(condition, stage_ticks, total, seed, entity) do
+  def comparison_report(%{control: control, action_cost: action_cost}) do
+    "CONTROL\n#{report(control)}\n\nACTION COST\n#{report(action_cost)}"
+  end
+
+  defp run_entity(condition, stage_ticks, total, seed, entity, action_costs?) do
     opts = Keyword.put(@field_opts, :encoding_salt, {:fading_assistance, entity})
     initial = %{field: DevelopmentalField.new(opts), position: {1, 1}, vitality: 0.68,
       alive?: true, tick: 0, records: [], visited: MapSet.new([{1, 1}]),
@@ -55,22 +77,34 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
     Enum.reduce_while(1..total, initial, fn tick, state ->
       stage = stage(tick, stage_ticks)
       resource = resource(stage)
-      depleted = max(0.0, state.vitality - 0.012)
-      hunger = 1.0 - depleted
+      baseline_depleted = max(0.0, state.vitality - 0.012)
+      hunger = 1.0 - baseline_depleted
       intended = intended_action(state, hunger, tick, seed + entity * 137, opts)
-      {executed, caregiver, learner_share} = execute(condition, stage, intended, state.position, resource, hunger)
+      {executed, caregiver, learner_share} =
+        execute(condition, stage, intended, state.position, resource, hunger)
+
       position = move(state.position, executed)
-      intake = if position == resource and executed in [:reach, :manipulate], do: min(0.18, hunger * 0.30), else: 0.0
+      cost = action_cost(action_costs?, executed, state.position, position, learner_share)
+      depleted = max(0.0, baseline_depleted - cost)
+      intake =
+        if position == resource and executed in [:reach, :manipulate],
+          do: min(0.18, hunger * 0.30),
+          else: 0.0
+
       vitality = min(1.0, depleted + intake)
       memory = update_memory(state.motor_memory, intended, executed, intake, learner_share)
       features = [{:development_stage, stage}, {:body_channel, :hunger, bucket(hunger)},
         {:place_channel, position}, {:resource_relation, relation(position, resource)},
         {:motor_intention, intended}, {:motor_execution, executed},
+        {:action_outcome, action_outcome(executed, state.position, position)},
+        {:action_cost_channel, bucket_cost(cost)},
         {:caregiver_contact, caregiver}, {:learner_contribution, bucket(learner_share)},
-        {:self_intake_channel, intake > 0.0}, {:change_channel, :vitality, trend(vitality - state.vitality)}]
+        {:self_intake_channel, intake > 0.0},
+        {:change_channel, :vitality, trend(vitality - state.vitality)}]
       field = DevelopmentalField.step(state.field, {:features, features}, opts)
-      record = %{tick: tick, stage: stage, intake: intake, position: position,
-        resource: resource, caregiver: caregiver, learner_share: learner_share}
+      record = %{tick: tick, stage: stage, intake: intake, cost: cost, position: position,
+        resource: resource, caregiver: caregiver, learner_share: learner_share,
+        intended: intended, executed: executed}
       next = %{state | field: field, position: position, vitality: vitality,
         alive?: vitality > 0.0, tick: tick, records: [record | state.records],
         visited: MapSet.put(state.visited, position), motor_memory: memory}
@@ -143,12 +177,30 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
   defp move({x, y}, :east), do: {min(3, x + 1), y}
   defp move({x, y}, :west), do: {max(0, x - 1), y}
 
+  defp action_cost(false, _action, _before, _after, _learner_share), do: 0.0
+  defp action_cost(true, :wait, _before, _after, learner_share), do: 0.002 * learner_share
+  defp action_cost(true, action, _before, _after, learner_share)
+       when action in [:reach, :manipulate], do: 0.004 * learner_share
+  defp action_cost(true, _action, position, position, learner_share), do: 0.008 * learner_share
+  defp action_cost(true, _action, _before, _after, learner_share), do: 0.010 * learner_share
+
+  defp action_outcome(action, position, position)
+       when action in [:north, :south, :east, :west], do: :blocked
+  defp action_outcome(action, _before, _after)
+       when action in [:north, :south, :east, :west], do: :moved
+  defp action_outcome(:wait, _before, _after), do: :waited
+  defp action_outcome(_action, _before, _after), do: :attempted_local_action
+
   defp update_memory(memory, intended, executed, intake, learner_share) do
     decayed = Map.new(memory, fn {action, value} -> {action, value * 0.992} end)
     gain = intake * (0.25 + learner_share * 0.75)
     decayed
     |> Map.update!(executed, &min(1.0, &1 + gain))
-    |> then(fn next -> if intended == executed, do: Map.update!(next, intended, &min(1.0, &1 + gain * 0.45)), else: next end)
+    |> then(fn next ->
+      if intended == executed,
+        do: Map.update!(next, intended, &min(1.0, &1 + gain * 0.45)),
+        else: next
+    end)
   end
 
   defp learned_score(field, action, opts) do
@@ -169,7 +221,8 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
     %{survived: Enum.count(runs, &(&1.alive? and &1.tick == total)),
       independent_self_feeders: Enum.count(runs, fn state -> Enum.any?(withdrawal.(state), &(&1.intake > 0.0)) end),
       transfer_reached: Enum.count(runs, fn state -> Enum.any?(withdrawal.(state), &(&1.position == &1.resource)) end),
-      median_withdrawal_intake: median(Enum.map(runs, fn state -> phase_intake(state, :withdrawal) end)),
+      median_withdrawal_intake: median(Enum.map(runs, fn state -> phase_total(state, :withdrawal, :intake) end)),
+      median_withdrawal_cost: median(Enum.map(runs, fn state -> phase_total(state, :withdrawal, :cost) end)),
       median_learner_share: median(Enum.map(runs, fn state -> mean(Enum.map(state.records, & &1.learner_share)) end)),
       median_guided_actions: median(Enum.map(runs, fn state -> Enum.count(state.records, &(&1.caregiver != :none)) * 1.0 end)),
       median_cells: median(Enum.map(runs, &(MapSet.size(&1.visited) * 1.0))),
@@ -177,7 +230,12 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
       assisted_ticks: assisted_ticks}
   end
 
-  defp phase_intake(state, stage), do: state.records |> Enum.filter(&(&1.stage == stage)) |> Enum.reduce(0.0, &(&1.intake + &2))
+  defp phase_total(state, stage, key) do
+    state.records
+    |> Enum.filter(&(&1.stage == stage))
+    |> Enum.reduce(0.0, &(Map.fetch!(&1, key) + &2))
+  end
+
   defp relation(position, position), do: :contact
   defp relation({x, y}, {tx, ty}) when abs(x - tx) + abs(y - ty) == 1, do: :adjacent
   defp relation(_position, _resource), do: :distant
@@ -185,6 +243,10 @@ defmodule Procession.Simulation.FadingAssistanceExperiment do
   defp bucket(value) when value < 0.50, do: :low
   defp bucket(value) when value < 0.75, do: :high
   defp bucket(_value), do: :very_high
+  defp bucket_cost(value) when value <= 0.0, do: :none
+  defp bucket_cost(value) when value < 0.004, do: :low
+  defp bucket_cost(value) when value < 0.008, do: :medium
+  defp bucket_cost(_value), do: :high
   defp trend(delta) when delta > 0.01, do: :rising
   defp trend(delta) when delta < -0.01, do: :falling
   defp trend(_delta), do: :stable
