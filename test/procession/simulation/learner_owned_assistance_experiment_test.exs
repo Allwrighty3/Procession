@@ -6,7 +6,7 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperimentTest do
   test "caregiver assistance activates learner-owned actions" do
     result = LearnerOwnedAssistanceExperiment.run(
       population: 4,
-      stage_ticks: 4,
+      stage_ticks: 40,
       withdrawal_ticks: 4,
       seed: 1
     )
@@ -14,12 +14,12 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperimentTest do
     abrupt = result.conditions.abrupt_assistance
     staged = result.conditions.staged_assistance
 
-    assert abrupt.median_ownership == 1.0
-    assert staged.median_ownership == 1.0
-    assert abrupt.median_assistance > 0.0
-    assert staged.median_assistance > 0.0
-    assert abrupt.median_assisted_actions > 0.0
-    assert staged.median_assisted_actions > 0.0
+    assert abrupt.ownership == 1.0
+    assert staged.ownership == 1.0
+    assert abrupt.assistance > 0.0
+    assert staged.assistance > 0.0
+    assert abrupt.assisted > 0.0
+    assert staged.assisted > 0.0
   end
 
   test "provision-only condition does not invent caregiver action" do
@@ -31,8 +31,8 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperimentTest do
     )
 
     provision = result.conditions.provision_only
-    assert provision.median_ownership == 1.0
-    assert provision.median_assistance == 0.0
-    assert provision.median_assisted_actions == 0.0
+    assert provision.ownership == 1.0
+    assert provision.assistance == 0.0
+    assert provision.assisted == 0.0
   end
 end
