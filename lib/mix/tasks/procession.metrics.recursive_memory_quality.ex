@@ -1,12 +1,18 @@
 defmodule Mix.Tasks.Procession.Metrics.RecursiveMemoryQuality do
   use Mix.Task
 
-  @shortdoc "Runs the recursive memory compression-quality audit"
+  @shortdoc "Runs recursive memory retrieval and hierarchy-quality audits"
 
   @impl true
   def run(_args) do
-    Procession.Simulation.RecursiveMemoryQualityExperiment.run()
-    |> Procession.Simulation.RecursiveMemoryQualityExperiment.report()
-    |> Mix.shell().info()
+    retrieval =
+      Procession.Simulation.RecursiveMemoryQualityExperiment.run()
+      |> Procession.Simulation.RecursiveMemoryQualityExperiment.report()
+
+    hierarchy =
+      Procession.Simulation.RecursiveMemoryHierarchyExperiment.run()
+      |> Procession.Simulation.RecursiveMemoryHierarchyExperiment.report()
+
+    Mix.shell().info(retrieval <> "\n\n" <> hierarchy)
   end
 end
