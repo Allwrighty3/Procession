@@ -17,6 +17,13 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
             successful_displacements: 0,
             stable_patterns: MapSet.new()
 
+  @type t :: %__MODULE__{
+          coordination: %{optional(pattern()) => float()},
+          effect_memory: map(),
+          attempts: non_neg_integer(),
+          successful_displacements: non_neg_integer(),
+          stable_patterns: MapSet.t(pattern())
+        }
   @type direction :: :north | :south | :east | :west | :none
   @type pattern :: {atom(), atom()}
   @type outcome :: %{
@@ -29,7 +36,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
           consequence: atom()
         }
 
-  @spec new(keyword()) :: t() when t: %__MODULE__{}
+  @spec new(keyword()) :: t()
   def new(opts \\ []) do
     initial = Keyword.get(opts, :initial_coordination, 0.015)
 
@@ -49,7 +56,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   def patterns, do: @patterns
 
   @doc "Choose an opaque two-channel motor activation pattern."
-  @spec choose_pattern(%__MODULE__{}, integer(), integer(), keyword()) :: pattern()
+  @spec choose_pattern(t(), integer(), integer(), keyword()) :: pattern()
   def choose_pattern(body, tick, seed, opts \\ []) do
     exploration = Keyword.get(opts, :exploration, 0.92)
 
@@ -72,8 +79,8 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   `position` and `bounds` are physical facts owned by the body/world. The returned
   direction is an observed consequence, not an action selected by the learner.
   """
-  @spec attempt(%__MODULE__{}, pattern(), {integer(), integer()}, integer(), keyword()) ::
-          {%__MODULE__{}, outcome()}
+  @spec attempt(t(), pattern(), {integer(), integer()}, integer(), keyword()) ::
+          {t(), outcome()}
   def attempt(body, pattern, position, tick, opts \\ []) do
     seed = Keyword.get(opts, :seed, 1)
     bounds = Keyword.get(opts, :bounds, {3, 3})
@@ -110,6 +117,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   end
 
   @doc "Apply the body's observed displacement to a bounded grid."
+  @spec apply_displacement({integer(), integer()}, outcome()) :: {integer(), integer()}
   def apply_displacement(position, %{displaced?: false}), do: position
   def apply_displacement({x, y}, %{direction: :north}), do: {x, max(0, y - 1)}
   def apply_displacement({x, y}, %{direction: :south}), do: {x, y + 1}
@@ -117,7 +125,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   def apply_displacement({x, y}, %{direction: :west}), do: {max(0, x - 1), y}
 
   @doc "Record a caregiver-supported consequence while retaining learner pattern ownership."
-  @spec supported_attempt(%__MODULE__{}, pattern(), direction(), float()) :: %__MODULE__{}
+  @spec supported_attempt(t(), pattern(), direction(), float()) :: t()
   def supported_attempt(body, pattern, observed_direction, support)
       when observed_direction in [:north, :south, :east, :west] and support >= 0.0 do
     pattern = normalize(pattern)
@@ -125,16 +133,18 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
     gain = 0.008 + min(1.0, support) * 0.018
     updated = min(1.0, current + gain * (1.0 - current))
 
-    %{body |
-      coordination: Map.put(body.coordination, pattern, updated),
-      effect_memory: update_effect(body.effect_memory, pattern, observed_direction, gain),
-      stable_patterns: stable_patterns(body.stable_patterns, pattern, updated)}
+    %{
+      body
+      | coordination: Map.put(body.coordination, pattern, updated),
+        effect_memory: update_effect(body.effect_memory, pattern, observed_direction, gain),
+        stable_patterns: stable_patterns(body.stable_patterns, pattern, updated)
+    }
   end
 
-  @spec stable_pattern_count(%__MODULE__{}) :: non_neg_integer()
+  @spec stable_pattern_count(t()) :: non_neg_integer()
   def stable_pattern_count(body), do: MapSet.size(body.stable_patterns)
 
-  @spec strongest_patterns(%__MODULE__{}, non_neg_integer()) :: [{pattern(), float()}]
+  @spec strongest_patterns(t(), non_neg_integer()) :: [{pattern(), float()}]
   def strongest_patterns(body, limit \\ 5) do
     body.coordination
     |> Enum.sort_by(fn {_pattern, strength} -> -strength end)
@@ -152,6 +162,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
       end
 
     updated = min(1.0, current + delta)
+
     effects =
       if outcome.displaced? do
         update_effect(body.effect_memory, outcome.pattern, outcome.direction, delta)
@@ -159,12 +170,15 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
         body.effect_memory
       end
 
-    %{body |
-      coordination: Map.put(body.coordination, outcome.pattern, updated),
-      effect_memory: effects,
-      attempts: body.attempts + 1,
-      successful_displacements: body.successful_displacements + if(outcome.displaced?, do: 1, else: 0),
-      stable_patterns: stable_patterns(body.stable_patterns, outcome.pattern, updated)}
+    %{
+      body
+      | coordination: Map.put(body.coordination, outcome.pattern, updated),
+        effect_memory: effects,
+        attempts: body.attempts + 1,
+        successful_displacements:
+          body.successful_displacements + if(outcome.displaced?, do: 1, else: 0),
+        stable_patterns: stable_patterns(body.stable_patterns, outcome.pattern, updated)
+    }
   end
 
   defp update_effect(memory, pattern, direction, gain) do
@@ -175,6 +189,7 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
 
   defp stable_patterns(set, pattern, strength) when strength >= 0.30,
     do: MapSet.put(set, pattern)
+
   defp stable_patterns(set, _pattern, _strength), do: set
 
   defp normalize({a, b}) when a < b, do: {a, b}
