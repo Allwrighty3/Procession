@@ -1,8 +1,9 @@
 defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
-  @moduledoc "Strict no-teacher control where movement itself must emerge."
+  @moduledoc "Matched no-teacher and taught cohorts where movement itself must emerge."
 
   alias Procession.Simulation.DevelopmentalMotorBody, as: Body
 
+  @conditions [:no_teacher, :taught]
   @home {0, 0}
   @food {3, 3}
   @bounds {3, 3}
@@ -11,27 +12,47 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
     population = Keyword.get(opts, :population, 24)
     seed = Keyword.get(opts, :seed, 1)
     max_ticks = Keyword.get(opts, :max_ticks, 320)
-    rows = for entity <- 1..population, do: run_one(entity, seed, max_ticks, opts)
-    %{population: population, max_ticks: max_ticks, rows: rows, summary: summarize(rows)}
+    teaching_ticks = min(Keyword.get(opts, :teaching_ticks, 240), max_ticks)
+
+    rows =
+      for condition <- @conditions,
+          entity <- 1..population do
+        run_one(condition, entity, seed, max_ticks, teaching_ticks, opts)
+      end
+
+    %{
+      population: population,
+      max_ticks: max_ticks,
+      teaching_ticks: teaching_ticks,
+      rows: rows,
+      summary: summarize(rows)
+    }
   end
 
   def report(result) do
-    s = result.summary
+    lines =
+      Enum.map(@conditions, fn condition ->
+        summary = result.summary[condition]
+
+        "#{condition}: survived=#{summary.survived}/#{result.population} " <>
+          "survived_withdrawal=#{summary.survived_withdrawal}/#{result.population} " <>
+          "death=#{fmt(summary.median_death_tick)} displaced=#{summary.displaced}/#{result.population} " <>
+          "food=#{summary.reached_food}/#{result.population} collected=#{summary.collected}/#{result.population} " <>
+          "home=#{summary.returned_home}/#{result.population} consumed=#{summary.consumed}/#{result.population} " <>
+          "stable=#{fmt(summary.stable_patterns)} rate=#{fmt(summary.displacement_rate)} " <>
+          "coordination=#{fmt(summary.strongest_coordination)} assistance=#{fmt(summary.assistance_rate)}"
+      end)
 
     Enum.join([
-      "Emergent-movement no-teacher developmental control",
-      "no map, target vectors, mature movement actions, or manipulation command",
-      "population=#{result.population} max_ticks=#{result.max_ticks}",
-      "survived=#{s.survived}/#{result.population} median_death=#{fmt(s.median_death_tick)}",
-      "displaced=#{s.displaced}/#{result.population} median_first_displacement=#{fmt(s.first_displacement)}",
-      "reached_food=#{s.reached_food}/#{result.population} collected=#{s.collected}/#{result.population}",
-      "returned_home=#{s.returned_home}/#{result.population} consumed=#{s.consumed}/#{result.population}",
-      "stable_patterns=#{fmt(s.stable_patterns)} displacement_rate=#{fmt(s.displacement_rate)}",
-      "contact_attempts=#{fmt(s.contact_attempts)} strongest_coordination=#{fmt(s.strongest_coordination)}"
+      "Emergent-movement taught comparison",
+      "paired seeds and bodies; learner emits every motor pattern",
+      "caregiver supports consequences through tick #{result.teaching_ticks}; no mature action is substituted",
+      "population=#{result.population} max_ticks=#{result.max_ticks}"
+      | lines
     ], "\n")
   end
 
-  defp run_one(entity, seed, max_ticks, opts) do
+  defp run_one(condition, entity, seed, max_ticks, teaching_ticks, opts) do
     initial = %{
       body: Body.new(),
       position: @home,
@@ -42,39 +63,67 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
       tick: 0,
       last_pattern: nil,
       contact_repeat: 0,
+      repertoire: %{},
       records: []
     }
 
     final =
       Enum.reduce_while(1..max_ticks, initial, fn tick, state ->
         baseline = max(0.0, state.vitality - Keyword.get(opts, :metabolic, 0.010))
-        warmth = update_warmth(state.warmth, state.position,
-          Keyword.get(opts, :warmth_loss, 0.018))
+        warmth =
+          update_warmth(
+            state.warmth,
+            state.position,
+            Keyword.get(opts, :warmth_loss, 0.018)
+          )
+
         cold = 1.0 - warmth
         hunger = 1.0 - baseline
-        pattern = Body.choose_pattern(state.body, tick, seed + entity * 149)
+        goal = physical_goal(state)
+        teaching? = condition == :taught and tick <= teaching_ticks
+        {pattern, repertoire} = select_pattern(state, goal, tick, seed, entity, teaching?)
 
-        {body, outcome} =
-          Body.attempt(state.body, pattern, state.position, tick,
+        {attempted_body, natural_outcome} =
+          Body.attempt(
+            state.body,
+            pattern,
+            state.position,
+            tick,
             seed: seed + entity * 1_003,
             bounds: @bounds
           )
 
-        position = Body.apply_displacement(state.position, outcome)
+        {body, outcome, position, assisted?} =
+          support_consequence(
+            attempted_body,
+            natural_outcome,
+            state.position,
+            pattern,
+            goal,
+            teaching?
+          )
+
         repeat = contact_repeat(state, pattern, position, outcome)
         {carrying, intake, event} = interact(state.carrying, position, outcome, repeat, hunger)
-        cost = motor_cost(outcome) * Keyword.get(opts, :action_scale, 1.0)
-        vitality = max(0.0, min(1.0,
-          baseline - cost - cold * Keyword.get(opts, :cold_cost, 0.006) + intake))
+        effort_scale = if assisted?, do: 0.25, else: 1.0
+        cost = motor_cost(outcome) * Keyword.get(opts, :action_scale, 1.0) * effort_scale
+        vitality =
+          max(
+            0.0,
+            min(1.0, baseline - cost - cold * Keyword.get(opts, :cold_cost, 0.006) + intake)
+          )
 
         record = %{
           tick: tick,
+          phase: if(tick <= teaching_ticks, do: :development, else: :withdrawal),
+          pattern: pattern,
           displaced?: outcome.displaced?,
           position: position,
           food_contact?: position == @food,
           event: event,
           carrying: carrying,
-          coordination: outcome.coordination
+          coordination: outcome.coordination,
+          assisted?: assisted?
         }
 
         next = %{
@@ -88,6 +137,7 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
             tick: tick,
             last_pattern: pattern,
             contact_repeat: repeat,
+            repertoire: repertoire,
             records: [record | state.records]
         }
 
@@ -95,16 +145,13 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
       end)
 
     records = Enum.reverse(final.records)
-
-    strongest =
-      case Body.strongest_patterns(final.body, 1) do
-        [{_pattern, strength}] -> strength
-        [] -> 0.0
-      end
+    strongest = strongest_coordination(final.body)
 
     %{
+      condition: condition,
       entity: entity,
       survived: final.alive? and final.tick == max_ticks,
+      survived_withdrawal: final.tick > teaching_ticks,
       death_tick: final.tick,
       displaced: Enum.any?(records, & &1.displaced?),
       first_displacement: first_tick(records, & &1.displaced?),
@@ -114,12 +161,74 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
       consumed: Enum.any?(records, &(&1.event == :food_consumed_at_home)),
       stable_patterns: Body.stable_pattern_count(final.body),
       displacement_rate: fraction(records, & &1.displaced?),
+      assistance_rate: fraction(records, & &1.assisted?),
       contact_attempts: Enum.count(records, &(&1.food_contact? and not &1.displaced?)),
       strongest_coordination: strongest
     }
   end
 
-  defp contact_repeat(state, pattern, @food, %{displaced?: false}) do
+  defp physical_goal(%{carrying: false, position: @food}), do: :contact
+  defp physical_goal(%{carrying: false, position: position}), do: direction(position, @food)
+  defp physical_goal(%{carrying: true, position: @home}), do: :contact
+  defp physical_goal(%{carrying: true, position: position}), do: direction(position, @home)
+
+  defp select_pattern(state, goal, tick, seed, entity, true) do
+    case Map.fetch(state.repertoire, goal) do
+      {:ok, pattern} -> {pattern, state.repertoire}
+      :error ->
+        pattern = Body.choose_pattern(state.body, tick, seed + entity * 149)
+        {pattern, Map.put(state.repertoire, goal, pattern)}
+    end
+  end
+
+  defp select_pattern(state, _goal, tick, seed, entity, false) do
+    {Body.choose_pattern(state.body, tick, seed + entity * 149), state.repertoire}
+  end
+
+  defp support_consequence(body, natural, position, _pattern, _goal, false),
+    do: {body, natural, Body.apply_displacement(position, natural), false}
+
+  defp support_consequence(body, natural, position, pattern, :contact, true) do
+    body = Body.supported_stability(body, pattern, 1.0)
+    coordination = pattern_coordination(body, pattern)
+
+    outcome = %{
+      natural
+      | direction: :none,
+        displaced?: false,
+        blocked?: false,
+        coordination: coordination,
+        consequence: :supported_stability
+    }
+
+    {body, outcome, position, true}
+  end
+
+  defp support_consequence(body, natural, position, pattern, direction, true) do
+    body = Body.supported_attempt(body, pattern, direction, 1.0)
+    coordination = pattern_coordination(body, pattern)
+
+    outcome = %{
+      natural
+      | direction: direction,
+        displaced?: true,
+        blocked?: false,
+        coordination: coordination,
+        consequence: :supported_displacement
+    }
+
+    {body, outcome, move(position, direction), true}
+  end
+
+  defp pattern_coordination(body, pattern) do
+    body
+    |> Body.strongest_patterns(length(Body.patterns()))
+    |> Map.new()
+    |> Map.fetch!(pattern)
+  end
+
+  defp contact_repeat(state, pattern, position, %{displaced?: false})
+       when position in [@food, @home] do
     if state.last_pattern == pattern, do: state.contact_repeat + 1, else: 1
   end
 
@@ -136,7 +245,20 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
   defp interact(carrying, _position, _outcome, _repeats, _hunger),
     do: {carrying, 0.0, :none}
 
-  defp motor_cost(%{consequence: :displacement}), do: 0.010
+  defp direction({x, _y}, {tx, _ty}) when x < tx, do: :east
+  defp direction({x, _y}, {tx, _ty}) when x > tx, do: :west
+  defp direction({_x, y}, {_tx, ty}) when y < ty, do: :south
+  defp direction({_x, y}, {_tx, ty}) when y > ty, do: :north
+
+  defp move({x, y}, :north), do: {x, max(0, y - 1)}
+  defp move({x, y}, :south), do: {x, min(elem(@bounds, 1), y + 1)}
+  defp move({x, y}, :east), do: {min(elem(@bounds, 0), x + 1), y}
+  defp move({x, y}, :west), do: {max(0, x - 1), y}
+
+  defp motor_cost(%{consequence: consequence})
+       when consequence in [:displacement, :supported_displacement],
+       do: 0.010
+
   defp motor_cost(%{consequence: :resisted_displacement}), do: 0.008
   defp motor_cost(_outcome), do: 0.004
 
@@ -154,20 +276,34 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
   end
 
   defp summarize(rows) do
-    %{
-      survived: Enum.count(rows, & &1.survived),
-      median_death_tick: median(Enum.map(rows, &(&1.death_tick * 1.0))),
-      displaced: Enum.count(rows, & &1.displaced),
-      first_displacement: positive_median(Enum.map(rows, &(&1.first_displacement * 1.0))),
-      reached_food: Enum.count(rows, & &1.reached_food),
-      collected: Enum.count(rows, & &1.collected),
-      returned_home: Enum.count(rows, & &1.returned_home),
-      consumed: Enum.count(rows, & &1.consumed),
-      stable_patterns: mean(Enum.map(rows, &(&1.stable_patterns * 1.0))),
-      displacement_rate: mean(Enum.map(rows, & &1.displacement_rate)),
-      contact_attempts: mean(Enum.map(rows, &(&1.contact_attempts * 1.0))),
-      strongest_coordination: mean(Enum.map(rows, & &1.strongest_coordination))
-    }
+    rows
+    |> Enum.group_by(& &1.condition)
+    |> Map.new(fn {condition, selected} ->
+      {condition,
+       %{
+         survived: Enum.count(selected, & &1.survived),
+         survived_withdrawal: Enum.count(selected, & &1.survived_withdrawal),
+         median_death_tick: median(Enum.map(selected, &(&1.death_tick * 1.0))),
+         displaced: Enum.count(selected, & &1.displaced),
+         first_displacement: positive_median(Enum.map(selected, &(&1.first_displacement * 1.0))),
+         reached_food: Enum.count(selected, & &1.reached_food),
+         collected: Enum.count(selected, & &1.collected),
+         returned_home: Enum.count(selected, & &1.returned_home),
+         consumed: Enum.count(selected, & &1.consumed),
+         stable_patterns: mean(Enum.map(selected, &(&1.stable_patterns * 1.0))),
+         displacement_rate: mean(Enum.map(selected, & &1.displacement_rate), 0.0),
+         assistance_rate: mean(Enum.map(selected, & &1.assistance_rate), 0.0),
+         contact_attempts: mean(Enum.map(selected, &(&1.contact_attempts * 1.0))),
+         strongest_coordination: mean(Enum.map(selected, & &1.strongest_coordination), 0.0)
+       }}
+    end)
+  end
+
+  defp strongest_coordination(body) do
+    case Body.strongest_patterns(body, 1) do
+      [{_pattern, strength}] -> strength
+      [] -> 0.0
+    end
   end
 
   defp first_tick(records, predicate) do
@@ -179,8 +315,8 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
 
   defp fraction([], _predicate), do: 0.0
   defp fraction(records, predicate), do: Enum.count(records, predicate) / length(records)
-  defp mean([]), do: 0.0
-  defp mean(values), do: Enum.sum(values) / length(values)
+  defp mean([], default \\ 0.0), do: default
+  defp mean(values, _default), do: Enum.sum(values) / length(values)
   defp median([]), do: 0.0
 
   defp median(values) do
