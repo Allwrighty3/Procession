@@ -180,7 +180,13 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperiment do
   defp motor_cost(_), do: 0.004
   defp update_warmth(w, @home, _), do: min(1.0, w + 0.12)
   defp update_warmth(w, _, loss), do: max(0.0, w - loss)
-  defp strongest(body), do: case Body.strongest_patterns(body, 1) do [{_, v}] -> v; [] -> 0.0 end
+
+  defp strongest(body) do
+    case Body.strongest_patterns(body, 1) do
+      [{_, value}] -> value
+      [] -> 0.0
+    end
+  end
 
   defp summarize(rows) do
     rows |> Enum.group_by(& &1.condition) |> Map.new(fn {condition, selected} ->
