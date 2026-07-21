@@ -1,0 +1,25 @@
+name: Recursive Memory Quality
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3.4.2'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test test/procession/simulation/recursive_memory_quality_experiment_test.exs
+      - run: mix test
+      - name: Run recursive memory quality audit
+        run: mix procession.metrics.recursive_memory_quality | tee recursive-memory-quality.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recursive-memory-quality
+          path: recursive-memory-quality.txt
