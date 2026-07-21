@@ -5,7 +5,7 @@ defmodule Procession.Simulation.HomeForagingChildScaleExperimentTest do
   alias Procession.Simulation.HomeForagingChildScaleExperiment, as: Experiment
 
   test "schedule represents development through age twenty-five" do
-    assert ChildDevelopmentSchedule.teaching_ticks() == 70_080
+    assert ChildDevelopmentSchedule.teaching_ticks() == 105_120
     assert ChildDevelopmentSchedule.care_ticks() == 122_640
     assert ChildDevelopmentSchedule.total_ticks() == 146_000
 
