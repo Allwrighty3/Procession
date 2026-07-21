@@ -1,11 +1,11 @@
 defmodule Procession.Simulation.HomeForagingContingencyExperiment do
-  @moduledoc "Transition-sensitive home-foraging with a slow, long-lived learner."
+  @moduledoc "Transition-sensitive home-foraging across progressively slower developmental timescales."
 
   alias Procession.Simulation.DevelopmentalSensorimotorField, as: Field
 
   @actions [:manipulate, :wait, :north, :south, :east, :west]
   @conditions [:abrupt_assistance, :staged_assistance]
-  @variants [:standard, :slow_long_lived]
+  @variants [:standard, :slow_long_lived, :ultra_slow_long_lived]
   @home {0, 0}
   @field_opts [micro_nodes: 64, input_width: 3, consolidation_threshold: 4,
     coherence_threshold: 0.06, reuse_threshold: 0.50, edge_retention: 0.9995,
@@ -33,13 +33,18 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
         "#{variant}/#{condition}: survived=#{s.survived}/#{result.population} " <>
           "reached=#{s.reached}/#{result.population} collected=#{s.collected}/#{result.population} " <>
           "returned=#{s.returned}/#{result.population} consumed=#{s.consumed}/#{result.population} " <>
-          "contexts=#{fmt(s.contexts)}/4 blocked_repeat=#{fmt(s.blocked_repeat)} " <>
-          "useful_repeat=#{fmt(s.useful_repeat)} ticks=#{fmt(s.ticks)}"
+          "repeaters=#{s.repeaters}/#{result.population} cycles=#{fmt(s.cycles)} " <>
+          "first_cycle=#{fmt(s.first_cycle_tick)} gap=#{fmt(s.inter_cycle_gap)} " <>
+          "next_attempt=#{fmt(s.next_attempt_rate)} entropy=#{fmt(s.action_entropy)} " <>
+          "blocked_repeat=#{fmt(s.blocked_repeat)} useful_repeat=#{fmt(s.useful_repeat)} " <>
+          "context_start=#{fmt(s.context_start)}/4 context_end=#{fmt(s.context_end)}/4 " <>
+          "context_drift=#{fmt(s.context_drift)} ticks=#{fmt(s.ticks)}"
       end
 
     Enum.join([
-      "Transition-sensitive home foraging",
-      "slow_long_lived: 0.05x motor learning, 10x exposure, gentler physics"
+      "Transition-sensitive home foraging sustainability",
+      "slow_long_lived: 0.05x motor learning, 10x exposure",
+      "ultra_slow_long_lived: 0.01x motor learning, 25x exposure"
       | rows
     ], "\n")
   end
@@ -50,17 +55,17 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
 
     opts =
       @field_opts
-      |> Keyword.put(:encoding_salt, {:contingency, variant, condition, entity})
+      |> Keyword.put(:encoding_salt, {:contingency, variant, condition, seed, entity})
       |> Keyword.put(:output_learning_scale, cfg.learning_scale)
 
-    initial = %{field: Field.new(opts), position: @home, vitality: cfg.vitality,
-      warmth: 1.0, carrying: false, alive?: true, tick: 0, records: [],
-      last_move: :none, last_intake: false, caregiver: :none}
+    initial = %{field: Field.new(opts), withdrawal_start_field: nil, position: @home,
+      vitality: cfg.vitality, warmth: 1.0, carrying: false, alive?: true, tick: 0,
+      records: [], last_move: :none, last_intake: false, caregiver: :none}
 
     final =
       Enum.reduce_while(1..total, initial, fn tick, prior ->
         stage = stage(tick, cfg.stage_ticks)
-        state = reset_withdrawal_carrying(prior, stage, cfg.stage_ticks)
+        state = reset_withdrawal_state(prior, stage, cfg.stage_ticks)
         food = food_cell(stage)
         baseline = max(0.0, state.vitality - cfg.metabolic)
         warmth = update_warmth(state.warmth, state.position, cfg.warmth_loss)
@@ -86,9 +91,9 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
         cost = action_cost(action, state.position, position, help.level) * cfg.action_scale
         vitality = max(0.0, min(1.0, baseline - cost - cold * cfg.cold_cost + intake))
 
-        record = %{stage: stage, action: action, position: position, food: food,
+        record = %{tick: tick, stage: stage, action: action, position: position, food: food,
           carrying: carrying, event: event, intake: intake, movement: movement,
-          coherence: coherence}
+          coherence: coherence, vitality: vitality, warmth: warmth}
 
         next = %{state | field: field, position: position, vitality: vitality,
           warmth: warmth, carrying: carrying, alive?: vitality > 0.0 and warmth > 0.0,
@@ -100,16 +105,30 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
 
     records = Enum.reverse(final.records)
     withdrawal = Enum.filter(records, &(&1.stage == :withdrawal))
+    cycles = Enum.filter(withdrawal, &(&1.event == :food_consumed_at_home))
+    cycle_ticks = Enum.map(cycles, & &1.tick)
+    start_field = final.withdrawal_start_field || final.field
+    start_contexts = context_audit(start_field, opts)
+    end_contexts = context_audit(final.field, opts)
 
     %{variant: variant, condition: condition, entity: entity,
       survived: final.alive? and final.tick == total, ticks: final.tick,
       reached: Enum.any?(withdrawal, &(&1.position == &1.food)),
       collected: Enum.any?(withdrawal, &(&1.event == :food_collected)),
       returned: returned_after_collection?(withdrawal),
-      consumed: Enum.any?(withdrawal, &(&1.event == :food_consumed_at_home)),
+      consumed: cycles != [], cycle_count: length(cycles),
+      repeated_cycles: length(cycles) >= 2,
+      first_cycle_tick: first_or_zero(cycle_ticks),
+      inter_cycle_gap: median_gaps(cycle_ticks),
+      next_attempt_after_cycle: next_attempt_after_cycle?(withdrawal),
+      collections: Enum.count(withdrawal, &(&1.event == :food_collected)),
+      unclosed_attempts: max(0, Enum.count(withdrawal, &(&1.event == :food_collected)) - length(cycles)),
+      terminal_state: terminal_state(final, withdrawal),
       blocked_repeat: repeat_fraction(withdrawal, &(&1.movement == :blocked)),
       useful_repeat: repeat_fraction(withdrawal, &(&1.coherence > 0.0)),
-      contexts: context_audit(final.field, opts)}
+      action_entropy: action_entropy(withdrawal),
+      context_start: start_contexts, context_end: end_contexts,
+      context_drift: end_contexts - start_contexts}
   end
 
   defp config(:standard, opts), do: %{stage_ticks: Keyword.get(opts, :standard_stage_ticks, 40),
@@ -122,9 +141,16 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
     metabolic: 0.001, cold_cost: 0.0005, warmth_loss: 0.0015,
     action_scale: 0.12, learning_scale: 0.05}
 
-  defp reset_withdrawal_carrying(state, :withdrawal, stage_ticks)
-       when state.tick == stage_ticks * 5, do: %{state | carrying: false}
-  defp reset_withdrawal_carrying(state, _stage, _stage_ticks), do: state
+  defp config(:ultra_slow_long_lived, opts), do: %{
+    stage_ticks: Keyword.get(opts, :ultra_stage_ticks, 1_000),
+    withdrawal_ticks: Keyword.get(opts, :ultra_withdrawal_ticks, 3_000), vitality: 0.995,
+    metabolic: 0.00035, cold_cost: 0.00015, warmth_loss: 0.0005,
+    action_scale: 0.04, learning_scale: 0.01}
+
+  defp reset_withdrawal_state(state, :withdrawal, stage_ticks)
+       when state.tick == stage_ticks * 5,
+       do: %{state | carrying: false, withdrawal_start_field: state.field}
+  defp reset_withdrawal_state(state, _stage, _stage_ticks), do: state
 
   defp sensory_features(state, food, hunger, warmth, cold), do: [
     {:body, :hunger, bucket(hunger)}, {:body, :warmth, bucket(warmth)},
@@ -166,8 +192,7 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
       {probe({3, 3}, {3, 3}, false, :moved), :manipulate},
       {probe({3, 3}, {3, 3}, true, :none), :west},
       {probe({0, 2}, {3, 3}, true, :moved), :north},
-      {probe(@home, {3, 3}, true, :moved), :manipulate}
-    ]
+      {probe(@home, {3, 3}, true, :moved), :manipulate}]
 
     Enum.count(probes, fn {features, expected} ->
       sensed = Field.sense(field, features, opts)
@@ -222,11 +247,18 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
       {{variant, condition}, %{population: population,
         survived: Enum.count(selected, & &1.survived), reached: Enum.count(selected, & &1.reached),
         collected: Enum.count(selected, & &1.collected), returned: Enum.count(selected, & &1.returned),
-        consumed: Enum.count(selected, & &1.consumed),
-        contexts: mean(Enum.map(selected, &(&1.contexts * 1.0))),
+        consumed: Enum.count(selected, & &1.consumed), repeaters: Enum.count(selected, & &1.repeated_cycles),
+        cycles: mean(Enum.map(selected, &(&1.cycle_count * 1.0))),
+        first_cycle_tick: positive_median(Enum.map(selected, &(&1.first_cycle_tick * 1.0))),
+        inter_cycle_gap: positive_median(Enum.map(selected, &(&1.inter_cycle_gap * 1.0))),
+        next_attempt_rate: mean(Enum.map(selected, &(if &1.next_attempt_after_cycle, do: 1.0, else: 0.0))),
+        action_entropy: mean(Enum.map(selected, & &1.action_entropy)),
+        context_start: mean(Enum.map(selected, &(&1.context_start * 1.0))),
+        context_end: mean(Enum.map(selected, &(&1.context_end * 1.0))),
+        context_drift: mean(Enum.map(selected, &(&1.context_drift * 1.0))),
         blocked_repeat: mean(Enum.map(selected, & &1.blocked_repeat)),
         useful_repeat: mean(Enum.map(selected, & &1.useful_repeat)),
-        ticks: median(Enum.map(selected, &(&1.ticks * 1.0)))}}
+        ticks: median(Enum.map(selected, &(&1.ticks * 1.0)))} }
     end)
   end
 
@@ -237,11 +269,47 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
     end
   end
 
+  defp next_attempt_after_cycle?(records) do
+    case Enum.find_index(records, &(&1.event == :food_consumed_at_home)) do
+      nil -> false
+      index -> records |> Enum.drop(index + 1) |> Enum.any?(&(&1.event == :food_collected or &1.position == &1.food))
+    end
+  end
+
+  defp terminal_state(final, records) do
+    cond do
+      final.alive? -> :completed_window
+      records == [] -> :died_before_withdrawal
+      final.carrying and final.position == @home -> :home_carrying
+      final.carrying -> :returning_with_food
+      final.position == food_cell(:withdrawal) -> :at_food_empty
+      true -> :searching_empty
+    end
+  end
+
+  defp action_entropy([]), do: 0.0
+  defp action_entropy(records) do
+    total = length(records) * 1.0
+    records
+    |> Enum.frequencies_by(& &1.action)
+    |> Enum.reduce(0.0, fn {_action, count}, acc ->
+      p = count / total
+      acc - p * (:math.log(p) / :math.log(2.0))
+    end)
+  end
+
   defp repeat_fraction(records, predicate) do
     pairs = Enum.chunk_every(records, 2, 1, :discard)
     count = Enum.count(pairs, fn [first, second] -> predicate.(first) and first.action == second.action end)
     if pairs == [], do: 0.0, else: count / length(pairs)
   end
+
+  defp first_or_zero([]), do: 0
+  defp first_or_zero([first | _]), do: first
+  defp median_gaps([_]), do: 0.0
+  defp median_gaps([]), do: 0.0
+  defp median_gaps(ticks), do: ticks |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.map(fn [a, b] -> (b - a) * 1.0 end) |> median()
 
   defp stage(tick, width) when tick <= width, do: :full_guidance
   defp stage(tick, width) when tick <= width * 2, do: :co_produced
@@ -307,5 +375,6 @@ defmodule Procession.Simulation.HomeForagingContingencyExperiment do
       do: Enum.at(sorted, middle),
       else: (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
   end
+  defp positive_median(values), do: values |> Enum.filter(&(&1 > 0.0)) |> median()
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
 end
