@@ -60,15 +60,13 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   def choose_pattern(body, tick, seed, opts \\ []) do
     exploration = Keyword.get(opts, :exploration, 0.92)
 
-    scored =
-      Enum.map(@patterns, fn pattern ->
-        learned = Map.get(body.coordination, pattern, 0.0)
-        noise = :erlang.phash2({seed, tick, pattern}, 10_000) / 10_000
-        score = learned * (1.0 - exploration) + noise * exploration
-        {pattern, score}
-      end)
-
-    scored
+    @patterns
+    |> Enum.map(fn pattern ->
+      learned = Map.get(body.coordination, pattern, 0.0)
+      noise = :erlang.phash2({seed, tick, pattern}, 10_000) / 10_000
+      score = learned * (1.0 - exploration) + noise * exploration
+      {pattern, score}
+    end)
     |> Enum.max_by(fn {pattern, score} -> {score, pattern} end)
     |> elem(0)
   end
@@ -124,21 +122,22 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   def apply_displacement({x, y}, %{direction: :east}), do: {x + 1, y}
   def apply_displacement({x, y}, %{direction: :west}), do: {max(0, x - 1), y}
 
-  @doc "Record a caregiver-supported consequence while retaining learner pattern ownership."
+  @doc "Record a caregiver-supported displacement while retaining learner pattern ownership."
   @spec supported_attempt(t(), pattern(), direction(), float()) :: t()
   def supported_attempt(body, pattern, observed_direction, support)
       when observed_direction in [:north, :south, :east, :west] and support >= 0.0 do
     pattern = normalize(pattern)
-    current = Map.get(body.coordination, pattern, 0.0)
-    gain = 0.008 + min(1.0, support) * 0.018
-    updated = min(1.0, current + gain * (1.0 - current))
+    gain = support_gain(support)
 
-    %{
-      body
-      | coordination: Map.put(body.coordination, pattern, updated),
-        effect_memory: update_effect(body.effect_memory, pattern, observed_direction, gain),
-        stable_patterns: stable_patterns(body.stable_patterns, pattern, updated)
-    }
+    body
+    |> strengthen(pattern, gain)
+    |> remember_effect(pattern, observed_direction, gain)
+  end
+
+  @doc "Record caregiver-supported postural/contact stability for a learner-owned pattern."
+  @spec supported_stability(t(), pattern(), float()) :: t()
+  def supported_stability(body, pattern, support) when support >= 0.0 do
+    strengthen(body, normalize(pattern), support_gain(support))
   end
 
   @spec stable_pattern_count(t()) :: non_neg_integer()
@@ -149,6 +148,23 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
     body.coordination
     |> Enum.sort_by(fn {_pattern, strength} -> -strength end)
     |> Enum.take(limit)
+  end
+
+  defp support_gain(support), do: 0.008 + min(1.0, support) * 0.018
+
+  defp strengthen(body, pattern, gain) do
+    current = Map.get(body.coordination, pattern, 0.0)
+    updated = min(1.0, current + gain * (1.0 - current))
+
+    %{
+      body
+      | coordination: Map.put(body.coordination, pattern, updated),
+        stable_patterns: stable_patterns(body.stable_patterns, pattern, updated)
+    }
+  end
+
+  defp remember_effect(body, pattern, direction, gain) do
+    %{body | effect_memory: update_effect(body.effect_memory, pattern, direction, gain)}
   end
 
   defp learn_from_consequence(body, outcome) do
@@ -195,8 +211,6 @@ defmodule Procession.Simulation.DevelopmentalMotorBody do
   defp normalize({a, b}) when a < b, do: {a, b}
   defp normalize({a, b}), do: {b, a}
 
-  # These are body mechanics, not learner-visible action meanings. Individual channels
-  # contribute conflicting forces; only combined patterns can create a dominant result.
   defp channel_force(:m1), do: {-0.42, -0.18}
   defp channel_force(:m2), do: {0.38, -0.22}
   defp channel_force(:m3), do: {-0.20, 0.44}
