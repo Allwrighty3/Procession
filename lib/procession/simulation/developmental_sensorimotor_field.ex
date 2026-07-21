@@ -40,6 +40,10 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
 
   This function never advances or changes the sensory field.
   """
+  def record_output(%__MODULE__{} = state, output, opts) when is_list(opts) do
+    record_output(state, output, 1.0, opts)
+  end
+
   def record_output(%__MODULE__{} = state, output, coherence \\ 1.0, opts \\ [])
       when is_number(coherence) do
     threshold = Keyword.get(opts, :output_source_threshold, 0.18)
