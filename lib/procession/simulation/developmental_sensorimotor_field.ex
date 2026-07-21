@@ -32,20 +32,21 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   @doc """
   Records an output from the currently active sensory context.
 
-  `coherence` is a signed local transition assessment in `-1.0..1.0`:
-
-    * positive values strengthen context-to-output support;
-    * zero records no learning;
-    * negative values weaken existing support for the output in that context.
-
-  This function never advances or changes the sensory field.
+  Coherence is a signed local transition assessment in `-1.0..1.0`.
+  Positive values strengthen support, zero leaves it unchanged, and negative
+  values weaken support. Recording output never changes the sensory field.
   """
-  def record_output(%__MODULE__{} = state, output, opts) when is_list(opts) do
-    record_output(state, output, 1.0, opts)
-  end
+  def record_output(%__MODULE__{} = state, output),
+    do: record_output(state, output, 1.0, [])
 
-  def record_output(%__MODULE__{} = state, output, coherence \\ 1.0, opts \\ [])
-      when is_number(coherence) do
+  def record_output(%__MODULE__{} = state, output, opts) when is_list(opts),
+    do: record_output(state, output, 1.0, opts)
+
+  def record_output(%__MODULE__{} = state, output, coherence) when is_number(coherence),
+    do: record_output(state, output, coherence, [])
+
+  def record_output(%__MODULE__{} = state, output, coherence, opts)
+      when is_number(coherence) and is_list(opts) do
     threshold = Keyword.get(opts, :output_source_threshold, 0.18)
     budget = Keyword.get(opts, :output_plasticity_budget, 0.08)
     fanout = Keyword.get(opts, :output_plasticity_fanout, 8)
