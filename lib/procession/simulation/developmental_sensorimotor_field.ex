@@ -9,15 +9,22 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   """
 
   alias Procession.Simulation.DevelopmentalField
+  alias Procession.Simulation.DevelopmentalMemoryQuality
 
-  defstruct sensory: nil, output_edges: %{}
+  defstruct sensory: nil, output_edges: %{}, previous_activity: %{}
 
   def new(opts \\ []) do
     %__MODULE__{sensory: DevelopmentalField.new(opts)}
   end
 
   def sense(%__MODULE__{} = state, sensory_features, opts \\ []) when is_list(sensory_features) do
-    sensory = DevelopmentalField.step(state.sensory, {:features, sensory_features}, opts)
+    before = state.sensory
+
+    sensory =
+      before
+      |> DevelopmentalField.step({:features, sensory_features}, opts)
+      |> then(&DevelopmentalMemoryQuality.gate(before, &1, opts))
+
     retention = Keyword.get(opts, :output_edge_retention, 0.999)
 
     output_edges =
@@ -26,7 +33,8 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
       |> Enum.reject(fn {_edge, weight} -> abs(weight) < 0.0005 end)
       |> Map.new()
 
-    %{state | sensory: sensory, output_edges: output_edges}
+    %{state | sensory: sensory, output_edges: output_edges,
+      previous_activity: before.activity}
   end
 
   @doc """
@@ -47,18 +55,10 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
 
   def record_output(%__MODULE__{} = state, output, coherence, opts)
       when is_number(coherence) and is_list(opts) do
-    threshold = Keyword.get(opts, :output_source_threshold, 0.18)
     budget = Keyword.get(opts, :output_plasticity_budget, 0.08)
-    fanout = Keyword.get(opts, :output_plasticity_fanout, 8)
     scale = Keyword.get(opts, :output_learning_scale, 1.0)
     coherence = coherence |> max(-1.0) |> min(1.0)
-
-    sources =
-      state.sensory.activity
-      |> Enum.filter(fn {_id, activity} -> activity >= threshold end)
-      |> Enum.sort_by(fn {id, activity} -> {-activity, id} end)
-      |> Enum.take(fanout)
-
+    sources = output_sources(state, opts)
     total = Enum.sum(Enum.map(sources, &elem(&1, 1)))
 
     output_edges =
@@ -82,10 +82,19 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
 
   def output_score(%__MODULE__{} = state, output, opts \\ []) do
     threshold = Keyword.get(opts, :output_source_threshold, 0.18)
+    specificity_power = Keyword.get(opts, :output_specificity_power, 0.0)
 
     Enum.reduce(state.sensory.activity, 0.0, fn {source, activity}, total ->
       if activity >= threshold do
-        total + Map.get(state.output_edges, {source, output}, 0.0) * activity
+        node = Map.fetch!(state.sensory.nodes, source)
+        specificity =
+          if node.kind == :generated and specificity_power > 0.0 do
+            :math.pow(max(MapSet.size(node.support), 1), -specificity_power)
+          else
+            1.0
+          end
+
+        total + Map.get(state.output_edges, {source, output}, 0.0) * activity * specificity
       else
         total
       end
@@ -95,4 +104,28 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   def output_scores(%__MODULE__{} = state, outputs, opts \\ []) do
     Map.new(outputs, &{&1, output_score(state, &1, opts)})
   end
+
+  defp output_sources(state, opts) do
+    threshold = Keyword.get(opts, :output_source_threshold, 0.18)
+    fanout = Keyword.get(opts, :output_plasticity_fanout, 8)
+    mode = Keyword.get(opts, :output_source_mode, :active)
+
+    state.sensory.activity
+    |> Enum.map(fn {id, activity} ->
+      previous = Map.get(state.previous_activity, id, 0.0)
+      weight = source_weight(mode, activity, previous)
+      {id, weight}
+    end)
+    |> Enum.filter(fn {_id, weight} -> weight >= threshold end)
+    |> Enum.sort_by(fn {id, weight} -> {-weight, id} end)
+    |> Enum.take(fanout)
+  end
+
+  defp source_weight(:rising, activity, previous), do: max(0.0, activity - previous)
+  defp source_weight(:rising_residual, activity, previous) do
+    rise = max(0.0, activity - previous)
+    residual = max(0.0, activity - min(previous, activity) * 0.85)
+    max(rise, residual)
+  end
+  defp source_weight(_mode, activity, _previous), do: activity
 end
