@@ -11,7 +11,9 @@ defmodule Procession.Simulation.HomeForagingSeedReplicationTest do
         slow_stage_ticks: 8,
         slow_withdrawal_ticks: 12,
         standard_stage_ticks: 4,
-        standard_withdrawal_ticks: 6
+        standard_withdrawal_ticks: 6,
+        ultra_stage_ticks: 10,
+        ultra_withdrawal_ticks: 14
       )
 
     assert result.seeds == [101, 211]
