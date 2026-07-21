@@ -39,11 +39,22 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run staged assistance fading experiment
-        run: mix procession.metrics.fading_assistance --population 48 --stage-ticks 40 --withdrawal-ticks 100 --seed 1 --output fading-assistance-metrics.txt
+      - name: Run paired staged assistance action-cost experiment
+        run: |
+          mix procession.metrics.fading_assistance \
+            --population 48 \
+            --stage-ticks 40 \
+            --withdrawal-ticks 100 \
+            --seed 1 \
+            --compare-action-costs \
+            --output fading-assistance-action-cost-metrics.txt
+          echo "## Learner/Teacher Action Cost Results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          cat fading-assistance-action-cost-metrics.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload fading assistance metrics
         uses: actions/upload-artifact@v4
         with:
-          name: fading-assistance-metrics
-          path: fading-assistance-metrics.txt
+          name: fading-assistance-action-cost-metrics
+          path: fading-assistance-action-cost-metrics.txt
