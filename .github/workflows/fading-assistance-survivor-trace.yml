@@ -1,0 +1,28 @@
+name: Fading Assistance Survivor Trace
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+      - name: Trace surviving learners
+        run: |
+          mix run -e 's = Procession.Simulation.FadingAssistanceSurvivorTrace.run(population: 48, stage_ticks: 40, withdrawal_ticks: 100, seed: 1); File.write!("survivor-sequences.txt", Procession.Simulation.FadingAssistanceSurvivorTrace.report(s) <> "\n")'
+          cat survivor-sequences.txt | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fading-assistance-survivor-sequences
+          path: survivor-sequences.txt
