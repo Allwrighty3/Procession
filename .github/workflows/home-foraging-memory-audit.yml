@@ -1,0 +1,31 @@
+name: Home Foraging Memory Audit
+
+on:
+  push:
+    branches:
+      - diagnostic/obsolete-path-balance
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+      - name: Run memory audit
+        run: |
+          mix run -e 'result = Procession.Simulation.HomeForagingMemoryAudit.run(population: 48, stage_ticks: 40, withdrawal_ticks: 120, seed: 1); File.write!("home-foraging-memory-audit.txt", Procession.Simulation.HomeForagingMemoryAudit.report(result))'
+          cat home-foraging-memory-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-memory-audit
+          path: home-foraging-memory-audit.txt
