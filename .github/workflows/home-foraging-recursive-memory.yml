@@ -1,0 +1,24 @@
+name: Home Foraging Recursive Memory
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3.4.2'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+      - name: Run recursive memory integration audit
+        run: mix procession.metrics.home_foraging_recursive_memory | tee home-foraging-recursive-memory.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-recursive-memory
+          path: home-foraging-recursive-memory.txt
