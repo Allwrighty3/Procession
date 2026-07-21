@@ -39,22 +39,21 @@ jobs:
       - name: Run tests
         run: mix test
 
-      - name: Run paired staged assistance action-cost experiment
+      - name: Run learner-owned assistance experiment
         run: |
-          mix procession.metrics.fading_assistance \
+          mix procession.metrics.learner_owned_assistance \
             --population 48 \
             --stage-ticks 40 \
             --withdrawal-ticks 100 \
             --seed 1 \
-            --compare-action-costs \
-            --output fading-assistance-action-cost-metrics.txt
-          echo "## Learner/Teacher Action Cost Results" >> "$GITHUB_STEP_SUMMARY"
+            --output learner-owned-assistance-metrics.txt
+          echo "## Learner-Owned Assistance Results" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          cat fading-assistance-action-cost-metrics.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          cat learner-owned-assistance-metrics.txt | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload fading assistance metrics
+      - name: Upload assistance metrics
         uses: actions/upload-artifact@v4
         with:
-          name: fading-assistance-action-cost-metrics
-          path: fading-assistance-action-cost-metrics.txt
+          name: learner-owned-assistance-metrics
+          path: learner-owned-assistance-metrics.txt
