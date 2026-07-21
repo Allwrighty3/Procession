@@ -10,9 +10,11 @@ defmodule Procession.Simulation.HomeForagingSeedReplication do
     population = Keyword.get(opts, :population, 24)
     seeds = Keyword.get(opts, :seeds, @default_seeds)
 
+    experiment_opts = Keyword.drop(opts, [:seeds])
+
     seed_results =
       Enum.map(seeds, fn seed ->
-        result = Experiment.run(population: population, seed: seed)
+        result = Experiment.run(Keyword.merge(experiment_opts, population: population, seed: seed))
         slow_rows = Enum.filter(result.rows, &(&1.variant == :slow_long_lived))
         %{seed: seed, rows: slow_rows, summary: summarize_rows(slow_rows, population)}
       end)
@@ -80,7 +82,7 @@ defmodule Procession.Simulation.HomeForagingSeedReplication do
          collected: Enum.count(selected, & &1.collected),
          returned: Enum.count(selected, & &1.returned),
          consumed: Enum.count(selected, & &1.consumed),
-         contexts: mean(Enum.map(selected, &(&1.contexts * 1.0))),
+         contexts: mean(Enum.map(selected, &(&1.context_end * 1.0))),
          blocked_repeat: mean(Enum.map(selected, & &1.blocked_repeat)),
          useful_repeat: mean(Enum.map(selected, & &1.useful_repeat)),
          ticks: median(Enum.map(selected, &(&1.ticks * 1.0)))
@@ -103,20 +105,26 @@ defmodule Procession.Simulation.HomeForagingSeedReplication do
        %{
          seed_consumed_min: Enum.min(per_seed, fn -> 0 end),
          seed_consumed_max: Enum.max(per_seed, fn -> 0 end),
-         contexts_consumed: mean_field(consumed, :contexts),
-         contexts_failed: mean_field(failed, :contexts),
+         contexts_consumed: mean_context(consumed),
+         contexts_failed: mean_context(failed),
          blocked_consumed: mean_field(consumed, :blocked_repeat),
          blocked_failed: mean_field(failed, :blocked_repeat),
          useful_consumed: mean_field(consumed, :useful_repeat),
          useful_failed: mean_field(failed, :useful_repeat),
          ticks_consumed: median_field(consumed, :ticks),
          ticks_failed: median_field(failed, :ticks),
-         corr_context: point_biserial(selected, :contexts),
+         corr_context: point_biserial_context(selected),
          corr_blocked: point_biserial(selected, :blocked_repeat),
          corr_useful: point_biserial(selected, :useful_repeat),
          corr_ticks: point_biserial(selected, :ticks)
        }}
     end)
+  end
+
+  defp point_biserial_context(rows) do
+    xs = Enum.map(rows, &(&1.context_end * 1.0))
+    ys = Enum.map(rows, &(if &1.consumed, do: 1.0, else: 0.0))
+    correlation(xs, ys)
   end
 
   defp point_biserial([], _field), do: 0.0
@@ -135,6 +143,7 @@ defmodule Procession.Simulation.HomeForagingSeedReplication do
     if dx == 0.0 or dy == 0.0, do: 0.0, else: numerator / (dx * dy)
   end
 
+  defp mean_context(rows), do: rows |> Enum.map(&(&1.context_end * 1.0)) |> mean()
   defp mean_field(rows, field), do: rows |> Enum.map(&(Map.fetch!(&1, field) * 1.0)) |> mean()
   defp median_field(rows, field), do: rows |> Enum.map(&(Map.fetch!(&1, field) * 1.0)) |> median()
   defp mean([]), do: 0.0
