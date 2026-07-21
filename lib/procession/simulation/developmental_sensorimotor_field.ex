@@ -4,7 +4,8 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
 
   Sensory inputs are processed by `DevelopmentalField` and may activate micro-nodes
   or generated nodes. Motor outputs never enter that sensory encoder. Instead,
-  active sensory/generated nodes learn directed support for named outputs.
+  active sensory/generated nodes learn directed support for named outputs after
+  the world reports whether the output produced a coherent sensory transition.
   """
 
   alias Procession.Simulation.DevelopmentalField
@@ -22,16 +23,30 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     output_edges =
       state.output_edges
       |> Enum.map(fn {edge, weight} -> {edge, weight * retention} end)
-      |> Enum.reject(fn {_edge, weight} -> weight < 0.0005 end)
+      |> Enum.reject(fn {_edge, weight} -> abs(weight) < 0.0005 end)
       |> Map.new()
 
     %{state | sensory: sensory, output_edges: output_edges}
   end
 
-  def record_output(%__MODULE__{} = state, output, opts \\ []) do
+  @doc """
+  Records an output from the currently active sensory context.
+
+  `coherence` is a signed local transition assessment in `-1.0..1.0`:
+
+    * positive values strengthen context-to-output support;
+    * zero records no learning;
+    * negative values weaken existing support for the output in that context.
+
+  This function never advances or changes the sensory field.
+  """
+  def record_output(%__MODULE__{} = state, output, coherence \\ 1.0, opts \\ [])
+      when is_number(coherence) do
     threshold = Keyword.get(opts, :output_source_threshold, 0.18)
     budget = Keyword.get(opts, :output_plasticity_budget, 0.08)
     fanout = Keyword.get(opts, :output_plasticity_fanout, 8)
+    scale = Keyword.get(opts, :output_learning_scale, 1.0)
+    coherence = coherence |> max(-1.0) |> min(1.0)
 
     sources =
       state.sensory.activity
@@ -42,12 +57,18 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     total = Enum.sum(Enum.map(sources, &elem(&1, 1)))
 
     output_edges =
-      if total <= 0.0 do
+      if total <= 0.0 or coherence == 0.0 do
         state.output_edges
       else
         Enum.reduce(sources, state.output_edges, fn {source, activity}, edges ->
-          amount = budget * activity / total
-          Map.update(edges, {source, output}, amount, &min(3.0, &1 + amount))
+          amount = budget * scale * coherence * activity / total
+
+          Map.update(edges, {source, output}, max(0.0, amount), fn current ->
+            current
+            |> Kernel.+(amount)
+            |> max(0.0)
+            |> min(3.0)
+          end)
         end)
       end
 
