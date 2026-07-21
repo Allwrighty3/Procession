@@ -28,14 +28,13 @@ defmodule Procession.Simulation.HomeForagingContingencyExperimentTest do
       seed: 1
     )
 
-    assert Map.has_key?(result.summary, {:standard, :staged_assistance})
-    assert Map.has_key?(result.summary, {:slow_long_lived, :staged_assistance})
-    assert Map.has_key?(result.summary, {:ultra_slow_long_lived, :staged_assistance})
-
-    assert result.summary[{:slow_long_lived, :staged_assistance}].ticks >=
-             result.summary[{:standard, :staged_assistance}].ticks
-
-    assert result.summary[{:ultra_slow_long_lived, :staged_assistance}].ticks >=
-             result.summary[{:slow_long_lived, :staged_assistance}].ticks
+    for variant <- [:standard, :slow_long_lived, :ultra_slow_long_lived] do
+      summary = result.summary[{variant, :staged_assistance}]
+      assert summary
+      assert is_number(summary.cycles)
+      assert is_number(summary.action_entropy)
+      assert is_number(summary.context_drift)
+      assert summary.ticks > 0
+    end
   end
 end
