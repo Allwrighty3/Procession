@@ -1,0 +1,32 @@
+name: Home Foraging Contingency Experiment
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.14"
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+      - name: Run contingency comparison
+        run: |
+          mix procession.metrics.home_foraging_contingency \
+            --population 24 \
+            --seed 1 \
+            --output home-foraging-contingency.txt
+          cat home-foraging-contingency.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-contingency
+          path: home-foraging-contingency.txt
