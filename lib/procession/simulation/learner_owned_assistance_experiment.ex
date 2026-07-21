@@ -1,7 +1,7 @@
 defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
   @moduledoc "Caregiver assistance teaches learner-owned home-foraging cycles."
 
-  alias Procession.Simulation.DevelopmentalField
+  alias Procession.Simulation.DevelopmentalSensorimotorField
 
   @conditions [:provision_only, :abrupt_assistance, :staged_assistance]
   @actions [:manipulate, :wait, :north, :south, :east, :west]
@@ -16,7 +16,10 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
     activity_retention: 0.72,
     plasticity_fanout: 6,
     plasticity_budget: 0.08,
-    minimum_compression_gain: 2.0
+    minimum_compression_gain: 2.0,
+    output_plasticity_budget: 0.08,
+    output_plasticity_fanout: 8,
+    output_edge_retention: 0.9995
   ]
 
   def run(opts \\ []) do
@@ -32,20 +35,14 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
         {condition, summarize(runs, total)}
       end)
 
-    %{
-      population: population,
-      stage_ticks: width,
-      withdrawal_ticks: withdrawal,
-      home: @home,
-      conditions: conditions
-    }
+    %{population: population, stage_ticks: width, withdrawal_ticks: withdrawal,
+      home: @home, conditions: conditions}
   end
 
   def report(result) do
     rows =
       Enum.map(@conditions, fn condition ->
         s = result.conditions[condition]
-
         "#{condition}: survived=#{s.survived}/#{result.population} " <>
           "completed_cycles=#{s.completed_cycles}/#{result.population} " <>
           "independent_cycles=#{s.independent_cycles}/#{result.population} " <>
@@ -55,22 +52,19 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
           "ownership=#{fmt(s.ownership)} assistance=#{fmt(s.assistance)}"
       end)
 
-    Enum.join(
-      [
-        "Learner-owned home foraging assistance",
-        "population=#{result.population} stage_ticks=#{result.stage_ticks} " <>
-          "withdrawal_ticks=#{result.withdrawal_ticks} home=#{inspect(result.home)}"
-        | rows
-      ],
-      "\n"
-    )
+    Enum.join([
+      "Learner-owned home foraging assistance with separated sensory/motor fields",
+      "population=#{result.population} stage_ticks=#{result.stage_ticks} " <>
+        "withdrawal_ticks=#{result.withdrawal_ticks} home=#{inspect(result.home)}"
+      | rows
+    ], "\n")
   end
 
   defp run_one(condition, width, total, seed, entity) do
-    opts = Keyword.put(@field_opts, :encoding_salt, {:home_foraging, entity})
+    opts = Keyword.put(@field_opts, :encoding_salt, {:home_foraging_sensorimotor, entity})
 
     initial = %{
-      field: DevelopmentalField.new(opts),
+      field: DevelopmentalSensorimotorField.new(opts),
       position: @home,
       vitality: 0.72,
       warmth: 1.0,
@@ -78,75 +72,56 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
       alive?: true,
       tick: 0,
       records: [],
-      memory: Map.new(@actions, &{&1, 0.0})
+      last_displacement: :none,
+      last_food_contact: false,
+      last_intake: false,
+      caregiver_contact: :none
     }
 
-    Enum.reduce_while(1..total, initial, fn tick, state ->
+    Enum.reduce_while(1..total, initial, fn tick, prior ->
       stage = stage(tick, width)
+      state = if stage == :withdrawal and prior.tick == width * 5, do: %{prior | carrying: false}, else: prior
       food = food_cell(stage)
       baseline_vitality = max(0.0, state.vitality - 0.010)
       warmth = update_warmth(state.warmth, state.position)
       hunger = 1.0 - baseline_vitality
       cold = 1.0 - warmth
-      intended = choose(state, hunger, cold, tick, seed + entity * 137, opts)
-      help = assist(condition, stage, intended, state, food, hunger, cold)
-      action = help.action
-      position = move(state.position, action)
-      {carrying, intake, event} = interact(state.carrying, position, food, action, hunger)
-      cost = action_cost(action, state.position, position, help.level)
-      vitality = max(0.0, min(1.0, baseline_vitality - cost - cold * 0.006 + intake))
-      memory = remember(state.memory, intended, action, event, intake, help.level)
 
-      features = [
-        {:development_stage, stage},
+      sensory_features = [
         {:body_channel, :hunger, bucket(hunger)},
         {:body_channel, :warmth, bucket(warmth)},
         {:body_channel, :cold_pressure, bucket(cold)},
-        {:place_channel, position},
-        {:home_relation, relation(position, @home)},
-        {:food_relation, relation(position, food)},
-        {:carrying_food, carrying},
-        {:foraging_event, event},
-        {:motor_intention, intended},
-        {:caregiver_action, help.teacher},
-        {:assistance_level, bucket(help.level)},
-        {:learner_action_ownership, :very_high},
-        {:motor_execution, action},
-        {:self_intake_channel, intake > 0.0},
-        {:change_channel, :vitality, trend(vitality - state.vitality)},
-        {:change_channel, :warmth, trend(warmth - state.warmth)}
+        {:visual_channel, :home_relation, relation(state.position, @home)},
+        {:visual_channel, :food_relation, relation(state.position, food)},
+        {:tactile_channel, :food_contact, state.position == food},
+        {:proprioception_channel, :displacement, state.last_displacement},
+        {:load_channel, :carrying, state.carrying},
+        {:gustatory_channel, :recent_intake, state.last_intake},
+        {:tactile_channel, :caregiver_contact, state.caregiver_contact}
       ]
 
-      field = DevelopmentalField.step(state.field, {:features, features}, opts)
+      field = DevelopmentalSensorimotorField.sense(state.field, sensory_features, opts)
+      sensed_state = %{state | field: field, warmth: warmth}
+      intended = choose(sensed_state, hunger, cold, tick, seed + entity * 137, opts)
+      help = assist(condition, stage, intended, sensed_state, food, hunger, cold)
+      action = help.action
+      field = DevelopmentalSensorimotorField.record_output(field, action, opts)
+      position = move(state.position, action)
+      displacement = displacement(action, state.position, position)
+      {carrying, intake, event} = interact(state.carrying, position, food, action, hunger)
+      cost = action_cost(action, state.position, position, help.level)
+      vitality = max(0.0, min(1.0, baseline_vitality - cost - cold * 0.006 + intake))
 
-      record = %{
-        tick: tick,
-        stage: stage,
-        action: action,
-        intended: intended,
-        position: position,
-        food: food,
-        carrying: carrying,
-        intake: intake,
-        warmth: warmth,
-        event: event,
-        assistance: help.level,
-        ownership: 1.0,
-        teacher: help.teacher
-      }
+      record = %{tick: tick, stage: stage, action: action, intended: intended,
+        position: position, food: food, carrying: carrying, intake: intake,
+        warmth: warmth, event: event, assistance: help.level, ownership: 1.0,
+        teacher: help.teacher}
 
-      next = %{
-        state
-        | field: field,
-          position: position,
-          vitality: vitality,
-          warmth: warmth,
-          carrying: carrying,
-          alive?: vitality > 0.0 and warmth > 0.0,
-          tick: tick,
-          records: [record | state.records],
-          memory: memory
-      }
+      next = %{state | field: field, position: position, vitality: vitality,
+        warmth: warmth, carrying: carrying, alive?: vitality > 0.0 and warmth > 0.0,
+        tick: tick, records: [record | state.records], last_displacement: displacement,
+        last_food_contact: position == food, last_intake: intake > 0.0,
+        caregiver_contact: caregiver_sensation(help.level)}
 
       if next.alive?, do: {:cont, next}, else: {:halt, next}
     end)
@@ -158,9 +133,8 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
       exploration = :erlang.phash2({seed, tick, action}, 1_000) / 1_000 * 0.20
       pressure = max(hunger, cold) * 0.22
       wait_bias = if action == :wait, do: 0.18, else: 0.0
-      learned = learned(state.field, action, opts) * 0.34
-      memory = state.memory[action] * 0.55
-      {action, exploration + pressure + wait_bias + learned + memory}
+      learned = DevelopmentalSensorimotorField.output_score(state.field, action, opts) * 0.55
+      {action, exploration + pressure + wait_bias + learned}
     end)
     |> Enum.max_by(fn {action, score} -> {score, action} end)
     |> elem(0)
@@ -201,23 +175,14 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
 
   defp guided_action(%{carrying: false, position: position}, food) when position == food,
     do: :manipulate
-
-  defp guided_action(%{carrying: false, position: position}, food),
-    do: direction(position, food)
-
+  defp guided_action(%{carrying: false, position: position}, food), do: direction(position, food)
   defp guided_action(%{carrying: true, position: @home}, _food), do: :manipulate
+  defp guided_action(%{carrying: true, position: position}, _food), do: direction(position, @home)
 
-  defp guided_action(%{carrying: true, position: position}, _food),
-    do: direction(position, @home)
-
-  defp interact(false, position, position, :manipulate, _hunger),
-    do: {true, 0.0, :food_collected}
-
+  defp interact(false, position, position, :manipulate, _hunger), do: {true, 0.0, :food_collected}
   defp interact(true, @home, _food, :manipulate, hunger),
     do: {false, min(0.34, 0.18 + hunger * 0.22), :food_consumed_at_home}
-
-  defp interact(carrying, _position, _food, _action, _hunger),
-    do: {carrying, 0.0, :none}
+  defp interact(carrying, _position, _food, _action, _hunger), do: {carrying, 0.0, :none}
 
   defp update_warmth(warmth, @home), do: min(1.0, warmth + 0.12)
   defp update_warmth(warmth, _position), do: max(0.0, warmth - 0.018)
@@ -241,6 +206,9 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
   defp direction(position, position), do: :wait
 
   defp help(action, teacher, level), do: %{action: action, teacher: teacher, level: level}
+  defp caregiver_sensation(level) when level <= 0.0, do: :none
+  defp caregiver_sensation(level) when level < 0.5, do: :light
+  defp caregiver_sensation(_level), do: :strong
 
   defp move(position, action) when action in [:manipulate, :wait], do: position
   defp move({x, y}, :north), do: {x, max(0, y - 1)}
@@ -248,92 +216,55 @@ defmodule Procession.Simulation.LearnerOwnedAssistanceExperiment do
   defp move({x, y}, :east), do: {min(3, x + 1), y}
   defp move({x, y}, :west), do: {max(0, x - 1), y}
 
+  defp displacement(action, position, position) when action in [:north, :south, :east, :west], do: :blocked
+  defp displacement(action, _before, _after) when action in [:north, :south, :east, :west], do: :moved
+  defp displacement(_action, _before, _after), do: :none
+
   defp action_cost(:wait, _before, _after, level), do: 0.002 * effort(level)
   defp action_cost(:manipulate, _before, _after, level), do: 0.004 * effort(level)
   defp action_cost(_action, position, position, level), do: 0.008 * effort(level)
   defp action_cost(_action, _before, _after, level), do: 0.010 * effort(level)
   defp effort(level), do: max(0.25, 1.0 - level * 0.75)
 
-  defp remember(memory, intended, action, event, intake, assistance) do
-    decayed = Map.new(memory, fn {stored, value} -> {stored, value * 0.992} end)
-    consequence = intake + if(event == :food_collected, do: 0.08, else: 0.0)
-    gain = consequence * (0.45 + (1.0 - assistance) * 0.55)
-    next = Map.update!(decayed, action, &min(1.0, &1 + gain))
-
-    if intended == action,
-      do: Map.update!(next, intended, &min(1.0, &1 + gain * 0.45)),
-      else: next
-  end
-
-  defp learned(field, action, opts) do
-    targets = DevelopmentalField.active_micro_nodes(field, {:motor_execution, action}, opts)
-
-    Enum.reduce(field.activity, 0.0, fn {source, activity}, total ->
-      if activity >= 0.18 do
-        total +
-          Enum.reduce(targets, 0.0, fn target, acc ->
-            acc + Map.get(field.edges, {source, target}, 0.0) * activity
-          end)
-      else
-        total
-      end
-    end)
-  end
-
   defp summarize(runs, total) do
     withdrawal = fn state -> Enum.filter(state.records, &(&1.stage == :withdrawal)) end
 
-    %{
-      survived: Enum.count(runs, &(&1.alive? and &1.tick == total)),
-      completed_cycles:
-        Enum.count(runs, &Enum.any?(&1.records, fn record -> record.event == :food_consumed_at_home end)),
-      independent_cycles:
-        Enum.count(runs, &Enum.any?(withdrawal.(&1), fn record -> record.event == :food_consumed_at_home end)),
-      food_reached:
-        Enum.count(runs, &Enum.any?(withdrawal.(&1), fn record -> record.position == record.food end)),
-      home_returns:
-        Enum.count(runs, &Enum.any?(withdrawal.(&1), fn record -> record.carrying and record.position == @home end)),
+    %{survived: Enum.count(runs, &(&1.alive? and &1.tick == total)),
+      completed_cycles: Enum.count(runs, &Enum.any?(&1.records, fn r -> r.event == :food_consumed_at_home end)),
+      independent_cycles: Enum.count(runs, &Enum.any?(withdrawal.(&1), fn r -> r.event == :food_consumed_at_home end)),
+      food_reached: Enum.count(runs, &Enum.any?(withdrawal.(&1), fn r -> r.position == r.food end)),
+      home_returns: Enum.count(runs, &strict_home_return?(withdrawal.(&1))),
       intake: median(Enum.map(runs, &sum_stage(&1, :withdrawal, :intake))),
       warmth: median(Enum.map(runs, & &1.warmth)),
-      ownership: median(Enum.map(runs, &mean(Enum.map(&1.records, fn record -> record.ownership end)))),
-      assistance: median(Enum.map(runs, &mean(Enum.map(&1.records, fn record -> record.assistance end))))
-    }
+      ownership: median(Enum.map(runs, &mean(Enum.map(&1.records, fn r -> r.ownership end)))),
+      assistance: median(Enum.map(runs, &mean(Enum.map(&1.records, fn r -> r.assistance end))))}
   end
 
-  defp sum_stage(state, stage, key) do
-    state.records
-    |> Enum.filter(&(&1.stage == stage))
-    |> Enum.reduce(0.0, &(Map.fetch!(&1, key) + &2))
+  defp strict_home_return?(records) do
+    case Enum.find_index(records, &(&1.event == :food_collected)) do
+      nil -> false
+      index -> records |> Enum.drop(index + 1) |> Enum.any?(&(&1.carrying and &1.position == @home))
+    end
   end
+
+  defp sum_stage(state, stage, key), do: state.records |> Enum.filter(&(&1.stage == stage))
+    |> Enum.reduce(0.0, &(Map.fetch!(&1, key) + &2))
 
   defp relation(position, position), do: :contact
-
-  defp relation({x, y}, {tx, ty}) when abs(x - tx) + abs(y - ty) == 1,
-    do: :adjacent
-
+  defp relation({x, y}, {tx, ty}) when abs(x - tx) + abs(y - ty) == 1, do: :adjacent
   defp relation(_position, _target), do: :distant
-
   defp bucket(value) when value < 0.25, do: :very_low
   defp bucket(value) when value < 0.50, do: :low
   defp bucket(value) when value < 0.75, do: :high
   defp bucket(_value), do: :very_high
-
-  defp trend(delta) when delta > 0.01, do: :rising
-  defp trend(delta) when delta < -0.01, do: :falling
-  defp trend(_delta), do: :stable
-
   defp mean([]), do: 0.0
   defp mean(values), do: Enum.sum(values) / length(values)
   defp median([]), do: 0.0
-
   defp median(values) do
     sorted = Enum.sort(values)
     middle = div(length(sorted), 2)
-
-    if rem(length(sorted), 2) == 1,
-      do: Enum.at(sorted, middle) * 1.0,
+    if rem(length(sorted), 2) == 1, do: Enum.at(sorted, middle) * 1.0,
       else: (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
   end
-
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
 end
