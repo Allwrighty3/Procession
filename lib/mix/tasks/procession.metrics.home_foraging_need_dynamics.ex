@@ -5,7 +5,11 @@ defmodule Mix.Tasks.Procession.Metrics.HomeForagingNeedDynamics do
 
   @impl true
   def run(_args) do
-    Procession.Simulation.HomeForagingNeedDynamicsExperiment.run()
+    Procession.Simulation.HomeForagingNeedDynamicsExperiment.run(
+      population: 12,
+      teaching_ticks: 2_400,
+      withdrawal_ticks: 2_400
+    )
     |> Procession.Simulation.HomeForagingNeedDynamicsExperiment.report()
     |> Mix.shell().info()
   end
