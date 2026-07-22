@@ -1,0 +1,29 @@
+name: Bounded Cognition
+
+on:
+  push:
+    branches:
+      - diagnostic/obsolete-path-balance
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18.3'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test test/procession/simulation/bounded_cognition_test.exs test/procession/simulation/bounded_cognition_experiment_test.exs
+      - run: mix test
+      - name: Run bounded cognition probe
+        run: |
+          mkdir -p artifacts
+          mix procession.metrics.bounded_cognition | tee artifacts/bounded-cognition.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bounded-cognition
+          path: artifacts/bounded-cognition.txt
