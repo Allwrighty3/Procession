@@ -1,0 +1,25 @@
+name: Home Foraging Drive Gating
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27.2'
+          elixir-version: '1.18.1'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test test/procession/simulation/home_foraging_drive_gating_experiment_test.exs
+      - run: mix test
+      - name: Run continuous drive-gating comparison
+        run: mix procession.metrics.home_foraging_drive_gating | tee home-foraging-drive-gating.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-drive-gating
+          path: home-foraging-drive-gating.txt
