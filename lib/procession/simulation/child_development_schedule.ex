@@ -22,18 +22,24 @@ defmodule Procession.Simulation.ChildDevelopmentSchedule do
     Enum.map(@phases, &Map.update!(&1, :ticks, fn ticks -> max(1, round(ticks * scale)) end))
   end
 
-  def total_ticks(scale \\ 1.0), do: phases(scale) |> Enum.sum_by(& &1.ticks)
+  def total_ticks(scale \\ 1.0) do
+    phases(scale)
+    |> Enum.map(& &1.ticks)
+    |> Enum.sum()
+  end
 
   def teaching_ticks(scale \\ 1.0) do
     phases(scale)
     |> Enum.reject(&(&1.motor_support == 0.0))
-    |> Enum.sum_by(& &1.ticks)
+    |> Enum.map(& &1.ticks)
+    |> Enum.sum()
   end
 
   def care_ticks(scale \\ 1.0) do
     phases(scale)
     |> Enum.reject(&(&1.care == 0.0))
-    |> Enum.sum_by(& &1.ticks)
+    |> Enum.map(& &1.ticks)
+    |> Enum.sum()
   end
 
   def at_tick(tick, scale \\ 1.0) do
