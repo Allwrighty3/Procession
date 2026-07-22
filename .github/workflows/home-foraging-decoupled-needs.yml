@@ -1,0 +1,25 @@
+name: Home Foraging Decoupled Needs
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test test/procession/simulation/home_foraging_decoupled_needs_experiment_test.exs
+      - run: mix test
+      - name: Run corrected relation comparison
+        run: mix procession.metrics.home_foraging_decoupled_needs | tee home-foraging-decoupled-needs.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-decoupled-needs
+          path: home-foraging-decoupled-needs.txt
