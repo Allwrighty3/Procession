@@ -1,15 +1,14 @@
 defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   @moduledoc """
-  Follow-up diagnostic that removes direct target-bearing information from the
-  second learner after transfer.
+  Ultra-slow sibling-development diagnostic using supervised OTP learner processes.
 
-  A relationally trained scout can still perceive the current resource bearing.
-  The sibling receives only contact, internal, and action/outcome features. In
-  social conditions it may also perceive the scout and, in the signal condition,
-  one of two arbitrary signal patterns. Signals have no predefined meaning.
+  Both learners have identical blind perception. They differ only in exploration
+  stream and developmental history. Their decisions are computed concurrently
+  from the same world snapshot, then resolved together by a deterministic tick
+  coordinator.
   """
 
-  alias Procession.Simulation.DevelopmentalSensorimotorField, as: Field
+  alias Procession.Simulation.SiblingLearnerProcess, as: Learner
 
   @motor_actions [:left, :right, :collect, :eat, :wait]
   @signals [:signal_a, :signal_b]
@@ -29,16 +28,16 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     compression_coverage_threshold: 0.45,
     plasticity_threshold: 0.14,
     output_source_threshold: 0.14,
-    output_learning_scale: 0.20,
+    output_learning_scale: 0.01,
     output_plasticity_budget: 0.12,
     output_source_mode: :rising_residual,
     output_specificity_power: 0.5
   ]
 
   def run(opts \\ []) do
-    population = Keyword.get(opts, :population, 16)
-    teaching_ticks = Keyword.get(opts, :teaching_ticks, 120)
-    transfer_ticks = Keyword.get(opts, :transfer_ticks, 320)
+    population = Keyword.get(opts, :population, 12)
+    teaching_ticks = Keyword.get(opts, :teaching_ticks, 5_000)
+    transfer_ticks = Keyword.get(opts, :transfer_ticks, 3_000)
     seed = Keyword.get(opts, :seed, 73)
 
     rows =
@@ -47,9 +46,11 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       end
 
     %{
+      execution_model: :supervised_otp_concurrent_decision,
       population: population,
       teaching_ticks: teaching_ticks,
       transfer_ticks: transfer_ticks,
+      learning_scale: 0.01,
       rows: rows,
       summary: summarize(rows)
     }
@@ -60,226 +61,159 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       Enum.map([:isolated, :visible, :signals], fn condition ->
         s = result.summary[condition]
 
-        "#{condition}: sibling_survive=#{fmt(s.sibling_survival_rate)} " <>
-          "sibling_meal=#{fmt(s.sibling_meal_rate)} meals=#{fmt(s.mean_sibling_meals)} " <>
-          "first_meal=#{fmt(s.mean_first_meal_tick)} scout_meals=#{fmt(s.mean_scout_meals)} " <>
-          "follow=#{fmt(s.follow_rate)} contact=#{fmt(s.scout_contact_rate)}"
+        "#{condition}: pair_survive=#{fmt(s.pair_survival_rate)} fed=#{fmt(s.learner_meal_rate)} " <>
+          "meals=#{fmt(s.mean_meals)} first=#{fmt(s.mean_first_meal_tick)} " <>
+          "follow=#{fmt(s.follow_rate)} action_divergence=#{fmt(s.action_divergence)}"
       end)
 
     signals = result.summary.signals
 
     Enum.join([
-      "Blinded sibling and arbitrary-signal follow-up",
-      "population=#{result.population} teaching=#{result.teaching_ticks} transfer=#{result.transfer_ticks}",
-      "follower has no target-bearing feature after transfer",
+      "Equal-blind OTP sibling and arbitrary-signal diagnostic",
+      "execution=#{result.execution_model}",
+      "population=#{result.population} teaching=#{result.teaching_ticks} transfer=#{result.transfer_ticks} learning=#{result.learning_scale}",
+      "both learners use identical blind perception and independent exploration streams",
       "" | lines
     ] ++ [
       "",
-      "signal_attempts=#{signals.signal_attempts} useful_signal_rate=#{fmt(signals.useful_signal_rate)} " <>
-        "audience_sensitivity=#{fmt(signals.audience_sensitivity)} " <>
-        "receiver_response=#{fmt(signals.receiver_response_rate)} conventions=#{fmt(signals.convention_rate)}"
+      "signal_attempts=#{signals.signal_attempts} audible=#{fmt(signals.audience_sensitivity)} " <>
+        "response=#{fmt(signals.receiver_response_rate)} useful=#{fmt(signals.useful_signal_rate)} " <>
+        "conventions=#{fmt(signals.convention_rate)}"
     ], "\n")
   end
 
   defp run_pair(condition, pair, seed, teaching_ticks, transfer_ticks) do
-    scout_opts = opts(seed, {:scout, condition, pair})
-    sibling_opts = opts(seed, {:sibling, condition, pair})
+    {:ok, supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
 
-    {scout, sibling} =
-      Enum.reduce(1..teaching_ticks, {new_learner(scout_opts), new_learner(sibling_opts)}, fn tick, {a, b} ->
-        {
-          taught_step(a, 0, 4, :relational, scout_opts, tick),
-          taught_step(b, 0, 4, :absolute, sibling_opts, tick)
-        }
-      end)
+    try do
+      {:ok, a} = start_learner(supervisor, :a, pair, seed, 1)
+      {:ok, b} = start_learner(supervisor, :b, pair, seed, 3)
 
-    initial = %{
-      scout: reset_transfer(scout, 4),
-      sibling: reset_transfer(sibling, 2),
-      heard_signal: nil,
-      pending_signal: nil,
-      signals_audible: 0,
-      signals_inaudible: 0,
-      useful_signals: 0,
-      receiver_responses: 0,
-      follow_events: 0,
-      social_opportunities: 0,
-      scout_contacts: 0,
-      conventions: MapSet.new()
-    }
+      train_pair(a, b, teaching_ticks)
 
-    final =
-      Enum.reduce(1..transfer_ticks, initial, fn tick, pair_state ->
-        step_pair(pair_state, condition, tick, pair, seed, scout_opts, sibling_opts)
-      end)
+      initial = %{
+        heard: %{a: nil, b: nil},
+        signals_audible: 0,
+        signals_inaudible: 0,
+        useful_signals: 0,
+        receiver_responses: 0,
+        follow_events: 0,
+        social_opportunities: 0,
+        action_matches: 0,
+        action_comparisons: 0,
+        conventions: MapSet.new()
+      }
 
-    %{
-      condition: condition,
-      scout_survived?: final.scout.vitality > 0.0,
-      sibling_survived?: final.sibling.vitality > 0.0,
-      scout_meals: final.scout.meals,
-      sibling_meals: final.sibling.meals,
-      sibling_first_meal_tick: final.sibling.first_meal_tick,
-      signals_audible: final.signals_audible,
-      signals_inaudible: final.signals_inaudible,
-      useful_signals: final.useful_signals,
-      receiver_responses: final.receiver_responses,
-      follow_events: final.follow_events,
-      social_opportunities: final.social_opportunities,
-      scout_contacts: final.scout_contacts,
-      conventions: MapSet.size(final.conventions)
-    }
+      final =
+        Enum.reduce(1..transfer_ticks, initial, fn tick, metrics ->
+          tick_pair(a, b, condition, tick, metrics)
+        end)
+
+      sa = Learner.snapshot(a)
+      sb = Learner.snapshot(b)
+
+      %{
+        condition: condition,
+        learner_a: sa,
+        learner_b: sb,
+        pair_survived?: sa.vitality > 0.0 and sb.vitality > 0.0,
+        learners_fed: bool(sa.meals > 0) + bool(sb.meals > 0),
+        total_meals: sa.meals + sb.meals,
+        first_meal_ticks: Enum.reject([sa.first_meal_tick, sb.first_meal_tick], &is_nil/1),
+        signals_audible: final.signals_audible,
+        signals_inaudible: final.signals_inaudible,
+        useful_signals: final.useful_signals,
+        receiver_responses: final.receiver_responses,
+        follow_events: final.follow_events,
+        social_opportunities: final.social_opportunities,
+        action_matches: final.action_matches,
+        action_comparisons: final.action_comparisons,
+        conventions: MapSet.size(final.conventions)
+      }
+    after
+      if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
+    end
   end
 
-  defp step_pair(pair_state, condition, tick, pair, seed, scout_opts, sibling_opts) do
-    scout = pair_state.scout
-    sibling = pair_state.sibling
+  defp start_learner(supervisor, id, pair, seed, position) do
+    learner_seed = seed + pair * 10_007 + if(id == :a, do: 101, else: 503)
+    field_opts = [encoding_salt: {:otp_sibling, pair, id, seed}] ++ @field_opts
+
+    DynamicSupervisor.start_child(supervisor, %{
+      id: {Learner, make_ref()},
+      start: {Learner, :start_link, [[id: id, seed: learner_seed, position: position, field_opts: field_opts]]},
+      restart: :temporary
+    })
+  end
+
+  defp train_pair(a, b, ticks) do
+    Enum.each(1..ticks, fn _tick ->
+      Enum.each([a, b], fn pid ->
+        state = Learner.snapshot(pid)
+        perception = blind_features(state, [])
+        action = desired_action(state)
+        outcome = resolve_one(state, action)
+        :ok = Learner.train(pid, perception, action, outcome)
+      end)
+    end)
+  end
+
+  defp tick_pair(a, b, condition, tick, metrics) do
+    sa = Learner.snapshot(a)
+    sb = Learner.snapshot(b)
     social? = condition in [:visible, :signals]
     signals? = condition == :signals
-    distance_before = abs(scout.position - sibling.position)
+    distance_before = abs(sa.position - sb.position)
     audible? = distance_before <= 2
 
-    scout_social = if social?, do: sibling_features(scout, sibling, nil), else: []
-    heard = if signals? and audible?, do: pair_state.heard_signal, else: nil
-    sibling_social = if social?, do: sibling_features(sibling, scout, heard), else: []
+    pa = blind_features(sa, social_features(sa, sb, metrics.heard.a, social?, signals? and audible?))
+    pb = blind_features(sb, social_features(sb, sa, metrics.heard.b, social?, signals? and audible?))
+    actions = if signals?, do: @motor_actions ++ @signals, else: @motor_actions
 
-    scout_field = Field.sense(scout.field, relational_features(scout, scout_social), scout_opts)
-    sibling_field = Field.sense(sibling.field, blind_features(sibling, sibling_social), sibling_opts)
+    task_a = Task.async(fn -> Learner.decide(a, pa, actions, tick, 0.20) end)
+    task_b = Task.async(fn -> Learner.decide(b, pb, actions, tick, 0.20) end)
+    da = Task.await(task_a, :infinity)
+    db = Task.await(task_b, :infinity)
 
-    scout_actions = if signals?, do: @motor_actions ++ @signals, else: @motor_actions
-    scout_action = choose_action(scout_field, scout_actions, tick, seed + pair * 311, scout_opts, if(signals?, do: 0.22, else: 0.10))
-    sibling_action = choose_action(sibling_field, @motor_actions, tick, seed + pair * 419, sibling_opts, 0.24)
+    oa = resolve_one(sa, da.action)
+    ob = resolve_one(sb, db.action)
+    :ok = Learner.commit(a, da.action, oa)
+    :ok = Learner.commit(b, db.action, ob)
 
-    {next_scout, scout_coherence, scout_event} = apply_action(%{scout | field: scout_field}, scout_action)
-    {next_sibling, sibling_coherence, sibling_event} = apply_action(%{sibling | field: sibling_field}, sibling_action)
+    na = Learner.snapshot(a)
+    nb = Learner.snapshot(b)
+    distance_after = abs(na.position - nb.position)
+    approached_a? = social? and distance_after < distance_before and na.position != sa.position
+    approached_b? = social? and distance_after < distance_before and nb.position != sb.position
 
-    distance_after = abs(next_scout.position - next_sibling.position)
-    follower_approached? = social? and distance_after < distance_before
-    signal = if scout_action in @signals, do: scout_action, else: nil
-    response? = signal != nil and audible? and follower_approached?
-    useful_signal? = response? and next_scout.position in [@food, @food + 1]
+    signal_a = if da.action in @signals, do: da.action, else: nil
+    signal_b = if db.action in @signals, do: db.action, else: nil
+    response_a? = signal_b != nil and audible? and approached_a?
+    response_b? = signal_a != nil and audible? and approached_b?
+    useful_a? = response_b? and sa.position in [@food, @food + 1]
+    useful_b? = response_a? and sb.position in [@food, @food + 1]
 
-    scout_coherence =
-      cond do
-        signal == nil -> scout_coherence
-        useful_signal? -> 1.0
-        response? -> 0.35
-        true -> -0.08
-      end
+    conventions =
+      metrics.conventions
+      |> maybe_convention(metrics.heard.a, da.action, oa.event)
+      |> maybe_convention(metrics.heard.b, db.action, ob.event)
 
-    sibling_coherence =
-      cond do
-        heard != nil and sibling_event in [:food_collected, :food_consumed] -> 1.0
-        heard != nil and follower_approached? -> max(sibling_coherence, 0.55)
-        true -> sibling_coherence
-      end
-
-    next_scout =
-      %{next_scout |
-        field: Field.record_output(next_scout.field, scout_action, scout_coherence, scout_opts),
-        last_event: scout_event
-      }
-      |> age_body()
-
-    next_sibling =
-      %{next_sibling |
-        field: Field.record_output(next_sibling.field, sibling_action, sibling_coherence, sibling_opts),
-        last_event: sibling_event
-      }
-      |> age_body()
-
-    convention =
-      if heard != nil and sibling_event in [:food_collected, :food_consumed] do
-        {heard, sibling_action}
-      end
+    emitted = bool(signal_a != nil) + bool(signal_b != nil)
+    audible_count = if audible?, do: emitted, else: 0
 
     %{
-      pair_state |
-      scout: next_scout,
-      sibling: next_sibling,
-      heard_signal: signal,
-      pending_signal: signal,
-      signals_audible: pair_state.signals_audible + bool(signal != nil and audible?),
-      signals_inaudible: pair_state.signals_inaudible + bool(signal != nil and not audible?),
-      useful_signals: pair_state.useful_signals + bool(useful_signal?),
-      receiver_responses: pair_state.receiver_responses + bool(response?),
-      follow_events: pair_state.follow_events + bool(follower_approached?),
-      social_opportunities: pair_state.social_opportunities + bool(social? and distance_before > 0),
-      scout_contacts: pair_state.scout_contacts + bool(distance_after == 0),
-      conventions: if(convention, do: MapSet.put(pair_state.conventions, convention), else: pair_state.conventions)
+      metrics
+      | heard: %{a: signal_b, b: signal_a},
+        signals_audible: metrics.signals_audible + audible_count,
+        signals_inaudible: metrics.signals_inaudible + emitted - audible_count,
+        useful_signals: metrics.useful_signals + bool(useful_a?) + bool(useful_b?),
+        receiver_responses: metrics.receiver_responses + bool(response_a?) + bool(response_b?),
+        follow_events: metrics.follow_events + bool(approached_a?) + bool(approached_b?),
+        social_opportunities: metrics.social_opportunities + if(social? and distance_before > 0, do: 2, else: 0),
+        action_matches: metrics.action_matches + bool(da.action == db.action),
+        action_comparisons: metrics.action_comparisons + 1,
+        conventions: conventions
     }
-  end
-
-  defp taught_step(state, home, food, encoding, field_opts, _tick) do
-    features =
-      case encoding do
-        :relational -> relational_features(state, [], home, food)
-        :absolute -> absolute_features(state, home, food)
-      end
-
-    field = Field.sense(state.field, features, field_opts)
-    action = desired_action(state, home, food)
-    {next, coherence, event} = apply_action(%{state | field: field}, action, home, food)
-
-    %{next |
-      field: Field.record_output(next.field, action, coherence, field_opts),
-      last_event: event
-    }
-  end
-
-  defp new_learner(field_opts) do
-    %{
-      field: Field.new(field_opts),
-      position: 0,
-      carrying: false,
-      hunger: 0.25,
-      vitality: 1.0,
-      meals: 0,
-      elapsed: 0,
-      first_meal_tick: nil,
-      last_action: nil,
-      last_event: :none
-    }
-  end
-
-  defp reset_transfer(state, position) do
-    %{state |
-      position: position,
-      carrying: false,
-      hunger: 0.35,
-      vitality: 1.0,
-      meals: 0,
-      elapsed: 0,
-      first_meal_tick: nil,
-      last_action: nil,
-      last_event: :none
-    }
-  end
-
-  defp relational_features(state, social, home \\ @home, food \\ @food) do
-    target = if state.carrying, do: home, else: food
-
-    [
-      {:target_bearing, bearing(state.position, target)},
-      {:at_target, state.position == target},
-      {:carrying, state.carrying},
-      {:hunger, band(state.hunger)},
-      {:last_action, state.last_action},
-      {:last_event, state.last_event}
-      | social
-    ]
-  end
-
-  defp absolute_features(state, home, food) do
-    [
-      {:position, state.position},
-      {:home, home},
-      {:food, food},
-      {:carrying, state.carrying},
-      {:hunger, band(state.hunger)},
-      {:last_action, state.last_action},
-      {:last_event, state.last_event}
-    ]
   end
 
   defp blind_features(state, social) do
@@ -294,106 +228,96 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     ]
   end
 
-  defp sibling_features(self, other, heard_signal) do
+  defp social_features(_self, _other, _heard, false, _hear?), do: []
+
+  defp social_features(self, other, heard, true, hear?) do
     [
       {:sibling_bearing, bearing(self.position, other.position)},
       {:sibling_carrying, other.carrying},
       {:sibling_last_action, other.last_action},
-      {:heard_signal, heard_signal}
+      {:heard_signal, if(hear?, do: heard, else: nil)}
     ]
   end
 
-  defp choose_action(field, actions, tick, seed, field_opts, exploration) do
-    roll = :erlang.phash2({:explore, seed, tick}, 100_000) / 100_000
+  defp desired_action(%{carrying: false, position: @food}), do: :collect
+  defp desired_action(%{carrying: true, position: @home}), do: :eat
+  defp desired_action(%{carrying: false, position: position}), do: toward(position, @food)
+  defp desired_action(%{carrying: true, position: position}), do: toward(position, @home)
 
-    if roll < exploration do
-      Enum.at(actions, rem(:erlang.phash2({:action, seed, tick}), length(actions)))
-    else
-      scores = Field.output_scores(field, actions, field_opts)
-      Enum.max_by(actions, fn action -> {Map.get(scores, action, 0.0), action} end)
-    end
+  defp resolve_one(state, action) do
+    {position, carrying, hunger, vitality, coherence, event} =
+      case action do
+        :left -> move_outcome(state, max(0, state.position - 1))
+        :right -> move_outcome(state, min(4, state.position + 1))
+        :collect when state.position == @food and not state.carrying ->
+          {state.position, true, state.hunger, state.vitality, 1.0, :food_collected}
+        :eat when state.position == @home and state.carrying ->
+          {state.position, false, max(0.0, state.hunger - 0.75), min(1.0, state.vitality + 0.30), 1.0, :food_consumed}
+        signal when signal in @signals ->
+          {state.position, state.carrying, state.hunger, state.vitality, 0.0, signal}
+        :wait ->
+          {state.position, state.carrying, state.hunger, state.vitality, -0.02, :waited}
+        _ ->
+          {state.position, state.carrying, state.hunger, state.vitality, -0.12, :ineffective}
+      end
+
+    aged_hunger = min(1.0, hunger + 0.00018)
+    aged_vitality = max(0.0, vitality - 0.00004 - aged_hunger * 0.000055)
+
+    %{
+      position: position,
+      carrying: carrying,
+      hunger: aged_hunger,
+      vitality: aged_vitality,
+      coherence: coherence,
+      event: event
+    }
   end
 
-  defp desired_action(%{carrying: false, position: position}, _home, food) when position == food, do: :collect
-  defp desired_action(%{carrying: true, position: position}, home, _food) when position == home, do: :eat
-  defp desired_action(%{carrying: false, position: position}, _home, food), do: toward(position, food)
-  defp desired_action(%{carrying: true, position: position}, home, _food), do: toward(position, home)
-
-  defp apply_action(state, action, home \\ @home, food \\ @food) do
-    elapsed = state.elapsed + 1
-    base = %{state | elapsed: elapsed, last_action: action}
-
-    case action do
-      :left ->
-        next = max(0, state.position - 1)
-        { %{base | position: next}, if(next == state.position, do: -0.20, else: 0.35), :moved }
-
-      :right ->
-        next = min(4, state.position + 1)
-        { %{base | position: next}, if(next == state.position, do: -0.20, else: 0.35), :moved }
-
-      :collect when state.position == food and not state.carrying ->
-        { %{base | carrying: true}, 1.0, :food_collected }
-
-      :eat when state.position == home and state.carrying ->
-        first_meal = state.first_meal_tick || elapsed
-
-        { %{base |
-            carrying: false,
-            hunger: max(0.0, state.hunger - 0.75),
-            vitality: min(1.0, state.vitality + 0.30),
-            meals: state.meals + 1,
-            first_meal_tick: first_meal
-          }, 1.0, :food_consumed }
-
-      signal when signal in @signals ->
-        {base, 0.0, signal}
-
-      :wait ->
-        {base, -0.02, :waited}
-
-      _ ->
-        {base, -0.12, :ineffective}
-    end
-  end
-
-  defp age_body(state) do
-    hunger = min(1.0, state.hunger + 0.0045)
-    vitality = max(0.0, state.vitality - 0.0014 - hunger * 0.0020)
-    %{state | hunger: hunger, vitality: vitality}
+  defp move_outcome(state, next) do
+    coherence = if next == state.position, do: -0.20, else: 0.35
+    {next, state.carrying, state.hunger, state.vitality, coherence, :moved}
   end
 
   defp summarize(rows) do
     rows
     |> Enum.group_by(& &1.condition)
     |> Map.new(fn {condition, values} ->
+      learners = length(values) * 2
+      fed = Enum.sum(Enum.map(values, & &1.learners_fed))
+      meals = Enum.sum(Enum.map(values, & &1.total_meals))
+      firsts = Enum.flat_map(values, & &1.first_meal_ticks)
       audible = Enum.sum(Enum.map(values, & &1.signals_audible))
       inaudible = Enum.sum(Enum.map(values, & &1.signals_inaudible))
-      signal_attempts = audible + inaudible
-      useful = Enum.sum(Enum.map(values, & &1.useful_signals))
+      attempts = audible + inaudible
       responses = Enum.sum(Enum.map(values, & &1.receiver_responses))
+      useful = Enum.sum(Enum.map(values, & &1.useful_signals))
       follow = Enum.sum(Enum.map(values, & &1.follow_events))
       opportunities = Enum.sum(Enum.map(values, & &1.social_opportunities))
-      contacts = Enum.sum(Enum.map(values, & &1.scout_contacts))
+      matches = Enum.sum(Enum.map(values, & &1.action_matches))
+      comparisons = Enum.sum(Enum.map(values, & &1.action_comparisons))
       conventions = Enum.sum(Enum.map(values, & &1.conventions))
 
       {condition, %{
-        sibling_survival_rate: fraction(values, & &1.sibling_survived?),
-        sibling_meal_rate: fraction(values, &(&1.sibling_meals > 0)),
-        mean_sibling_meals: mean(Enum.map(values, &(&1.sibling_meals * 1.0))),
-        mean_first_meal_tick: mean_nonzero(Enum.map(values, &((&1.sibling_first_meal_tick || 0) * 1.0))),
-        mean_scout_meals: mean(Enum.map(values, &(&1.scout_meals * 1.0))),
+        pair_survival_rate: fraction(values, & &1.pair_survived?),
+        learner_meal_rate: fed / max(learners, 1),
+        mean_meals: meals / max(learners, 1),
+        mean_first_meal_tick: mean(firsts),
         follow_rate: ratio(follow, opportunities),
-        scout_contact_rate: ratio(contacts, length(values) * 320),
-        signal_attempts: signal_attempts,
-        useful_signal_rate: ratio(useful, signal_attempts),
-        audience_sensitivity: ratio(audible, signal_attempts),
+        action_divergence: 1.0 - ratio(matches, comparisons),
+        signal_attempts: attempts,
+        audience_sensitivity: ratio(audible, attempts),
         receiver_response_rate: ratio(responses, audible),
+        useful_signal_rate: ratio(useful, attempts),
         convention_rate: conventions / max(length(values), 1)
       }}
     end)
   end
 
+  defp maybe_convention(set, nil, _action, _event), do: set
+  defp maybe_convention(set, signal, action, event) when event in [:food_collected, :food_consumed],
+    do: MapSet.put(set, {signal, action, event})
+  defp maybe_convention(set, _signal, _action, _event), do: set
   defp toward(position, target) when position < target, do: :right
   defp toward(position, target) when position > target, do: :left
   defp toward(_position, _target), do: :wait
@@ -403,14 +327,12 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   defp band(value) when value < 0.30, do: :low
   defp band(value) when value < 0.65, do: :rising
   defp band(_value), do: :critical
-  defp opts(seed, salt), do: [encoding_salt: {:sibling_signal_followup, seed, salt}] ++ @field_opts
   defp bool(true), do: 1
   defp bool(false), do: 0
   defp fraction([], _fun), do: 0.0
   defp fraction(values, fun), do: Enum.count(values, fun) / length(values)
   defp mean([]), do: 0.0
   defp mean(values), do: Enum.sum(values) / length(values)
-  defp mean_nonzero(values), do: values |> Enum.reject(&(&1 == 0.0)) |> mean()
   defp ratio(_n, 0), do: 0.0
   defp ratio(n, d), do: n / d
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
