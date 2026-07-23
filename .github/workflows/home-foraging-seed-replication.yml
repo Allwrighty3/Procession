@@ -1,0 +1,32 @@
+name: Home Foraging Seed Replication
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replicate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+      - name: Run disjoint-seed replication
+        run: |
+          mix procession.metrics.home_foraging_seed_replication \
+            --population 24 \
+            --seeds 101,211,307,401,503 \
+            --output home-foraging-seed-replication.txt
+          cat home-foraging-seed-replication.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-seed-replication
+          path: home-foraging-seed-replication.txt

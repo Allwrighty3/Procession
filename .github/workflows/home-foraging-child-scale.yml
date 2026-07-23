@@ -1,0 +1,39 @@
+name: Home Foraging Child Scale
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3.4.2'
+      - run: mix deps.get
+      - name: Compile with diagnostics
+        id: compile
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile 2>&1 | tee child-scale-compile.txt
+      - name: Upload compile diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: child-scale-compile-diagnostics
+          path: child-scale-compile.txt
+      - name: Stop after compile failure
+        if: steps.compile.outcome == 'failure'
+        run: exit 1
+      - run: mix test
+      - name: Run child-scale developmental comparison
+        run: mix procession.metrics.home_foraging_child_scale | tee home-foraging-child-scale.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-child-scale
+          path: home-foraging-child-scale.txt

@@ -1,0 +1,39 @@
+name: Home Foraging Emergent Motor Control
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '27.3.4.2'
+      - run: mix deps.get
+      - name: Compile with diagnostics
+        id: compile
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile 2>&1 | tee emergent-motor-compile.txt
+      - name: Upload compile diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emergent-motor-compile-diagnostics
+          path: emergent-motor-compile.txt
+      - name: Stop after compile failure
+        if: steps.compile.outcome == 'failure'
+        run: exit 1
+      - run: mix test
+      - name: Run emergent motor timescale matrix
+        run: mix procession.metrics.home_foraging_emergent_motor_timescale_matrix | tee home-foraging-emergent-motor-timescale-matrix.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-emergent-motor-timescale-matrix
+          path: home-foraging-emergent-motor-timescale-matrix.txt

@@ -1,0 +1,40 @@
+name: Home Foraging Energy Experiment
+
+on:
+  pull_request:
+    paths:
+      - "lib/procession/simulation/home_foraging_energy_experiment.ex"
+      - "lib/mix/tasks/procession.metrics.home_foraging_energy.ex"
+      - ".github/workflows/home-foraging-energy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+      - name: Run paired energy-window experiment
+        run: |
+          mix procession.metrics.home_foraging_energy \
+            --population 48 \
+            --stage-ticks 40 \
+            --withdrawal-ticks 120 \
+            --seed 1 \
+            --output home-foraging-energy.txt
+          cat home-foraging-energy.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-energy-results
+          path: home-foraging-energy.txt
+          if-no-files-found: error

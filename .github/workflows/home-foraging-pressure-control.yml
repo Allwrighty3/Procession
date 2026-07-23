@@ -1,0 +1,32 @@
+name: Home Foraging Pressure Control
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+      - name: Run pressure ladder and no-teacher control
+        run: |
+          mix procession.metrics.home_foraging_pressure_control \
+            --population 24 \
+            --seed 1 \
+            --output home-foraging-pressure-control.txt
+          cat home-foraging-pressure-control.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-pressure-control
+          path: home-foraging-pressure-control.txt

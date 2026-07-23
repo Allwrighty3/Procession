@@ -5,12 +5,31 @@ defmodule Mix.Tasks.Procession.Metrics.FadingAssistance do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args,
-      strict: [population: :integer, stage_ticks: :integer, withdrawal_ticks: :integer,
-        seed: :integer, output: :string])
+    {opts, _, _} =
+      OptionParser.parse(args,
+        strict: [
+          population: :integer,
+          stage_ticks: :integer,
+          withdrawal_ticks: :integer,
+          seed: :integer,
+          output: :string,
+          compare_action_costs: :boolean
+        ]
+      )
 
-    result = Procession.Simulation.FadingAssistanceExperiment.run(opts)
-    report = Procession.Simulation.FadingAssistanceExperiment.report(result)
+    report =
+      if Keyword.get(opts, :compare_action_costs, false) do
+        opts
+        |> Keyword.delete(:compare_action_costs)
+        |> Keyword.delete(:output)
+        |> Procession.Simulation.FadingAssistanceExperiment.compare_action_costs()
+        |> Procession.Simulation.FadingAssistanceExperiment.comparison_report()
+      else
+        opts
+        |> Procession.Simulation.FadingAssistanceExperiment.run()
+        |> Procession.Simulation.FadingAssistanceExperiment.report()
+      end
+
     Mix.shell().info(report)
 
     if path = opts[:output], do: File.write!(path, report <> "\n")

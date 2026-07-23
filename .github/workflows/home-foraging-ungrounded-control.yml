@@ -1,0 +1,33 @@
+name: Home Foraging Ungrounded Control
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test
+      - name: Run ungrounded control
+        run: |
+          mix procession.metrics.home_foraging_ungrounded_control \
+            --population 24 \
+            --seed 1 \
+            --ticks 8000 \
+            --output home-foraging-ungrounded-control.txt
+          cat home-foraging-ungrounded-control.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-foraging-ungrounded-control
+          path: home-foraging-ungrounded-control.txt
