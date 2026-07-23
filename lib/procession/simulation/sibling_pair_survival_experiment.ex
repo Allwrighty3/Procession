@@ -1,16 +1,14 @@
 defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   @moduledoc """
-  Sibling-only dependent-development experiment.
+  Sibling-only dependent-development experiment with simultaneous world resolution.
 
-  Both learners decide from one immutable pre-tick world snapshot. The caregiver
-  signals in every teacher condition. Sibling emission requires actual teacher
-  exposure plus a generated teacher-signal/motor binding. Receiver meaning is not
-  preassigned: a heard signal and peer bearing are reinforced only when followed by
-  self-intake, and later bias the corresponding movement without forcing it.
+  Teachers signal in every teacher condition. Learner signaling is sender-grounded:
+  exploration may attempt the signal motor action, but an audible symbol is produced
+  only after teacher exposure, a generated teacher-signal/motor binding, and a learned
+  association between signaling and the sender's current meaningful context.
   """
 
   use GenServer
-
   alias Procession.Simulation.DevelopmentalField
 
   @conditions [
@@ -26,7 +24,6 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   @informative_teacher_signals [:feeding_offer, :resource_here, :provisioning]
   @resources %{{0, 0} => :rough_cool, {3, 0} => :sweet_soft, {2, 3} => :sharp_dry}
   @distractors %{{1, 0} => :rough_cool, {0, 2} => :sweet_soft, {3, 2} => :sharp_dry, {1, 3} => :smooth_warm}
-
   @field_opts [
     micro_nodes: 64,
     input_width: 3,
@@ -60,7 +57,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       participation_ticks: participation,
       withdrawal_ticks: withdrawal,
       learning_scale: 0.01,
-      signal_pathway_rule: :experienced_teacher_signal_and_generated_motor_binding,
+      signal_pathway_rule: :teacher_grounded_contextual_emission,
       receiver_rule: :outcome_grounded_signal_bearing_association,
       intent_timeout_ms: timeout,
       rows: rows,
@@ -79,7 +76,8 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
           "self_intake=#{fmt(s.mean_self_intake)} caregiver=#{fmt(s.mean_caregiver_intake)} " <>
           "withdrawal_intake=#{fmt(s.mean_withdrawal_intake)} follow=#{fmt(s.follow_rate)} " <>
           "missed=#{fmt(s.missed_intent_rate)} attempts=#{s.signal_attempts} " <>
-          "emitted=#{s.emitted_signals} teacher_signals=#{s.teacher_signals} " <>
+          "emitted=#{s.emitted_signals} motivated=#{s.context_motivated_attempts} " <>
+          "teacher_signals=#{s.teacher_signals} " <>
           "responses=#{s.signal_responses}/#{s.signal_response_opportunities} " <>
           "rewarded=#{s.rewarded_signal_events} useful=#{fmt(s.useful_signal_rate)}"
       end)
@@ -90,7 +88,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       "population=#{result.population} baby=#{result.baby_ticks} participation=#{result.participation_ticks} withdrawal=#{result.withdrawal_ticks}",
       "learning=#{result.learning_scale} signal_pathway_rule=#{result.signal_pathway_rule}",
       "receiver_rule=#{result.receiver_rule}",
-      "teacher signals occur in every teacher condition; sibling signals require learned production and outcome-grounded receiver meaning",
+      "teacher signals occur in every teacher condition; sibling emission requires learned sender context",
       "solo controls archived; all pair actions resolve from the same pre-tick world snapshot",
       ""
       | lines
@@ -117,8 +115,6 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
           {id, pid}
         end)
 
-      total = baby + participation + withdrawal
-
       initial = %{
         resources: Map.new(Map.keys(@resources), &{&1, 0.80}),
         heard: %{a: nil, b: nil},
@@ -129,6 +125,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         opportunities: 0,
         signal_attempts: 0,
         emitted_signals: 0,
+        context_motivated_attempts: 0,
         teacher_signals: 0,
         signal_responses: 0,
         signal_response_opportunities: 0,
@@ -137,6 +134,8 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         baby_survived: 0,
         participation_survived: 0
       }
+
+      total = baby + participation + withdrawal
 
       final =
         Enum.reduce(1..total, initial, fn tick, world ->
@@ -166,14 +165,15 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         social_opportunities: final.opportunities,
         signal_attempts: final.signal_attempts,
         emitted_signals: final.emitted_signals,
+        context_motivated_attempts: final.context_motivated_attempts,
         teacher_signals: final.teacher_signals,
         signal_responses: final.signal_responses,
         signal_response_opportunities: final.signal_response_opportunities,
         rewarded_signal_events: final.rewarded_signal_events,
         useful_signals: final.useful,
-        self_intake: Enum.sum(Enum.map(snapshots, fn {_id, state} -> state.self_intake end)),
-        caregiver_intake: Enum.sum(Enum.map(snapshots, fn {_id, state} -> state.caregiver_intake end)),
-        withdrawal_intake: Enum.sum(Enum.map(snapshots, fn {_id, state} -> state.withdrawal_intake end))
+        self_intake: sum_snapshot(snapshots, :self_intake),
+        caregiver_intake: sum_snapshot(snapshots, :caregiver_intake),
+        withdrawal_intake: sum_snapshot(snapshots, :withdrawal_intake)
       }
     after
       if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
@@ -192,21 +192,25 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       end)
 
     Enum.each(pids, fn {id, pid} ->
-      peer_bearing = if social?, do: direction_toward(states[id].position, states[other_id(id)].position), else: nil
+      other = states[other_id(id)]
+      peer_bearing = if social?, do: direction_toward(states[id].position, other.position), else: nil
 
       features =
         perception(
           states[id],
           phase,
           resources,
-          states[other_id(id)],
+          other,
           world.heard[id],
           teacher_signals[id],
           social?,
           peer_signals?
         )
 
-      GenServer.cast(pid, {:intent, self(), tick, features, @actions, phase, world.heard[id], peer_bearing})
+      GenServer.cast(
+        pid,
+        {:intent, self(), tick, features, @actions, phase, world.heard[id], peer_bearing}
+      )
     end)
 
     deadline = System.monotonic_time(:millisecond) + timeout
@@ -217,12 +221,19 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     proposals =
       Map.new([:a, :b], fn id ->
         state = states[id]
-        action = actions[id]
         depleted = max(0.0, state.vitality - 0.014)
         hunger = 1.0 - depleted
-        {position, fatigue} = move(state.position, action, state.fatigue, phase)
-        desired = desired_intake(resources, position, action, hunger, phase)
-        {id, %{position: position, fatigue: fatigue, depleted: depleted, hunger: hunger, desired: desired}}
+        {position, fatigue} = move(state.position, actions[id], state.fatigue, phase)
+        desired = desired_intake(resources, position, actions[id], hunger, phase)
+
+        {id,
+         %{
+           position: position,
+           fatigue: fatigue,
+           depleted: depleted,
+           hunger: hunger,
+           desired: desired
+         }}
       end)
 
     allocations = allocate_intake(resources, proposals)
@@ -234,7 +245,14 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         self_intake = allocations[id]
 
         {amounts, caregiver_intake, caregiver_action} =
-          caregiver(teacher_mode(condition), phase, proposal.position, amounts, proposal.hunger, self_intake)
+          caregiver(
+            teacher_mode(condition),
+            phase,
+            proposal.position,
+            amounts,
+            proposal.hunger,
+            self_intake
+          )
 
         outcome = %{
           position: proposal.position,
@@ -255,20 +273,30 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       end)
 
     next_states = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
-    after_distance = manhattan(next_states.a.position, next_states.b.position)
-    approached? = social? and after_distance < before_distance
+
+    approached? =
+      social? and
+        manhattan(next_states.a.position, next_states.b.position) < before_distance
+
     attempts = Enum.count(actions, fn {_id, action} -> action == :signal end)
-    teacher_experienced? = teacher_mode(condition) != :orphan
+    motivated = Enum.count(intents, fn {_id, intent} -> intent.context_motivated? end)
 
     emitted =
       Map.new([:a, :b], fn id ->
+        intent = Map.get(intents, id, %{})
+
         effective? =
           actions[id] == :signal and
-            get_in(intents, [id, :signal_ready?]) and
-            peer_signals? and
-            teacher_experienced?
+            Map.get(intent, :signal_ready?, false) and
+            Map.get(intent, :context_motivated?, false) and
+            peer_signals?
 
-        {id, if(effective?, do: signal_symbol(states[id], phase), else: nil)}
+        signal =
+          if effective?,
+            do: {:peer_signal, Map.get(intent, :signal_context)},
+            else: nil
+
+        {id, signal}
       end)
 
     emitted_count = Enum.count(emitted, fn {_id, signal} -> signal != nil end)
@@ -276,7 +304,6 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     teacher_count = Enum.count(teacher_signals, fn {_id, signal} -> signal != :none end)
     response_opportunities = Enum.count(intents, fn {_id, intent} -> intent.heard_signal != nil end)
     responses = Enum.count(intents, fn {_id, intent} -> intent.responded_to_signal? end)
-    useful = if rewarded > 0 and response_opportunities > 0, do: rewarded, else: 0
     accepted = map_size(intents)
 
     %{
@@ -287,14 +314,19 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         missed: world.missed + 2 - accepted,
         late: world.late + late,
         follow: world.follow + if(approached?, do: 1, else: 0),
-        opportunities: world.opportunities + if(social? and before_distance > 0, do: 1, else: 0),
+        opportunities:
+          world.opportunities + if(social? and before_distance > 0, do: 1, else: 0),
         signal_attempts: world.signal_attempts + attempts,
         emitted_signals: world.emitted_signals + emitted_count,
+        context_motivated_attempts: world.context_motivated_attempts + motivated,
         teacher_signals: world.teacher_signals + teacher_count,
         signal_responses: world.signal_responses + responses,
-        signal_response_opportunities: world.signal_response_opportunities + response_opportunities,
+        signal_response_opportunities:
+          world.signal_response_opportunities + response_opportunities,
         rewarded_signal_events: world.rewarded_signal_events + rewarded,
-        useful: world.useful + useful
+        useful:
+          world.useful +
+            if(rewarded > 0 and response_opportunities > 0, do: rewarded, else: 0)
     }
   end
 
@@ -321,13 +353,19 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
        tick: 0,
        last_action: nil,
        last_caregiver: :none,
+       last_self_intake: 0.0,
        pending_signal: nil,
-       signal_values: %{}
+       signal_values: %{},
+       emission_values: %{},
+       teacher_experienced?: false
      }}
   end
 
   @impl true
-  def handle_cast({:intent, owner, tick, features, actions, phase, heard_signal, peer_bearing}, state) do
+  def handle_cast(
+        {:intent, owner, tick, features, actions, phase, heard_signal, peer_bearing},
+        state
+      ) do
     learns? = rem(:erlang.phash2({:learn, state.seed, tick}, 10_000), 100) == 0
 
     field =
@@ -335,15 +373,38 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         do: DevelopmentalField.step(state.field, {:features, features}, state.field_opts),
         else: state.field
 
-    state = %{state | field: field}
+    context = emission_context(state, features)
+    teacher_signal = feature_value(features, :teacher_signal)
+
+    emission_values =
+      learn_emission_context(state.emission_values, context, teacher_signal, learns?)
+
+    teacher_experienced? =
+      state.teacher_experienced? or teacher_signal in @informative_teacher_signals
+
+    state = %{
+      state
+      | field: field,
+        emission_values: emission_values,
+        teacher_experienced?: teacher_experienced?
+    }
+
     preferred = learned_signal_direction(state.signal_values, heard_signal)
-    action = choose_action(state, actions, phase, tick, preferred)
-    signal_ready? = experienced_teacher_signal?(features) and signal_pathway_ready?(field, state.field_opts)
+    motivation = Map.get(emission_values, context, 0.0)
+    action = choose_action(state, actions, phase, tick, preferred, motivation)
+    context_motivated? = motivation >= 0.30
+
+    signal_ready? =
+      teacher_experienced? and
+        context_motivated? and
+        signal_pathway_ready?(field, state.field_opts)
+
     responded? = heard_signal != nil and preferred != nil and action == preferred
 
     send(
       owner,
-      {:sibling_pair_intent, tick, state.id, action, signal_ready?, heard_signal, responded?}
+      {:sibling_pair_intent, tick, state.id, action, signal_ready?, heard_signal,
+       responded?, context_motivated?, context}
     )
 
     pending =
@@ -359,7 +420,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     signal_values =
       case {state.pending_signal, outcome.self_intake > 0.0} do
         {{signal, bearing}, true} -> reinforce_signal(state.signal_values, signal, bearing)
-        _ -> decay_signal_values(state.signal_values)
+        _ -> decay_nested(state.signal_values, 0.998)
       end
 
     next = %{
@@ -370,43 +431,79 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
         caregiver_intake: state.caregiver_intake + outcome.caregiver_intake,
         self_intake: state.self_intake + outcome.self_intake,
         withdrawal_intake:
-          state.withdrawal_intake + if(phase == :withdrawal, do: outcome.self_intake, else: 0.0),
+          state.withdrawal_intake +
+            if(phase == :withdrawal, do: outcome.self_intake, else: 0.0),
         alive?: outcome.vitality > 0.0,
         tick: state.tick + 1,
         last_action: action,
         last_caregiver: outcome.caregiver_action,
+        last_self_intake: outcome.self_intake,
         pending_signal: nil,
-        signal_values: signal_values
+        signal_values: signal_values,
+        emission_values: decay_flat(state.emission_values, 0.9995)
     }
 
     {:reply, :ok, next}
   end
 
-  def handle_call(:snapshot, _from, state),
-    do: {:reply, Map.drop(state, [:field_opts, :field, :signal_values, :pending_signal]), state}
+  def handle_call(:snapshot, _from, state) do
+    hidden = [:field_opts, :field, :signal_values, :pending_signal, :emission_values]
+    {:reply, Map.drop(state, hidden), state}
+  end
 
-  defp choose_action(state, actions, phase, tick, preferred_direction) do
+  defp choose_action(state, actions, phase, tick, preferred_direction, signal_motivation) do
     hunger = 1.0 - max(0.0, state.vitality - 0.014)
     signature = sensory_signature(state.position)
 
     actions
     |> Enum.map(fn action ->
-      exploration = :erlang.phash2({state.seed, tick, action}, 1_000) / 1_000 * exploration_gain(phase)
+      exploration =
+        :erlang.phash2({state.seed, tick, action}, 1_000) / 1_000 *
+          exploration_gain(phase)
+
       baseline = baseline(action, phase, state.fatigue)
       pressure = if action == :wait, do: 0.0, else: hunger * pressure_gain(phase)
       object = if action in [:reach, :manipulate] and signature != :empty, do: 0.08, else: 0.0
       learned = learned_motor_score(state.field, action, state.field_opts) * 0.40
       response = if action == preferred_direction, do: 0.42, else: 0.0
-      {action, exploration + baseline + pressure + object + learned + response}
+      emission = if action == :signal, do: signal_motivation * 0.65, else: 0.0
+
+      {action, exploration + baseline + pressure + object + learned + response + emission}
     end)
     |> Enum.max_by(fn {action, score} -> {score, action} end)
     |> elem(0)
   end
 
+  defp emission_context(state, features) do
+    resource? = feature_value(features, :resource_present)
+
+    cond do
+      state.last_self_intake > 0.0 -> :recent_intake
+      resource? -> :resource_contact
+      state.last_caregiver == :provision_for_participation -> :provisioned
+      state.vitality < 0.30 -> :urgent_hunger
+      true -> :none
+    end
+  end
+
+  defp learn_emission_context(values, :none, _teacher_signal, _learns?),
+    do: decay_flat(values, 0.9995)
+
+  defp learn_emission_context(values, context, signal, true)
+       when signal in @informative_teacher_signals do
+    values
+    |> decay_flat(0.9995)
+    |> Map.update(context, 0.35, &min(1.0, &1 + 0.20))
+  end
+
+  defp learn_emission_context(values, _context, _signal, _learns?),
+    do: decay_flat(values, 0.9995)
+
   defp learned_signal_direction(_values, nil), do: nil
 
   defp learned_signal_direction(values, signal) do
-    case Map.get(values, signal, %{}) |> Enum.max_by(fn {_direction, value} -> value end, fn -> nil end) do
+    case Map.get(values, signal, %{})
+         |> Enum.max_by(fn {_direction, value} -> value end, fn -> nil end) do
       {direction, value} when value >= 0.30 -> direction
       _ -> nil
     end
@@ -414,35 +511,33 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
 
   defp reinforce_signal(values, signal, bearing) do
     values
-    |> decay_signal_values()
+    |> decay_nested(0.998)
     |> Map.update(signal, %{bearing => 0.35}, fn directions ->
       Map.update(directions, bearing, 0.35, &min(1.0, &1 + 0.25))
     end)
   end
 
-  defp decay_signal_values(values) do
-    Map.new(values, fn {signal, directions} ->
-      {signal, Map.new(directions, fn {direction, value} -> {direction, value * 0.998} end)}
+  defp decay_nested(values, factor) do
+    Map.new(values, fn {key, directions} ->
+      {key, Map.new(directions, fn {direction, value} -> {direction, value * factor} end)}
     end)
   end
 
-  defp experienced_teacher_signal?(features) do
-    Enum.any?(features, fn
-      {:teacher_signal, signal} when signal in @informative_teacher_signals -> true
-      _ -> false
-    end)
-  end
+  defp decay_flat(values, factor),
+    do: Map.new(values, fn {key, value} -> {key, value * factor} end)
 
   defp signal_pathway_ready?(field, opts) do
     motor_nodes = DevelopmentalField.active_micro_nodes(field, {:motor_channel, :signal}, opts)
 
     teacher_nodes =
       Enum.reduce(@informative_teacher_signals, MapSet.new(), fn signal, acc ->
-        MapSet.union(acc, DevelopmentalField.active_micro_nodes(field, {:teacher_signal, signal}, opts))
+        MapSet.union(
+          acc,
+          DevelopmentalField.active_micro_nodes(field, {:teacher_signal, signal}, opts)
+        )
       end)
 
-    DevelopmentalField.generated_nodes(field)
-    |> Enum.any?(fn node ->
+    Enum.any?(DevelopmentalField.generated_nodes(field), fn node ->
       node.stability >= 0.20 and
         not MapSet.disjoint?(node.support, motor_nodes) and
         not MapSet.disjoint?(node.support, teacher_nodes)
@@ -457,6 +552,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       {:body_channel, :fatigue, bucket(state.fatigue)},
       {:place_channel, state.position},
       {:sensory_channel, sensory_signature(state.position)},
+      {:resource_present, Map.get(resources, state.position, 0.0) > 0.01},
       {:motor_channel, state.last_action},
       {:caregiver_channel, state.last_caregiver},
       {:teacher_signal, teacher_signal}
@@ -476,6 +572,13 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     end
   end
 
+  defp feature_value(features, key) do
+    Enum.find_value(features, fn
+      {^key, value} -> value
+      _ -> nil
+    end)
+  end
+
   defp collect_until(tick, pending, deadline, intents, late) do
     if MapSet.size(pending) == 0 do
       {intents, late}
@@ -483,17 +586,26 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       remaining = max(deadline - System.monotonic_time(:millisecond), 0)
 
       receive do
-        {:sibling_pair_intent, ^tick, id, action, ready?, heard_signal, responded?} ->
+        {:sibling_pair_intent, ^tick, id, action, ready?, heard, responded?, motivated?, context} ->
           intent = %{
             action: action,
             signal_ready?: ready?,
-            heard_signal: heard_signal,
-            responded_to_signal?: responded?
+            heard_signal: heard,
+            responded_to_signal?: responded?,
+            context_motivated?: motivated?,
+            signal_context: context
           }
 
-          collect_until(tick, MapSet.delete(pending, id), deadline, Map.put_new(intents, id, intent), late)
+          collect_until(
+            tick,
+            MapSet.delete(pending, id),
+            deadline,
+            Map.put_new(intents, id, intent),
+            late
+          )
 
-        {:sibling_pair_intent, _other_tick, _id, _action, _ready?, _heard, _responded} ->
+        {:sibling_pair_intent, _other, _id, _action, _ready, _heard, _responded,
+         _motivated, _context} ->
           collect_until(tick, pending, deadline, intents, late + 1)
       after
         remaining -> {intents, late}
@@ -505,7 +617,9 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   defp teacher_signal(_teacher, :withdrawal, _state, _resources), do: :none
 
   defp teacher_signal(:participatory, :baby, state, _resources) do
-    if 1.0 - max(0.0, state.vitality - 0.014) > 0.38, do: :feeding_offer, else: :attend
+    if 1.0 - max(0.0, state.vitality - 0.014) > 0.38,
+      do: :feeding_offer,
+      else: :attend
   end
 
   defp teacher_signal(:participatory, :participation, state, resources) do
@@ -518,19 +632,13 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     end
   end
 
-  defp signal_symbol(state, phase),
-    do: {:peer_signal, phase, bucket(1.0 - state.vitality), state.last_caregiver}
-
   defp desired_intake(amounts, position, action, hunger, phase)
        when action in [:reach, :manipulate] and phase != :baby,
        do: min(Map.get(amounts, position, 0.0), min(0.20, hunger * 0.30))
 
   defp desired_intake(_amounts, _position, _action, _hunger, _phase), do: 0.0
 
-  defp allocate_intake(resources, proposals) do
-    a = proposals.a
-    b = proposals.b
-
+  defp allocate_intake(resources, %{a: a, b: b}) do
     if a.position == b.position and a.desired > 0.0 and b.desired > 0.0 do
       available = Map.get(resources, a.position, 0.0)
       scale = min(1.0, available / max(a.desired + b.desired, 0.000_001))
@@ -543,28 +651,34 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   defp consume_allocations(resources, proposals, allocations) do
     Enum.reduce([:a, :b], resources, fn id, amounts ->
       amount = allocations[id]
-      position = proposals[id].position
-      if amount > 0.0, do: Map.update!(amounts, position, &max(0.0, &1 - amount)), else: amounts
+
+      if amount > 0.0,
+        do: Map.update!(amounts, proposals[id].position, &max(0.0, &1 - amount)),
+        else: amounts
     end)
   end
 
-  defp caregiver(:orphan, _phase, _position, amounts, _hunger, _self), do: {amounts, 0.0, :none}
-  defp caregiver(_teacher, :withdrawal, _position, amounts, _hunger, _self), do: {amounts, 0.0, :none}
-  defp caregiver(_teacher, _phase, _position, amounts, _hunger, self) when self > 0.0,
-    do: {amounts, 0.0, :observe_success}
+  defp caregiver(:orphan, _phase, _position, amounts, _hunger, _self),
+    do: {amounts, 0.0, :none}
 
-  defp caregiver(:participatory, :baby, _position, amounts, hunger, _self),
-    do: direct_feed(amounts, hunger, :feed_and_expose)
+  defp caregiver(_teacher, :withdrawal, _position, amounts, _hunger, _self),
+    do: {amounts, 0.0, :none}
+
+  defp caregiver(_teacher, _phase, _position, amounts, _hunger, self)
+       when self > 0.0,
+       do: {amounts, 0.0, :observe_success}
+
+  defp caregiver(:participatory, :baby, _position, amounts, hunger, _self) do
+    intake = if hunger > 0.38, do: min(0.20, hunger * 0.30), else: 0.0
+    {amounts, intake, if(intake > 0.0, do: :feed_and_expose, else: :none)}
+  end
 
   defp caregiver(:participatory, :participation, position, amounts, hunger, _self) do
     if hunger > 0.58,
-      do: {Map.put(amounts, position, max(Map.get(amounts, position, 0.0), 0.20)), 0.0, :provision_for_participation},
+      do:
+        {Map.put(amounts, position, max(Map.get(amounts, position, 0.0), 0.20)), 0.0,
+         :provision_for_participation},
       else: {amounts, 0.0, :none}
-  end
-
-  defp direct_feed(amounts, hunger, action) do
-    intake = if hunger > 0.38, do: min(0.20, hunger * 0.30), else: 0.0
-    {amounts, intake, if(intake > 0.0, do: action, else: :none)}
   end
 
   defp teacher_mode(condition)
@@ -575,7 +689,6 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   defp visible?(:teacher_sibling_invisible), do: false
   defp visible?(_condition), do: true
   defp peer_signals?(condition), do: condition in [:teacher_sibling_signals, :no_teacher_sibling_signals]
-
   defp phase(tick, baby, _participation) when tick <= baby, do: :baby
   defp phase(tick, baby, participation) when tick <= baby + participation, do: :participation
   defp phase(_tick, _baby, _participation), do: :withdrawal
@@ -583,10 +696,18 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   defp other_id(:a), do: :b
   defp other_id(:b), do: :a
 
-  defp move(position, action, fatigue, :baby) when action in @directions, do: {position, fatigue}
-  defp move(position, :wait, fatigue, _phase), do: {position, max(0.0, fatigue - 0.07)}
+  defp sum_snapshot(snapshots, key),
+    do: Enum.sum(Enum.map(snapshots, fn {_id, state} -> Map.fetch!(state, key) end))
+
+  defp move(position, action, fatigue, :baby) when action in @directions,
+    do: {position, fatigue}
+
+  defp move(position, :wait, fatigue, _phase),
+    do: {position, max(0.0, fatigue - 0.07)}
+
   defp move(position, action, fatigue, _phase) when action in @stationary,
     do: {position, max(0.0, fatigue - 0.02)}
+
   defp move(position, direction, fatigue, _phase) when direction in @directions,
     do: {step(position, direction), min(1.0, fatigue + 0.045)}
 
@@ -629,7 +750,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   defp pressure_gain(:withdrawal), do: 0.30
   defp baseline(:wait, :baby, fatigue), do: 0.36 + fatigue * 0.25
   defp baseline(:wait, _phase, fatigue), do: 0.27 + fatigue * 0.28
-  defp baseline(:signal, :baby, _fatigue), do: 0.12
+  defp baseline(:signal, :baby, _fatigue), do: 0.0
   defp baseline(_action, _phase, _fatigue), do: 0.0
   defp bucket(value) when value < 0.25, do: :very_low
   defp bucket(value) when value < 0.50, do: :low
@@ -646,23 +767,38 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
 
       {condition,
        %{
-         baby_survival_rate: Enum.sum(Enum.map(values, & &1.baby_survived)) / max(learners, 1),
-         participation_survival_rate: Enum.sum(Enum.map(values, & &1.participation_survived)) / max(learners, 1),
-         withdrawal_survival_rate: Enum.sum(Enum.map(values, & &1.withdrawal_survived)) / max(learners, 1),
-         pair_survival_rate: Enum.count(values, & &1.pair_survived?) / max(length(values), 1),
-         mean_self_intake: Enum.sum(Enum.map(values, & &1.self_intake)) / max(learners, 1),
-         mean_caregiver_intake: Enum.sum(Enum.map(values, & &1.caregiver_intake)) / max(learners, 1),
-         mean_withdrawal_intake: Enum.sum(Enum.map(values, & &1.withdrawal_intake)) / max(learners, 1),
-         follow_rate: Enum.sum(Enum.map(values, & &1.follow_events)) / max(Enum.sum(Enum.map(values, & &1.social_opportunities)), 1),
-         missed_intent_rate: Enum.sum(Enum.map(values, & &1.missed_intents)) / max(expected, 1),
+         baby_survival_rate:
+           Enum.sum(Enum.map(values, & &1.baby_survived)) / max(learners, 1),
+         participation_survival_rate:
+           Enum.sum(Enum.map(values, & &1.participation_survived)) / max(learners, 1),
+         withdrawal_survival_rate:
+           Enum.sum(Enum.map(values, & &1.withdrawal_survived)) / max(learners, 1),
+         pair_survival_rate:
+           Enum.count(values, & &1.pair_survived?) / max(length(values), 1),
+         mean_self_intake:
+           Enum.sum(Enum.map(values, & &1.self_intake)) / max(learners, 1),
+         mean_caregiver_intake:
+           Enum.sum(Enum.map(values, & &1.caregiver_intake)) / max(learners, 1),
+         mean_withdrawal_intake:
+           Enum.sum(Enum.map(values, & &1.withdrawal_intake)) / max(learners, 1),
+         follow_rate:
+           Enum.sum(Enum.map(values, & &1.follow_events)) /
+             max(Enum.sum(Enum.map(values, & &1.social_opportunities)), 1),
+         missed_intent_rate:
+           Enum.sum(Enum.map(values, & &1.missed_intents)) / max(expected, 1),
          late_intents: Enum.sum(Enum.map(values, & &1.late_intents)),
          signal_attempts: Enum.sum(Enum.map(values, & &1.signal_attempts)),
          emitted_signals: emitted,
+         context_motivated_attempts:
+           Enum.sum(Enum.map(values, & &1.context_motivated_attempts)),
          teacher_signals: Enum.sum(Enum.map(values, & &1.teacher_signals)),
          signal_responses: Enum.sum(Enum.map(values, & &1.signal_responses)),
-         signal_response_opportunities: Enum.sum(Enum.map(values, & &1.signal_response_opportunities)),
-         rewarded_signal_events: Enum.sum(Enum.map(values, & &1.rewarded_signal_events)),
-         useful_signal_rate: Enum.sum(Enum.map(values, & &1.useful_signals)) / max(emitted, 1)
+         signal_response_opportunities:
+           Enum.sum(Enum.map(values, & &1.signal_response_opportunities)),
+         rewarded_signal_events:
+           Enum.sum(Enum.map(values, & &1.rewarded_signal_events)),
+         useful_signal_rate:
+           Enum.sum(Enum.map(values, & &1.useful_signals)) / max(emitted, 1)
        }}
     end)
   end
