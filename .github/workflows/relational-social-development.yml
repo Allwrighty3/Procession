@@ -22,7 +22,22 @@ jobs:
           otp-version: '27'
           elixir-version: '1.18.3'
       - run: mix deps.get
-      - run: mix compile --warnings-as-errors
+      - name: Compile with diagnostics
+        id: compile
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile --warnings-as-errors 2>&1 | tee relational-social-compile.txt
+      - name: Upload compile diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-social-compile
+          path: relational-social-compile.txt
+      - name: Stop after compile failure
+        if: steps.compile.outcome == 'failure'
+        run: exit 1
       - run: mix test test/procession/simulation/relational_social_development_experiment_test.exs
       - name: Run diagnostic
         shell: bash
