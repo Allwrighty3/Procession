@@ -332,17 +332,7 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     end
   end
 
-  defp collect_until(_tick, pending, _deadline, intents, late) when map_size(intents) >= 0 do
-    if MapSet.size(pending) == 0 do
-      {intents, late}
-    else
-      :continue
-    end
-  end
-
-  defp collect_until(tick, pending, deadline, intents, late, marker \\ :receive) do
-    _ = marker
-
+  defp collect_until(tick, pending, deadline, intents, late) do
     if MapSet.size(pending) == 0 do
       {intents, late}
     else
@@ -355,12 +345,11 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
             MapSet.delete(pending, id),
             deadline,
             Map.put_new(intents, id, %{action: action}),
-            late,
-            :receive
+            late
           )
 
         {:dependent_sibling_intent, _other_tick, _id, _action} ->
-          collect_until(tick, pending, deadline, intents, late + 1, :receive)
+          collect_until(tick, pending, deadline, intents, late + 1)
       after
         remaining -> {intents, late}
       end
