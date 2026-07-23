@@ -16,7 +16,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
 
     assert result.execution_model == :simultaneous_world_snapshot_deadlines
     assert result.learning_scale == 0.01
-    assert result.signal_pathway_threshold > 0.0
+    assert result.signal_pathway_rule == :generated_teacher_signal_motor_binding
 
     assert Map.keys(result.summary) |> Enum.sort() ==
              [
@@ -54,7 +54,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
     assert result.summary.no_teacher_sibling_signals.teacher_signals == 0
   end
 
-  test "peer signal transmission requires both the signal condition and learned support" do
+  test "peer signal emission requires signal mode and a teacher-grounded generated pathway" do
     result =
       Experiment.run(
         population: 2,
@@ -68,16 +68,18 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
     invisible = result.summary.teacher_sibling_invisible
     visible = result.summary.teacher_sibling_visible
     signaled = result.summary.teacher_sibling_signals
+    orphan_signaled = result.summary.no_teacher_sibling_signals
 
     assert invisible.follow_rate == 0.0
     assert invisible.emitted_signals == 0
     assert visible.emitted_signals == 0
     assert signaled.emitted_signals <= signaled.signal_attempts
+    assert orphan_signaled.emitted_signals == 0
 
     report = Experiment.report(result)
     refute report =~ "teacher_alone"
     refute report =~ "no_teacher_alone"
     assert report =~ "same pre-tick world snapshot"
-    assert report =~ "sibling signals require learned motor support"
+    assert report =~ "generated teacher-signal/motor binding"
   end
 end
