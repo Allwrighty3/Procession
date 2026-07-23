@@ -1,7 +1,6 @@
 name: Recursive Memory Quality
 
 on:
-  pull_request:
   workflow_dispatch:
 
 jobs:
