@@ -29,8 +29,7 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     activity_retention: 0.72,
     plasticity_fanout: 6,
     plasticity_budget: 0.08,
-    minimum_compression_gain: 2.0,
-    output_learning_scale: 0.01
+    minimum_compression_gain: 2.0
   ]
 
   def run(opts \\ []) do
@@ -166,9 +165,7 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       other = other_state(states, id)
       features = perception(state, phase, resources, other, world.heard[id], social?, signal_mode?)
       actions = allowed_actions(phase, signal_mode?)
-      hunger = 1.0 - max(0.0, state.vitality - 0.014)
-      cue = teacher_cue(condition, phase, state.position, resources, hunger)
-      GenServer.cast(pid, {:intent, self(), tick, features, actions, cue, phase})
+      GenServer.cast(pid, {:intent, self(), tick, features, actions, phase})
     end)
 
     deadline = System.monotonic_time(:millisecond) + timeout
@@ -234,9 +231,17 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   end
 
   @impl true
-  def handle_cast({:intent, owner, tick, features, actions, cue, phase}, state) do
-    field = DevelopmentalField.step(state.field, {:features, features}, state.field_opts)
-    action = choose_action(%{state | field: field}, actions, cue, phase, tick)
+  def handle_cast({:intent, owner, tick, features, actions, phase}, state) do
+    learns? = rem(:erlang.phash2({:learn, state.seed, tick}, 10_000), 100) == 0
+
+    field =
+      if learns? do
+        DevelopmentalField.step(state.field, {:features, features}, state.field_opts)
+      else
+        state.field
+      end
+
+    action = choose_action(%{state | field: field}, actions, phase, tick)
     send(owner, {:dependent_sibling_intent, tick, state.id, action})
     {:noreply, %{state | field: field}}
   end
@@ -264,7 +269,7 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   def handle_call(:snapshot, _from, state),
     do: {:reply, Map.drop(state, [:field_opts, :field]), state}
 
-  defp choose_action(state, actions, cue, phase, tick) do
+  defp choose_action(state, actions, phase, tick) do
     hunger = 1.0 - max(0.0, state.vitality - 0.014)
     signature = sensory_signature(state.position)
 
@@ -276,9 +281,8 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       baseline = baseline(action, phase, state.fatigue)
       pressure = if action == :wait, do: 0.0, else: hunger * pressure_gain(phase)
       object = if action in [:reach, :manipulate] and signature != :empty, do: 0.08, else: 0.0
-      teaching = if action == cue, do: 0.34, else: 0.0
       learned = learned_motor_score(state.field, action, state.field_opts) * 0.40
-      {action, exploration + baseline + pressure + object + teaching + learned}
+      {action, exploration + baseline + pressure + object + learned}
     end)
     |> Enum.max_by(fn {action, score} -> {score, action} end)
     |> elem(0)
@@ -382,15 +386,6 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     intake = if hunger > 0.38, do: min(0.20, hunger * 0.30), else: 0.0
     {amounts, intake, if(intake > 0.0, do: action, else: :none)}
   end
-
-  defp teacher_cue(condition, :participation, position, amounts, hunger) do
-    if teacher_mode(condition) == :participatory and hunger > 0.58 and
-         Map.get(amounts, position, 0.0) > 0.01,
-       do: :manipulate,
-       else: :none
-  end
-
-  defp teacher_cue(_condition, _phase, _position, _amounts, _hunger), do: :none
 
   defp teacher_mode(condition)
        when condition in [
