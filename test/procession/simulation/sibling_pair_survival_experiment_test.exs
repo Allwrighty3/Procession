@@ -16,7 +16,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
 
     assert result.execution_model == :simultaneous_world_snapshot_deadlines
     assert result.learning_scale == 0.01
-    assert result.signal_pathway_rule == :experienced_teacher_signal_and_generated_motor_binding
+    assert result.signal_pathway_rule == :teacher_grounded_contextual_emission
     assert result.receiver_rule == :outcome_grounded_signal_bearing_association
 
     assert Map.keys(result.summary) |> Enum.sort() ==
@@ -34,6 +34,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
       assert row.learner_count == 2
       assert row.accepted_intents + row.missed_intents == 160
       assert row.emitted_signals <= row.signal_attempts
+      assert row.context_motivated_attempts <= row.signal_attempts
       assert row.signal_responses <= row.signal_response_opportunities
     end)
   end
@@ -56,7 +57,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
     assert result.summary.no_teacher_sibling_signals.teacher_signals == 0
   end
 
-  test "peer signal production and receiver response require learned pathways" do
+  test "peer emission requires a learned sender context and receiver response remains learned" do
     result =
       Experiment.run(
         population: 2,
@@ -77,16 +78,18 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperimentTest do
     assert invisible.signal_response_opportunities == 0
     assert visible.emitted_signals == 0
     assert visible.signal_response_opportunities == 0
-    assert signaled.emitted_signals <= signaled.signal_attempts
+    assert signaled.emitted_signals <= signaled.context_motivated_attempts
+    assert signaled.context_motivated_attempts <= signaled.signal_attempts
     assert signaled.signal_responses <= signaled.signal_response_opportunities
     assert signaled.rewarded_signal_events <= signaled.signal_response_opportunities
     assert orphan_signaled.emitted_signals == 0
+    assert orphan_signaled.context_motivated_attempts == 0
     assert orphan_signaled.signal_response_opportunities == 0
 
     report = Experiment.report(result)
     refute report =~ "teacher_alone"
     refute report =~ "no_teacher_alone"
     assert report =~ "same pre-tick world snapshot"
-    assert report =~ "outcome-grounded receiver meaning"
+    assert report =~ "learned sender context"
   end
 end
