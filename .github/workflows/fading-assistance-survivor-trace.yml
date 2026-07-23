@@ -1,7 +1,7 @@
 name: Fading Assistance Survivor Trace
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
