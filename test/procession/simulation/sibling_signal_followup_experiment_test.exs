@@ -3,51 +3,61 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperimentTest do
 
   alias Procession.Simulation.SiblingSignalFollowupExperiment, as: Experiment
 
-  test "runs equal-blind sibling conditions through world-owned deadline ticks" do
+  test "runs restored teacher and survival factorial through world-owned ticks" do
     result =
       Experiment.run(
-        population: 2,
-        teaching_ticks: 20,
-        transfer_ticks: 40,
+        population: 1,
+        baby_ticks: 20,
+        participation_ticks: 20,
+        withdrawal_ticks: 40,
         seed: 5,
-        intent_timeout_ms: 20,
-        support_interval: 5
+        intent_timeout_ms: 20
       )
 
     assert result.execution_model == :world_owned_deadline_ticks
     assert result.learning_scale == 0.01
-    assert Map.keys(result.summary) |> Enum.sort() == [:isolated, :signals, :visible]
-    assert length(result.rows) == 6
+
+    assert Map.keys(result.summary) |> Enum.sort() ==
+             [
+               :no_teacher_alone,
+               :no_teacher_sibling_signals,
+               :no_teacher_sibling_visible,
+               :teacher_alone,
+               :teacher_sibling_invisible,
+               :teacher_sibling_signals,
+               :teacher_sibling_visible
+             ]
+
+    assert length(result.rows) == 7
 
     Enum.each(result.rows, fn row ->
-      assert row.learner_a.id == :a
-      assert row.learner_b.id == :b
-      assert row.learner_a.decisions == 60
-      assert row.learner_b.decisions == 60
-      assert row.accepted_intents + row.missed_intents == 120
-      assert row.support_events == 8
+      expected = row.learner_count * 80
+      assert row.accepted_intents + row.missed_intents == expected
+      assert row.baby_survived <= row.learner_count
+      assert row.participation_survived <= row.learner_count
+      assert row.withdrawal_survived <= row.learner_count
     end)
   end
 
-  test "independent exploration diverges without perfect motor teaching" do
+  test "teacher and sibling factors remain separately measurable" do
     result =
       Experiment.run(
-        population: 2,
-        teaching_ticks: 20,
-        transfer_ticks: 120,
+        population: 1,
+        baby_ticks: 30,
+        participation_ticks: 30,
+        withdrawal_ticks: 60,
         seed: 11,
-        intent_timeout_ms: 20,
-        support_interval: 5
+        intent_timeout_ms: 20
       )
 
-    assert result.summary.isolated.action_divergence > 0.0
-    assert result.summary.visible.action_divergence > 0.0
-    assert result.summary.signals.signal_attempts > 0
-    assert result.summary.isolated.missed_intent_rate >= 0.0
+    assert result.summary.teacher_alone.mean_caregiver_intake > 0.0
+    assert result.summary.no_teacher_alone.mean_caregiver_intake == 0.0
+    assert result.summary.teacher_sibling_signals.signal_attempts > 0
+    assert result.summary.no_teacher_sibling_signals.signal_attempts > 0
 
     report = Experiment.report(result)
-    assert report =~ "world-owned tick deadlines"
-    assert report =~ "no correct actions are inserted"
+    assert report =~ "restored baseline physics and teacher"
+    assert report =~ "teacher_sibling_visible"
     assert report =~ "missed="
   end
 end
