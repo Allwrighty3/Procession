@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - agent/**
+      - maintenance/**
   pull_request:
 
 permissions:
@@ -35,17 +36,18 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Compile
-        run: mix compile
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
 
-      - name: Run tests
-        run: mix test
+      - name: Run full test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          mix test 2>&1 | tee full-test-output.txt
 
-      - name: Run physical caregiver guidance experiment
-        run: mix procession.metrics.physical_guidance --population 48 --assisted-ticks 160 --withdrawal-ticks 100 --seed 1 --output physical-guidance-metrics.txt
-
-      - name: Upload physical guidance metrics
+      - name: Upload full test output
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: physical-guidance-metrics
-          path: physical-guidance-metrics.txt
+          name: full-test-output
+          path: full-test-output.txt

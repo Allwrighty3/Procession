@@ -1,7 +1,6 @@
 name: Home Foraging Seed Replication
 
 on:
-  pull_request:
   workflow_dispatch:
 
 permissions:

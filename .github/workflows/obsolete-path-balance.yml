@@ -1,15 +1,6 @@
 name: Obsolete Path Balance Diagnostic
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/obsolete-path-balance.yml"
-      - "lib/procession/simulation/obsolete_path_balance_experiment.ex"
-      - "lib/procession/simulation/action_cost_reversal_experiment.ex"
-      - "lib/mix/tasks/procession.metrics.obsolete_path_balance.ex"
-      - "lib/mix/tasks/procession.metrics.action_cost_reversal.ex"
-      - "test/procession/simulation/obsolete_path_balance_experiment_test.exs"
-      - "test/procession/simulation/action_cost_reversal_experiment_test.exs"
   workflow_dispatch:
 
 permissions:

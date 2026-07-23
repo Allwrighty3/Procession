@@ -1,10 +1,7 @@
 name: Trajectory Landscape Probe
 
 on:
-  push:
-    branches:
-      - agent/**
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

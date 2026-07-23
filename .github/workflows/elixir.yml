@@ -1,17 +1,13 @@
-name: Elixir CI
+name: Historical Simulation Metrics
 
 on:
-  push:
-    branches:
-      - main
-      - agent/**
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  test:
+  metrics:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,7 +34,7 @@ jobs:
       - name: Compile
         run: mix compile
 
-      - name: Run tests
+      - name: Run full test suite
         shell: bash
         run: |
           set -o pipefail
@@ -48,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: full-test-output
+          name: historical-full-test-output
           path: full-test-output.txt
 
       - name: Run unattended learner survival probe
@@ -72,10 +68,10 @@ jobs:
       - name: Run active developmental tendencies experiment
         run: mix procession.metrics.developmental_tendencies --population 8 --phase-ticks 1000 --seed 1 --output developmental-tendencies-metrics.txt
 
-      - name: Upload active simulation metrics
+      - name: Upload historical simulation metrics
         uses: actions/upload-artifact@v4
         with:
-          name: simulation-metrics
+          name: historical-simulation-metrics
           path: |
             unattended-survival-metrics.txt
             untaught-grid-learning-metrics.txt
