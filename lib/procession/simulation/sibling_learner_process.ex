@@ -2,9 +2,10 @@ defmodule Procession.Simulation.SiblingLearnerProcess do
   @moduledoc """
   OTP-owned learner used by the sibling-development diagnostic.
 
-  The process owns its sensorimotor field and bodily state. A coordinator sends
-  one immutable perception per tick, gathers both learners' intents concurrently,
-  resolves the world, and then commits each learner's private consequence.
+  The process owns its sensorimotor field and bodily state. The world sends a
+  perception tagged with a tick id. Intent calculation happens in the learner's
+  mailbox and the result is sent back asynchronously. The world never waits
+  indefinitely: a missing intent becomes :wait at the tick boundary.
   """
 
   use GenServer
@@ -13,16 +14,15 @@ defmodule Procession.Simulation.SiblingLearnerProcess do
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
-  def train(pid, perception, action, outcome),
-    do: GenServer.call(pid, {:train, perception, action, outcome}, :infinity)
-
-  def decide(pid, perception, actions, tick, exploration),
-    do: GenServer.call(pid, {:decide, perception, actions, tick, exploration}, :infinity)
+  def request_intent(pid, recipient, tick, perception, actions, exploration),
+    do: GenServer.cast(pid, {:request_intent, recipient, tick, perception, actions, exploration})
 
   def commit(pid, action, outcome),
     do: GenServer.call(pid, {:commit, action, outcome}, :infinity)
 
   def snapshot(pid), do: GenServer.call(pid, :snapshot, :infinity)
+
+  def reset_body(pid, position), do: GenServer.call(pid, {:reset_body, position}, :infinity)
 
   @impl true
   def init(opts) do
@@ -44,19 +44,15 @@ defmodule Procession.Simulation.SiblingLearnerProcess do
        last_action: nil,
        last_event: :none,
        decisions: 0,
-       exploratory_decisions: 0
+       exploratory_decisions: 0,
+       artificial_delay_ms: Keyword.get(opts, :artificial_delay_ms, 0)
      }}
   end
 
   @impl true
-  def handle_call({:train, perception, action, outcome}, _from, state) do
-    field = Field.sense(state.field, perception, state.field_opts)
-    next = apply_outcome(%{state | field: field}, action, outcome)
-    field = Field.record_output(next.field, action, outcome.coherence, state.field_opts)
-    {:reply, :ok, %{next | field: field}}
-  end
+  def handle_cast({:request_intent, recipient, tick, perception, actions, exploration}, state) do
+    if state.artificial_delay_ms > 0, do: Process.sleep(state.artificial_delay_ms)
 
-  def handle_call({:decide, perception, actions, tick, exploration}, _from, state) do
     field = Field.sense(state.field, perception, state.field_opts)
     roll = :erlang.phash2({:explore, state.seed, tick}, 1_000_000) / 1_000_000
     exploratory? = roll < exploration
@@ -69,14 +65,33 @@ defmodule Procession.Simulation.SiblingLearnerProcess do
         Enum.max_by(actions, fn candidate -> {Map.get(scores, candidate, 0.0), candidate} end)
       end
 
+    send(recipient, {:sibling_intent, tick, state.id, action, exploratory?})
+
+    {:noreply,
+     %{
+       state
+       | field: field,
+         decisions: state.decisions + 1,
+         exploratory_decisions: state.exploratory_decisions + if(exploratory?, do: 1, else: 0)
+     }}
+  end
+
+  @impl true
+  def handle_call({:reset_body, position}, _from, state) do
     next = %{
       state
-      | field: field,
-        decisions: state.decisions + 1,
-        exploratory_decisions: state.exploratory_decisions + if(exploratory?, do: 1, else: 0)
+      | position: position,
+        carrying: false,
+        hunger: 0.35,
+        vitality: 1.0,
+        meals: 0,
+        first_meal_tick: nil,
+        elapsed: 0,
+        last_action: nil,
+        last_event: :none
     }
 
-    {:reply, %{action: action, exploratory?: exploratory?}, next}
+    {:reply, :ok, next}
   end
 
   def handle_call({:commit, action, outcome}, _from, state) do
@@ -89,6 +104,7 @@ defmodule Procession.Simulation.SiblingLearnerProcess do
 
   defp apply_outcome(state, action, outcome) do
     elapsed = state.elapsed + 1
+
     first_meal_tick =
       if outcome.event == :food_consumed and is_nil(state.first_meal_tick),
         do: elapsed,
