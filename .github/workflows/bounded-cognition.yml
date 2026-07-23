@@ -1,9 +1,6 @@
 name: Bounded Cognition
 
 on:
-  push:
-    branches:
-      - diagnostic/obsolete-path-balance
   workflow_dispatch:
 
 jobs:
