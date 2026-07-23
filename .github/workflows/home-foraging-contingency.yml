@@ -1,7 +1,6 @@
 name: Home Foraging Contingency Experiment
 
 on:
-  pull_request:
   workflow_dispatch:
 
 permissions:
