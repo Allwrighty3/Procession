@@ -1,7 +1,6 @@
 name: Home Foraging Need Dynamics
 
 on:
-  pull_request:
   workflow_dispatch:
 
 jobs:
