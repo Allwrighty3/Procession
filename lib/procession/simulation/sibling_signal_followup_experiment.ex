@@ -1,11 +1,11 @@
 defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   @moduledoc """
-  Ultra-slow sibling-development diagnostic using supervised OTP learner processes.
+  Ultra-slow equal-blind sibling diagnostic with world-owned tick deadlines.
 
-  Both learners have identical blind perception. They differ only in exploration
-  stream and developmental history. Their decisions are computed concurrently
-  from the same world snapshot, then resolved together by a deterministic tick
-  coordinator.
+  Learners are supervised OTP processes. The world sends tick-tagged perceptions,
+  accepts intents until a finite resolution boundary, and advances regardless.
+  Missing or late intents become :wait. Developmental support changes bodily
+  state only; it never inserts the correct motor action.
   """
 
   alias Procession.Simulation.SiblingLearnerProcess, as: Learner
@@ -36,21 +36,33 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
   def run(opts \\ []) do
     population = Keyword.get(opts, :population, 12)
-    teaching_ticks = Keyword.get(opts, :teaching_ticks, 5_000)
-    transfer_ticks = Keyword.get(opts, :transfer_ticks, 3_000)
+    development_ticks = Keyword.get(opts, :teaching_ticks, 5_000)
+    withdrawal_ticks = Keyword.get(opts, :transfer_ticks, 3_000)
     seed = Keyword.get(opts, :seed, 73)
+    intent_timeout_ms = Keyword.get(opts, :intent_timeout_ms, 10)
+    support_interval = Keyword.get(opts, :support_interval, 40)
 
     rows =
       for condition <- [:isolated, :visible, :signals], pair <- 1..population do
-        run_pair(condition, pair, seed, teaching_ticks, transfer_ticks)
+        run_pair(
+          condition,
+          pair,
+          seed,
+          development_ticks,
+          withdrawal_ticks,
+          intent_timeout_ms,
+          support_interval
+        )
       end
 
     %{
-      execution_model: :supervised_otp_concurrent_decision,
+      execution_model: :world_owned_deadline_ticks,
       population: population,
-      teaching_ticks: teaching_ticks,
-      transfer_ticks: transfer_ticks,
+      teaching_ticks: development_ticks,
+      transfer_ticks: withdrawal_ticks,
       learning_scale: 0.01,
+      intent_timeout_ms: intent_timeout_ms,
+      support_interval: support_interval,
       rows: rows,
       summary: summarize(rows)
     }
@@ -63,50 +75,81 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
         "#{condition}: pair_survive=#{fmt(s.pair_survival_rate)} fed=#{fmt(s.learner_meal_rate)} " <>
           "meals=#{fmt(s.mean_meals)} first=#{fmt(s.mean_first_meal_tick)} " <>
-          "follow=#{fmt(s.follow_rate)} action_divergence=#{fmt(s.action_divergence)}"
+          "follow=#{fmt(s.follow_rate)} divergence=#{fmt(s.action_divergence)} " <>
+          "missed=#{fmt(s.missed_intent_rate)} late=#{s.late_intents}"
       end)
 
     signals = result.summary.signals
 
-    Enum.join([
-      "Equal-blind OTP sibling and arbitrary-signal diagnostic",
-      "execution=#{result.execution_model}",
-      "population=#{result.population} teaching=#{result.teaching_ticks} transfer=#{result.transfer_ticks} learning=#{result.learning_scale}",
-      "both learners use identical blind perception and independent exploration streams",
-      "" | lines
-    ] ++ [
-      "",
-      "signal_attempts=#{signals.signal_attempts} audible=#{fmt(signals.audience_sensitivity)} " <>
-        "response=#{fmt(signals.receiver_response_rate)} useful=#{fmt(signals.useful_signal_rate)} " <>
-        "conventions=#{fmt(signals.convention_rate)}"
-    ], "\n")
+    Enum.join(
+      [
+        "Equal-blind OTP sibling diagnostic with world-owned tick deadlines",
+        "execution=#{result.execution_model}",
+        "population=#{result.population} development=#{result.teaching_ticks} withdrawal=#{result.transfer_ticks} learning=#{result.learning_scale}",
+        "intent_timeout_ms=#{result.intent_timeout_ms} support_interval=#{result.support_interval}",
+        "caregiver support changes hunger/vitality only; no correct actions are inserted",
+        ""
+        | lines
+      ] ++
+        [
+          "",
+          "signal_attempts=#{signals.signal_attempts} audible=#{fmt(signals.audience_sensitivity)} " <>
+            "response=#{fmt(signals.receiver_response_rate)} useful=#{fmt(signals.useful_signal_rate)} " <>
+            "conventions=#{fmt(signals.convention_rate)}"
+        ],
+      "\n"
+    )
   end
 
-  defp run_pair(condition, pair, seed, teaching_ticks, transfer_ticks) do
+  defp run_pair(
+         condition,
+         pair,
+         seed,
+         development_ticks,
+         withdrawal_ticks,
+         intent_timeout_ms,
+         support_interval
+       ) do
     {:ok, supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
 
     try do
       {:ok, a} = start_learner(supervisor, :a, pair, seed, 1)
       {:ok, b} = start_learner(supervisor, :b, pair, seed, 3)
 
-      train_pair(a, b, teaching_ticks)
+      development_metrics =
+        Enum.reduce(1..development_ticks, new_metrics(), fn tick, metrics ->
+          metrics =
+            tick_pair(
+              a,
+              b,
+              condition,
+              {:development, tick},
+              metrics,
+              intent_timeout_ms
+            )
 
-      initial = %{
-        heard: %{a: nil, b: nil},
-        signals_audible: 0,
-        signals_inaudible: 0,
-        useful_signals: 0,
-        receiver_responses: 0,
-        follow_events: 0,
-        social_opportunities: 0,
-        action_matches: 0,
-        action_comparisons: 0,
-        conventions: MapSet.new()
-      }
+          if rem(tick, support_interval) == 0 do
+            provide_environmental_support(a)
+            provide_environmental_support(b)
+            %{metrics | support_events: metrics.support_events + 2}
+          else
+            metrics
+          end
+        end)
+
+      :ok = Learner.reset_body(a, 1)
+      :ok = Learner.reset_body(b, 3)
 
       final =
-        Enum.reduce(1..transfer_ticks, initial, fn tick, metrics ->
-          tick_pair(a, b, condition, tick, metrics)
+        Enum.reduce(1..withdrawal_ticks, development_metrics, fn tick, metrics ->
+          tick_pair(
+            a,
+            b,
+            condition,
+            {:withdrawal, tick},
+            metrics,
+            intent_timeout_ms
+          )
         end)
 
       sa = Learner.snapshot(a)
@@ -128,11 +171,34 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
         social_opportunities: final.social_opportunities,
         action_matches: final.action_matches,
         action_comparisons: final.action_comparisons,
+        accepted_intents: final.accepted_intents,
+        missed_intents: final.missed_intents,
+        late_intents: final.late_intents,
+        support_events: final.support_events,
         conventions: MapSet.size(final.conventions)
       }
     after
       if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
     end
+  end
+
+  defp new_metrics do
+    %{
+      heard: %{a: nil, b: nil},
+      signals_audible: 0,
+      signals_inaudible: 0,
+      useful_signals: 0,
+      receiver_responses: 0,
+      follow_events: 0,
+      social_opportunities: 0,
+      action_matches: 0,
+      action_comparisons: 0,
+      accepted_intents: 0,
+      missed_intents: 0,
+      late_intents: 0,
+      support_events: 0,
+      conventions: MapSet.new()
+    }
   end
 
   defp start_learner(supervisor, id, pair, seed, position) do
@@ -141,24 +207,14 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
     DynamicSupervisor.start_child(supervisor, %{
       id: {Learner, make_ref()},
-      start: {Learner, :start_link, [[id: id, seed: learner_seed, position: position, field_opts: field_opts]]},
+      start:
+        {Learner, :start_link,
+         [[id: id, seed: learner_seed, position: position, field_opts: field_opts]]},
       restart: :temporary
     })
   end
 
-  defp train_pair(a, b, ticks) do
-    Enum.each(1..ticks, fn _tick ->
-      Enum.each([a, b], fn pid ->
-        state = Learner.snapshot(pid)
-        perception = blind_features(state, [])
-        action = desired_action(state)
-        outcome = resolve_one(state, action)
-        :ok = Learner.train(pid, perception, action, outcome)
-      end)
-    end)
-  end
-
-  defp tick_pair(a, b, condition, tick, metrics) do
+  defp tick_pair(a, b, condition, tick, metrics, intent_timeout_ms) do
     sa = Learner.snapshot(a)
     sb = Learner.snapshot(b)
     social? = condition in [:visible, :signals]
@@ -166,14 +222,26 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     distance_before = abs(sa.position - sb.position)
     audible? = distance_before <= 2
 
-    pa = blind_features(sa, social_features(sa, sb, metrics.heard.a, social?, signals? and audible?))
-    pb = blind_features(sb, social_features(sb, sa, metrics.heard.b, social?, signals? and audible?))
+    pa =
+      blind_features(
+        sa,
+        social_features(sa, sb, metrics.heard.a, social?, signals? and audible?)
+      )
+
+    pb =
+      blind_features(
+        sb,
+        social_features(sb, sa, metrics.heard.b, social?, signals? and audible?)
+      )
+
     actions = if signals?, do: @motor_actions ++ @signals, else: @motor_actions
 
-    task_a = Task.async(fn -> Learner.decide(a, pa, actions, tick, 0.20) end)
-    task_b = Task.async(fn -> Learner.decide(b, pb, actions, tick, 0.20) end)
-    da = Task.await(task_a, :infinity)
-    db = Task.await(task_b, :infinity)
+    Learner.request_intent(a, self(), tick, pa, actions, 0.20)
+    Learner.request_intent(b, self(), tick, pb, actions, 0.20)
+
+    {intents, late_count} = collect_intents(tick, intent_timeout_ms)
+    da = Map.get(intents, :a, %{action: :wait, exploratory?: false})
+    db = Map.get(intents, :b, %{action: :wait, exploratory?: false})
 
     oa = resolve_one(sa, da.action)
     ob = resolve_one(sb, db.action)
@@ -200,6 +268,8 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
     emitted = bool(signal_a != nil) + bool(signal_b != nil)
     audible_count = if audible?, do: emitted, else: 0
+    accepted = map_size(intents)
+    missed = 2 - accepted
 
     %{
       metrics
@@ -207,13 +277,60 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
         signals_audible: metrics.signals_audible + audible_count,
         signals_inaudible: metrics.signals_inaudible + emitted - audible_count,
         useful_signals: metrics.useful_signals + bool(useful_a?) + bool(useful_b?),
-        receiver_responses: metrics.receiver_responses + bool(response_a?) + bool(response_b?),
+        receiver_responses:
+          metrics.receiver_responses + bool(response_a?) + bool(response_b?),
         follow_events: metrics.follow_events + bool(approached_a?) + bool(approached_b?),
-        social_opportunities: metrics.social_opportunities + if(social? and distance_before > 0, do: 2, else: 0),
+        social_opportunities:
+          metrics.social_opportunities + if(social? and distance_before > 0, do: 2, else: 0),
         action_matches: metrics.action_matches + bool(da.action == db.action),
         action_comparisons: metrics.action_comparisons + 1,
+        accepted_intents: metrics.accepted_intents + accepted,
+        missed_intents: metrics.missed_intents + missed,
+        late_intents: metrics.late_intents + late_count,
         conventions: conventions
     }
+  end
+
+  defp collect_intents(tick, timeout_ms) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    collect_intents(tick, deadline, %{}, 0)
+  end
+
+  defp collect_intents(_tick, _deadline, intents, late) when map_size(intents) == 2,
+    do: {intents, late}
+
+  defp collect_intents(tick, deadline, intents, late) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {:sibling_intent, ^tick, id, action, exploratory?} ->
+        collect_intents(
+          tick,
+          deadline,
+          Map.put_new(intents, id, %{action: action, exploratory?: exploratory?}),
+          late
+        )
+
+      {:sibling_intent, _other_tick, _id, _action, _exploratory?} ->
+        collect_intents(tick, deadline, intents, late + 1)
+    after
+      remaining -> {intents, late}
+    end
+  end
+
+  defp provide_environmental_support(pid) do
+    state = Learner.snapshot(pid)
+
+    outcome = %{
+      position: state.position,
+      carrying: state.carrying,
+      hunger: max(0.0, state.hunger - 0.35),
+      vitality: min(1.0, state.vitality + 0.12),
+      coherence: 0.0,
+      event: :caregiver_support
+    }
+
+    :ok = Learner.commit(pid, :caregiver_support, outcome)
   end
 
   defp blind_features(state, social) do
@@ -239,24 +356,25 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     ]
   end
 
-  defp desired_action(%{carrying: false, position: @food}), do: :collect
-  defp desired_action(%{carrying: true, position: @home}), do: :eat
-  defp desired_action(%{carrying: false, position: position}), do: toward(position, @food)
-  defp desired_action(%{carrying: true, position: position}), do: toward(position, @home)
-
   defp resolve_one(state, action) do
     {position, carrying, hunger, vitality, coherence, event} =
       case action do
         :left -> move_outcome(state, max(0, state.position - 1))
         :right -> move_outcome(state, min(4, state.position + 1))
+
         :collect when state.position == @food and not state.carrying ->
           {state.position, true, state.hunger, state.vitality, 1.0, :food_collected}
+
         :eat when state.position == @home and state.carrying ->
-          {state.position, false, max(0.0, state.hunger - 0.75), min(1.0, state.vitality + 0.30), 1.0, :food_consumed}
+          {state.position, false, max(0.0, state.hunger - 0.75),
+           min(1.0, state.vitality + 0.30), 1.0, :food_consumed}
+
         signal when signal in @signals ->
           {state.position, state.carrying, state.hunger, state.vitality, 0.0, signal}
+
         :wait ->
           {state.position, state.carrying, state.hunger, state.vitality, -0.02, :waited}
+
         _ ->
           {state.position, state.carrying, state.hunger, state.vitality, -0.12, :ineffective}
       end
@@ -296,31 +414,37 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       opportunities = Enum.sum(Enum.map(values, & &1.social_opportunities))
       matches = Enum.sum(Enum.map(values, & &1.action_matches))
       comparisons = Enum.sum(Enum.map(values, & &1.action_comparisons))
+      accepted = Enum.sum(Enum.map(values, & &1.accepted_intents))
+      missed = Enum.sum(Enum.map(values, & &1.missed_intents))
+      late = Enum.sum(Enum.map(values, & &1.late_intents))
       conventions = Enum.sum(Enum.map(values, & &1.conventions))
 
-      {condition, %{
-        pair_survival_rate: fraction(values, & &1.pair_survived?),
-        learner_meal_rate: fed / max(learners, 1),
-        mean_meals: meals / max(learners, 1),
-        mean_first_meal_tick: mean(firsts),
-        follow_rate: ratio(follow, opportunities),
-        action_divergence: 1.0 - ratio(matches, comparisons),
-        signal_attempts: attempts,
-        audience_sensitivity: ratio(audible, attempts),
-        receiver_response_rate: ratio(responses, audible),
-        useful_signal_rate: ratio(useful, attempts),
-        convention_rate: conventions / max(length(values), 1)
-      }}
+      {condition,
+       %{
+         pair_survival_rate: fraction(values, & &1.pair_survived?),
+         learner_meal_rate: fed / max(learners, 1),
+         mean_meals: meals / max(learners, 1),
+         mean_first_meal_tick: mean(firsts),
+         follow_rate: ratio(follow, opportunities),
+         action_divergence: 1.0 - ratio(matches, comparisons),
+         missed_intent_rate: ratio(missed, accepted + missed),
+         late_intents: late,
+         signal_attempts: attempts,
+         audience_sensitivity: ratio(audible, attempts),
+         receiver_response_rate: ratio(responses, audible),
+         useful_signal_rate: ratio(useful, attempts),
+         convention_rate: conventions / max(length(values), 1)
+       }}
     end)
   end
 
   defp maybe_convention(set, nil, _action, _event), do: set
-  defp maybe_convention(set, signal, action, event) when event in [:food_collected, :food_consumed],
-    do: MapSet.put(set, {signal, action, event})
+
+  defp maybe_convention(set, signal, action, event)
+       when event in [:food_collected, :food_consumed],
+       do: MapSet.put(set, {signal, action, event})
+
   defp maybe_convention(set, _signal, _action, _event), do: set
-  defp toward(position, target) when position < target, do: :right
-  defp toward(position, target) when position > target, do: :left
-  defp toward(_position, _target), do: :wait
   defp bearing(position, target) when position < target, do: :right
   defp bearing(position, target) when position > target, do: :left
   defp bearing(_position, _target), do: :here
