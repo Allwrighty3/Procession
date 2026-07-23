@@ -5,7 +5,8 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   Both learners decide from one immutable world snapshot. Their actions and world
   consequences resolve together. The caregiver emits perceptible signals in every
   teacher condition. A sibling may attempt the ordinary :signal motor action, but
-  it is only transmitted after learned motor support crosses the pathway threshold.
+  it is only transmitted after a generated pathway binds informative teacher signals
+  to the learner's signal motor representation.
   """
 
   use GenServer
@@ -22,7 +23,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   @directions [:north, :south, :east, :west]
   @actions [:signal, :orient, :reach, :manipulate, :wait] ++ @directions
   @stationary [:signal, :orient, :reach, :manipulate]
-  @signal_pathway_threshold 0.025
+  @informative_teacher_signals [:feeding_offer, :resource_here, :provisioning]
   @resources %{{0, 0} => :rough_cool, {3, 0} => :sweet_soft, {2, 3} => :sharp_dry}
   @distractors %{{1, 0} => :rough_cool, {0, 2} => :sweet_soft, {3, 2} => :sharp_dry, {1, 3} => :smooth_warm}
 
@@ -59,7 +60,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       participation_ticks: participation,
       withdrawal_ticks: withdrawal,
       learning_scale: 0.01,
-      signal_pathway_threshold: @signal_pathway_threshold,
+      signal_pathway_rule: :generated_teacher_signal_motor_binding,
       intent_timeout_ms: timeout,
       rows: rows,
       summary: summarize(rows)
@@ -85,8 +86,8 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       "Active sibling-only survival experiment",
       "execution=#{result.execution_model}",
       "population=#{result.population} baby=#{result.baby_ticks} participation=#{result.participation_ticks} withdrawal=#{result.withdrawal_ticks}",
-      "learning=#{result.learning_scale} signal_pathway_threshold=#{result.signal_pathway_threshold}",
-      "teacher signals are perceptible in every teacher condition; sibling signals require learned motor support",
+      "learning=#{result.learning_scale} signal_pathway_rule=#{result.signal_pathway_rule}",
+      "teacher signals are perceptible in every teacher condition; sibling emission requires a generated teacher-signal/motor binding",
       "solo controls archived; all pair actions resolve from the same pre-tick world snapshot",
       ""
       | lines
@@ -310,16 +311,9 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
 
     state = %{state | field: field}
     action = choose_action(state, actions, phase, tick)
-    signal_support = learned_motor_score(field, :signal, state.field_opts)
+    signal_ready? = signal_pathway_ready?(field, state.field_opts)
 
-    send(owner, {
-      :sibling_pair_intent,
-      tick,
-      state.id,
-      action,
-      signal_support >= @signal_pathway_threshold
-    })
-
+    send(owner, {:sibling_pair_intent, tick, state.id, action, signal_ready?})
     {:noreply, state}
   end
 
@@ -362,6 +356,27 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     |> Enum.max_by(fn {action, score} -> {score, action} end)
     |> elem(0)
   end
+
+  defp signal_pathway_ready?(field, opts) do
+    motor_nodes = DevelopmentalField.active_micro_nodes(field, {:motor_channel, :signal}, opts)
+
+    teacher_nodes =
+      Enum.reduce(@informative_teacher_signals, MapSet.new(), fn signal, acc ->
+        MapSet.union(
+          acc,
+          DevelopmentalField.active_micro_nodes(field, {:teacher_signal, signal}, opts)
+        )
+      end)
+
+    DevelopmentalField.generated_nodes(field)
+    |> Enum.any?(fn node ->
+      node.stability >= 0.20 and
+        intersects?(node.support, motor_nodes) and
+        intersects?(node.support, teacher_nodes)
+    end)
+  end
+
+  defp intersects?(left, right), do: not MapSet.disjoint?(left, right)
 
   defp perception(state, phase, resources, other, heard, teacher_signal, social?, peer_signals?) do
     base = [
