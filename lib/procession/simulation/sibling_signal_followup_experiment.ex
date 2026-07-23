@@ -1,463 +1,456 @@
 defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   @moduledoc """
-  Ultra-slow equal-blind sibling diagnostic with world-owned tick deadlines.
+  Factorial sibling-development diagnostic built on the original dependent
+  development body, teacher, resource, and action mechanics.
 
-  Learners are supervised OTP processes. The world sends tick-tagged perceptions,
-  accepts intents until a finite resolution boundary, and advances regardless.
-  Missing or late intents become :wait. Developmental support changes bodily
-  state only; it never inserts the correct motor action.
+  The only additions are a second simultaneous learner, optional peer perception
+  and signaling, supervised OTP learner processes, and world-owned deadline ticks.
   """
 
-  alias Procession.Simulation.SiblingLearnerProcess, as: Learner
+  use GenServer
 
-  @motor_actions [:left, :right, :collect, :eat, :wait]
-  @signals [:signal_a, :signal_b]
-  @home 4
-  @food 0
+  alias Procession.Simulation.DevelopmentalField
+
+  @conditions [
+    :no_teacher_alone,
+    :teacher_alone,
+    :teacher_sibling_invisible,
+    :teacher_sibling_visible,
+    :teacher_sibling_signals,
+    :no_teacher_sibling_visible,
+    :no_teacher_sibling_signals
+  ]
+  @directions [:north, :south, :east, :west]
+  @base_actions [:signal, :orient, :reach, :manipulate, :wait] ++ @directions
+  @peer_signals [:signal_a, :signal_b]
+  @resources %{{0, 0} => :rough_cool, {3, 0} => :sweet_soft, {2, 3} => :sharp_dry}
+  @distractors %{{1, 0} => :rough_cool, {0, 2} => :sweet_soft, {3, 2} => :sharp_dry, {1, 3} => :smooth_warm}
 
   @field_opts [
-    micro_nodes: 72,
-    input_width: 6,
-    activity_retention: 0.82,
-    edge_retention: 0.9995,
-    output_edge_retention: 0.9995,
+    micro_nodes: 64,
+    input_width: 3,
     consolidation_threshold: 4,
-    minimum_compression_gain: 0.0,
-    coherence_threshold: 0.02,
-    compression_node_threshold: 0.14,
-    compression_coverage_threshold: 0.45,
-    plasticity_threshold: 0.14,
-    output_source_threshold: 0.14,
-    output_learning_scale: 0.01,
-    output_plasticity_budget: 0.12,
-    output_source_mode: :rising_residual,
-    output_specificity_power: 0.5
+    coherence_threshold: 0.06,
+    reuse_threshold: 0.50,
+    edge_retention: 0.9995,
+    activity_retention: 0.72,
+    plasticity_fanout: 6,
+    plasticity_budget: 0.08,
+    minimum_compression_gain: 2.0,
+    output_learning_scale: 0.01
   ]
 
   def run(opts \\ []) do
     population = Keyword.get(opts, :population, 12)
-    development_ticks = Keyword.get(opts, :teaching_ticks, 5_000)
-    withdrawal_ticks = Keyword.get(opts, :transfer_ticks, 3_000)
+    baby_ticks = Keyword.get(opts, :baby_ticks, 2_500)
+    participation_ticks = Keyword.get(opts, :participation_ticks, 2_500)
+    withdrawal_ticks = Keyword.get(opts, :withdrawal_ticks, 3_000)
     seed = Keyword.get(opts, :seed, 73)
-    intent_timeout_ms = Keyword.get(opts, :intent_timeout_ms, 10)
-    support_interval = Keyword.get(opts, :support_interval, 40)
+    timeout = Keyword.get(opts, :intent_timeout_ms, 10)
 
     rows =
-      for condition <- [:isolated, :visible, :signals], pair <- 1..population do
-        run_pair(
-          condition,
-          pair,
-          seed,
-          development_ticks,
-          withdrawal_ticks,
-          intent_timeout_ms,
-          support_interval
-        )
+      for condition <- @conditions, pair <- 1..population do
+        run_case(condition, pair, seed, baby_ticks, participation_ticks, withdrawal_ticks, timeout)
       end
 
     %{
       execution_model: :world_owned_deadline_ticks,
       population: population,
-      teaching_ticks: development_ticks,
-      transfer_ticks: withdrawal_ticks,
+      baby_ticks: baby_ticks,
+      participation_ticks: participation_ticks,
+      withdrawal_ticks: withdrawal_ticks,
       learning_scale: 0.01,
-      intent_timeout_ms: intent_timeout_ms,
-      support_interval: support_interval,
+      intent_timeout_ms: timeout,
       rows: rows,
       summary: summarize(rows)
     }
   end
 
   def report(result) do
-    lines =
-      Enum.map([:isolated, :visible, :signals], fn condition ->
-        s = result.summary[condition]
+    header = [
+      "Dependent sibling factorial with restored baseline physics and teacher",
+      "execution=#{result.execution_model}",
+      "population=#{result.population} baby=#{result.baby_ticks} participation=#{result.participation_ticks} withdrawal=#{result.withdrawal_ticks}",
+      "learning=#{result.learning_scale} intent_timeout_ms=#{result.intent_timeout_ms}"
+    ]
 
-        "#{condition}: pair_survive=#{fmt(s.pair_survival_rate)} fed=#{fmt(s.learner_meal_rate)} " <>
-          "meals=#{fmt(s.mean_meals)} first=#{fmt(s.mean_first_meal_tick)} " <>
-          "follow=#{fmt(s.follow_rate)} divergence=#{fmt(s.action_divergence)} " <>
-          "missed=#{fmt(s.missed_intent_rate)} late=#{s.late_intents}"
-      end)
+    lines = Enum.map(@conditions, fn condition ->
+      s = result.summary[condition]
+      "#{condition}: baby=#{fmt(s.baby_survival_rate)} participation=#{fmt(s.participation_survival_rate)} " <>
+        "withdrawal=#{fmt(s.withdrawal_survival_rate)} pair=#{fmt(s.pair_survival_rate)} " <>
+        "self_intake=#{fmt(s.mean_self_intake)} caregiver=#{fmt(s.mean_caregiver_intake)} " <>
+        "withdrawal_intake=#{fmt(s.mean_withdrawal_intake)} follow=#{fmt(s.follow_rate)} " <>
+        "missed=#{fmt(s.missed_intent_rate)} signals=#{s.signal_attempts} useful=#{fmt(s.useful_signal_rate)}"
+    end)
 
-    signals = result.summary.signals
-
-    Enum.join(
-      [
-        "Equal-blind OTP sibling diagnostic with world-owned tick deadlines",
-        "execution=#{result.execution_model}",
-        "population=#{result.population} development=#{result.teaching_ticks} withdrawal=#{result.transfer_ticks} learning=#{result.learning_scale}",
-        "intent_timeout_ms=#{result.intent_timeout_ms} support_interval=#{result.support_interval}",
-        "caregiver support changes hunger/vitality only; no correct actions are inserted",
-        ""
-        | lines
-      ] ++
-        [
-          "",
-          "signal_attempts=#{signals.signal_attempts} audible=#{fmt(signals.audience_sensitivity)} " <>
-            "response=#{fmt(signals.receiver_response_rate)} useful=#{fmt(signals.useful_signal_rate)} " <>
-            "conventions=#{fmt(signals.convention_rate)}"
-        ],
-      "\n"
-    )
+    Enum.join(header ++ lines, "\n")
   end
 
-  defp run_pair(
-         condition,
-         pair,
-         seed,
-         development_ticks,
-         withdrawal_ticks,
-         intent_timeout_ms,
-         support_interval
-       ) do
-    {:ok, supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
+  defp run_case(condition, pair, seed, baby_ticks, participation_ticks, withdrawal_ticks, timeout) do
+    {:ok, sup} = DynamicSupervisor.start_link(strategy: :one_for_one)
+    ids = if sibling?(condition), do: [:a, :b], else: [:a]
 
     try do
-      {:ok, a} = start_learner(supervisor, :a, pair, seed, 1)
-      {:ok, b} = start_learner(supervisor, :b, pair, seed, 3)
+      pids = Map.new(ids, fn id ->
+        field_opts = Keyword.put(@field_opts, :encoding_salt, {:dependent_sibling, pair, id, seed})
+        child = %{id: {__MODULE__, make_ref()}, start: {__MODULE__, :start_link, [[id: id, seed: learner_seed(seed, pair, id), field_opts: field_opts]]}, restart: :temporary}
+        {:ok, pid} = DynamicSupervisor.start_child(sup, child)
+        {id, pid}
+      end)
 
-      development_metrics =
-        Enum.reduce(1..development_ticks, new_metrics(), fn tick, metrics ->
-          metrics =
-            tick_pair(
-              a,
-              b,
-              condition,
-              {:development, tick},
-              metrics,
-              intent_timeout_ms
-            )
+      initial = %{
+        resources: Map.new(Map.keys(@resources), &{&1, 0.80}),
+        heard: %{a: nil, b: nil},
+        accepted: 0,
+        missed: 0,
+        late: 0,
+        follow: 0,
+        opportunities: 0,
+        signals: 0,
+        audible: 0,
+        useful: 0,
+        phase_survival: %{baby: 0, participation: 0},
+        records: []
+      }
 
-          if rem(tick, support_interval) == 0 do
-            provide_environmental_support(a)
-            provide_environmental_support(b)
-            %{metrics | support_events: metrics.support_events + 2}
-          else
-            metrics
+      total = baby_ticks + participation_ticks + withdrawal_ticks
+
+      final = Enum.reduce(1..total, initial, fn tick, world ->
+        phase = phase(tick, baby_ticks, participation_ticks)
+        world = tick_world(pids, condition, phase, tick, world, timeout)
+
+        phase_survival =
+          cond do
+            tick == baby_ticks -> Map.put(world.phase_survival, :baby, alive_count(pids))
+            tick == baby_ticks + participation_ticks -> Map.put(world.phase_survival, :participation, alive_count(pids))
+            true -> world.phase_survival
           end
-        end)
 
-      :ok = Learner.reset_body(a, 1)
-      :ok = Learner.reset_body(b, 3)
+        %{world | phase_survival: phase_survival}
+      end)
 
-      final =
-        Enum.reduce(1..withdrawal_ticks, development_metrics, fn tick, metrics ->
-          tick_pair(
-            a,
-            b,
-            condition,
-            {:withdrawal, tick},
-            metrics,
-            intent_timeout_ms
-          )
-        end)
-
-      sa = Learner.snapshot(a)
-      sb = Learner.snapshot(b)
+      snapshots = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
+      alive = Enum.count(snapshots, fn {_id, s} -> s.alive? end)
 
       %{
         condition: condition,
-        learner_a: sa,
-        learner_b: sb,
-        pair_survived?: sa.vitality > 0.0 and sb.vitality > 0.0,
-        learners_fed: bool(sa.meals > 0) + bool(sb.meals > 0),
-        total_meals: sa.meals + sb.meals,
-        first_meal_ticks: Enum.reject([sa.first_meal_tick, sb.first_meal_tick], &is_nil/1),
-        signals_audible: final.signals_audible,
-        signals_inaudible: final.signals_inaudible,
-        useful_signals: final.useful_signals,
-        receiver_responses: final.receiver_responses,
-        follow_events: final.follow_events,
-        social_opportunities: final.social_opportunities,
-        action_matches: final.action_matches,
-        action_comparisons: final.action_comparisons,
-        accepted_intents: final.accepted_intents,
-        missed_intents: final.missed_intents,
-        late_intents: final.late_intents,
-        support_events: final.support_events,
-        conventions: MapSet.size(final.conventions)
+        learner_count: length(ids),
+        snapshots: snapshots,
+        baby_survived: final.phase_survival.baby,
+        participation_survived: final.phase_survival.participation,
+        withdrawal_survived: alive,
+        pair_survived?: alive == length(ids),
+        accepted_intents: final.accepted,
+        missed_intents: final.missed,
+        late_intents: final.late,
+        follow_events: final.follow,
+        social_opportunities: final.opportunities,
+        signal_attempts: final.signals,
+        audible_signals: final.audible,
+        useful_signals: final.useful,
+        self_intake: Enum.sum(Enum.map(snapshots, fn {_id, s} -> s.self_intake end)),
+        caregiver_intake: Enum.sum(Enum.map(snapshots, fn {_id, s} -> s.caregiver_intake end)),
+        withdrawal_intake: Enum.sum(Enum.map(snapshots, fn {_id, s} -> s.withdrawal_intake end))
       }
     after
-      if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
+      if Process.alive?(sup), do: Supervisor.stop(sup)
     end
   end
 
-  defp new_metrics do
-    %{
-      heard: %{a: nil, b: nil},
-      signals_audible: 0,
-      signals_inaudible: 0,
-      useful_signals: 0,
-      receiver_responses: 0,
-      follow_events: 0,
-      social_opportunities: 0,
-      action_matches: 0,
-      action_comparisons: 0,
-      accepted_intents: 0,
-      missed_intents: 0,
-      late_intents: 0,
-      support_events: 0,
-      conventions: MapSet.new()
+  defp tick_world(pids, condition, phase, tick, world, timeout) do
+    resources = regenerate(world.resources)
+    states = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
+    social? = visible?(condition)
+    signals? = signals?(condition)
+
+    Enum.each(pids, fn {id, pid} ->
+      state = states[id]
+      other = other_state(states, id)
+      features = perception(state, phase, resources, other, world.heard[id], social?, signals?)
+      actions = allowed_actions(phase, signals?)
+      cue = teacher_cue(condition, phase, state.position, resources, 1.0 - max(0.0, state.vitality - 0.014))
+      request_intent(pid, self(), tick, features, actions, cue, phase)
+    end)
+
+    {intents, late} = collect_intents(tick, Map.keys(pids), timeout)
+    before_distance = pair_distance(states)
+
+    {resources, results} = Enum.reduce(Map.keys(pids), {resources, %{}}, fn id, {amounts, acc} ->
+      state = states[id]
+      action = get_in(intents, [id, :action]) || :wait
+      {amounts, result} = resolve(state, action, condition, phase, amounts)
+      :ok = commit(pids[id], action, result, phase)
+      {amounts, Map.put(acc, id, %{action: action, result: result})}
+    end)
+
+    next_states = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
+    after_distance = pair_distance(next_states)
+    approached = social? and before_distance != nil and after_distance < before_distance
+    signals = Enum.count(results, fn {_id, r} -> r.action in @peer_signals end)
+    audible = if signals? and before_distance != nil and before_distance <= 2, do: signals, else: 0
+    useful = if approached and Enum.any?(results, fn {_id, r} -> r.action in @peer_signals end), do: 1, else: 0
+
+    heard = %{
+      a: peer_signal(results, :b),
+      b: peer_signal(results, :a)
     }
-  end
 
-  defp start_learner(supervisor, id, pair, seed, position) do
-    learner_seed = seed + pair * 10_007 + if(id == :a, do: 101, else: 503)
-    field_opts = [encoding_salt: {:otp_sibling, pair, id, seed}] ++ @field_opts
-
-    DynamicSupervisor.start_child(supervisor, %{
-      id: {Learner, make_ref()},
-      start:
-        {Learner, :start_link,
-         [[id: id, seed: learner_seed, position: position, field_opts: field_opts]]},
-      restart: :temporary
-    })
-  end
-
-  defp tick_pair(a, b, condition, tick, metrics, intent_timeout_ms) do
-    sa = Learner.snapshot(a)
-    sb = Learner.snapshot(b)
-    social? = condition in [:visible, :signals]
-    signals? = condition == :signals
-    distance_before = abs(sa.position - sb.position)
-    audible? = distance_before <= 2
-
-    pa =
-      blind_features(
-        sa,
-        social_features(sa, sb, metrics.heard.a, social?, signals? and audible?)
-      )
-
-    pb =
-      blind_features(
-        sb,
-        social_features(sb, sa, metrics.heard.b, social?, signals? and audible?)
-      )
-
-    actions = if signals?, do: @motor_actions ++ @signals, else: @motor_actions
-
-    Learner.request_intent(a, self(), tick, pa, actions, 0.20)
-    Learner.request_intent(b, self(), tick, pb, actions, 0.20)
-
-    {intents, late_count} = collect_intents(tick, intent_timeout_ms)
-    da = Map.get(intents, :a, %{action: :wait, exploratory?: false})
-    db = Map.get(intents, :b, %{action: :wait, exploratory?: false})
-
-    oa = resolve_one(sa, da.action)
-    ob = resolve_one(sb, db.action)
-    :ok = Learner.commit(a, da.action, oa)
-    :ok = Learner.commit(b, db.action, ob)
-
-    na = Learner.snapshot(a)
-    nb = Learner.snapshot(b)
-    distance_after = abs(na.position - nb.position)
-    approached_a? = social? and distance_after < distance_before and na.position != sa.position
-    approached_b? = social? and distance_after < distance_before and nb.position != sb.position
-
-    signal_a = if da.action in @signals, do: da.action, else: nil
-    signal_b = if db.action in @signals, do: db.action, else: nil
-    response_a? = signal_b != nil and audible? and approached_a?
-    response_b? = signal_a != nil and audible? and approached_b?
-    useful_a? = response_b? and sa.position in [@food, @food + 1]
-    useful_b? = response_a? and sb.position in [@food, @food + 1]
-
-    conventions =
-      metrics.conventions
-      |> maybe_convention(metrics.heard.a, da.action, oa.event)
-      |> maybe_convention(metrics.heard.b, db.action, ob.event)
-
-    emitted = bool(signal_a != nil) + bool(signal_b != nil)
-    audible_count = if audible?, do: emitted, else: 0
     accepted = map_size(intents)
-    missed = 2 - accepted
+    expected = map_size(pids)
 
     %{
-      metrics
-      | heard: %{a: signal_b, b: signal_a},
-        signals_audible: metrics.signals_audible + audible_count,
-        signals_inaudible: metrics.signals_inaudible + emitted - audible_count,
-        useful_signals: metrics.useful_signals + bool(useful_a?) + bool(useful_b?),
-        receiver_responses:
-          metrics.receiver_responses + bool(response_a?) + bool(response_b?),
-        follow_events: metrics.follow_events + bool(approached_a?) + bool(approached_b?),
-        social_opportunities:
-          metrics.social_opportunities + if(social? and distance_before > 0, do: 2, else: 0),
-        action_matches: metrics.action_matches + bool(da.action == db.action),
-        action_comparisons: metrics.action_comparisons + 1,
-        accepted_intents: metrics.accepted_intents + accepted,
-        missed_intents: metrics.missed_intents + missed,
-        late_intents: metrics.late_intents + late_count,
-        conventions: conventions
+      world
+      | resources: resources,
+        heard: heard,
+        accepted: world.accepted + accepted,
+        missed: world.missed + expected - accepted,
+        late: world.late + late,
+        follow: world.follow + if(approached, do: 1, else: 0),
+        opportunities: world.opportunities + if(social? and before_distance != nil and before_distance > 0, do: 1, else: 0),
+        signals: world.signals + signals,
+        audible: world.audible + audible,
+        useful: world.useful + useful
     }
   end
 
-  defp collect_intents(tick, timeout_ms) do
-    deadline = System.monotonic_time(:millisecond) + timeout_ms
-    collect_intents(tick, deadline, %{}, 0)
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
+  def snapshot(pid), do: GenServer.call(pid, :snapshot, :infinity)
+  def request_intent(pid, owner, tick, features, actions, cue, phase), do: GenServer.cast(pid, {:intent, owner, tick, features, actions, cue, phase})
+  def commit(pid, action, result, phase), do: GenServer.call(pid, {:commit, action, result, phase}, :infinity)
+
+  @impl true
+  def init(opts) do
+    field_opts = Keyword.fetch!(opts, :field_opts)
+    {:ok, %{
+      id: Keyword.fetch!(opts, :id), seed: Keyword.fetch!(opts, :seed), field_opts: field_opts,
+      field: DevelopmentalField.new(field_opts), position: {1, 1}, vitality: 0.60,
+      fatigue: 0.0, intake: 0.0, caregiver_intake: 0.0, self_intake: 0.0,
+      withdrawal_intake: 0.0, action_counts: Map.new(@base_actions ++ @peer_signals, &{&1, 0}),
+      visited: MapSet.new([{1, 1}]), alive?: true, tick: 0, last_action: nil,
+      last_caregiver: :none, records: []
+    }}
   end
 
-  defp collect_intents(_tick, _deadline, intents, late) when map_size(intents) == 2,
-    do: {intents, late}
+  @impl true
+  def handle_cast({:intent, owner, tick, features, actions, cue, phase}, state) do
+    field = DevelopmentalField.step(state.field, {:features, features}, state.field_opts)
+    action = choose_action(%{state | field: field}, actions, cue, phase, tick)
+    send(owner, {:dependent_sibling_intent, tick, state.id, action})
+    {:noreply, %{state | field: field}}
+  end
 
-  defp collect_intents(tick, deadline, intents, late) do
-    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+  @impl true
+  def handle_call({:commit, action, result, phase}, _from, state) do
+    record = %{tick: state.tick + 1, phase: phase, action: action, self_intake: result.self_intake, caregiver_intake: result.caregiver_intake, caregiver: result.caregiver_action}
+    next = %{state |
+      position: result.position, vitality: result.vitality, fatigue: result.fatigue,
+      intake: state.intake + result.self_intake + result.caregiver_intake,
+      caregiver_intake: state.caregiver_intake + result.caregiver_intake,
+      self_intake: state.self_intake + result.self_intake,
+      withdrawal_intake: state.withdrawal_intake + if(phase == :withdrawal, do: result.self_intake, else: 0.0),
+      action_counts: Map.update(state.action_counts, action, 1, &(&1 + 1)),
+      visited: MapSet.put(state.visited, result.position), alive?: result.vitality > 0.0,
+      tick: state.tick + 1, last_action: action, last_caregiver: result.caregiver_action,
+      records: [record | state.records]
+    }
+    {:reply, :ok, next}
+  end
 
-    receive do
-      {:sibling_intent, ^tick, id, action, exploratory?} ->
-        collect_intents(
-          tick,
-          deadline,
-          Map.put_new(intents, id, %{action: action, exploratory?: exploratory?}),
-          late
-        )
+  def handle_call(:snapshot, _from, state), do: {:reply, Map.drop(state, [:field_opts, :field]), state}
 
-      {:sibling_intent, _other_tick, _id, _action, _exploratory?} ->
-        collect_intents(tick, deadline, intents, late + 1)
-    after
-      remaining -> {intents, late}
+  defp choose_action(state, actions, cue, phase, tick) do
+    signature = sensory_signature(state.position)
+    hunger = 1.0 - max(0.0, state.vitality - 0.014)
+
+    actions
+    |> Enum.map(fn action ->
+      exploration = :erlang.phash2({state.seed, tick, action}, 1_000) / 1_000 * exploration_gain(phase)
+      baseline = baseline(action, phase, state.fatigue)
+      pressure = if action == :wait, do: 0.0, else: hunger * pressure_gain(phase)
+      object = if action in [:reach, :manipulate] and signature != :empty, do: 0.08, else: 0.0
+      teaching = if action == cue, do: 0.34, else: 0.0
+      learned = learned_motor_score(state.field, action, state.field_opts) * 0.40
+      {action, exploration + baseline + pressure + object + teaching + learned}
+    end)
+    |> Enum.max_by(fn {action, score} -> {score, action} end)
+    |> elem(0)
+  end
+
+  defp resolve(state, action, condition, phase, amounts) do
+    depleted = max(0.0, state.vitality - 0.014)
+    hunger = 1.0 - depleted
+    {position, fatigue} = move(state.position, action, state.fatigue, phase)
+    {amounts, self_intake} = interact(amounts, position, action, hunger, phase)
+    teacher = teacher_mode(condition)
+    {amounts, caregiver_intake, caregiver_action} = caregiver(teacher, phase, position, amounts, hunger, self_intake)
+    vitality = min(1.0, depleted + self_intake + caregiver_intake)
+    {amounts, %{position: position, fatigue: fatigue, vitality: vitality, self_intake: self_intake, caregiver_intake: caregiver_intake, caregiver_action: caregiver_action}}
+  end
+
+  defp perception(state, phase, resources, other, heard, social?, signals?) do
+    base = [
+      {:development_phase, phase}, {:body_channel, :vitality, bucket(state.vitality)},
+      {:body_channel, :hunger, bucket(1.0 - state.vitality)}, {:body_channel, :fatigue, bucket(state.fatigue)},
+      {:place_channel, state.position}, {:sensory_channel, sensory_signature(state.position)},
+      {:caregiver_channel, state.last_caregiver}, {:motor_channel, state.last_action}
+    ]
+
+    social = if social? and other do
+      [{:peer_bearing, direction_toward(state.position, other.position)}, {:peer_action, other.last_action}, {:peer_alive, other.alive?}, {:peer_signal, if(signals?, do: heard, else: nil)}, {:peer_resource_contact, Map.get(resources, other.position, 0.0) > 0.01}]
+    else
+      []
+    end
+
+    base ++ social
+  end
+
+  defp caregiver(:orphan, _phase, _position, amounts, _hunger, _self), do: {amounts, 0.0, :none}
+  defp caregiver(_teacher, :withdrawal, _position, amounts, _hunger, _self), do: {amounts, 0.0, :none}
+  defp caregiver(_teacher, _phase, _position, amounts, _hunger, self) when self > 0.0, do: {amounts, 0.0, :observe_success}
+  defp caregiver(:participatory, :baby, _position, amounts, hunger, _self), do: direct_feed(amounts, hunger, :feed_and_expose)
+  defp caregiver(:participatory, :participation, position, amounts, hunger, _self) do
+    if hunger > 0.58, do: {Map.put(amounts, position, max(Map.get(amounts, position, 0.0), 0.20)), 0.0, :provision_for_participation}, else: {amounts, 0.0, :none}
+  end
+
+  defp direct_feed(amounts, hunger, action) do
+    intake = if hunger > 0.38, do: min(0.20, hunger * 0.30), else: 0.0
+    {amounts, intake, if(intake > 0.0, do: action, else: :none)}
+  end
+
+  defp teacher_cue(condition, :participation, position, amounts, hunger) do
+    if teacher_mode(condition) == :participatory and hunger > 0.58 and Map.get(amounts, position, 0.0) > 0.01, do: :manipulate, else: :none
+  end
+  defp teacher_cue(_condition, _phase, _position, _amounts, _hunger), do: :none
+
+  defp teacher_mode(condition) when condition in [:no_teacher_alone, :no_teacher_sibling_visible, :no_teacher_sibling_signals], do: :orphan
+  defp teacher_mode(_condition), do: :participatory
+  defp sibling?(condition), do: condition not in [:no_teacher_alone, :teacher_alone]
+  defp visible?(condition), do: condition in [:teacher_sibling_visible, :teacher_sibling_signals, :no_teacher_sibling_visible, :no_teacher_sibling_signals]
+  defp signals?(condition), do: condition in [:teacher_sibling_signals, :no_teacher_sibling_signals]
+
+  defp allowed_actions(:baby, false), do: [:signal, :orient, :reach, :wait]
+  defp allowed_actions(:baby, true), do: [:signal, :orient, :reach, :wait] ++ @peer_signals
+  defp allowed_actions(_phase, false), do: @base_actions
+  defp allowed_actions(_phase, true), do: @base_actions ++ @peer_signals
+
+  defp collect_intents(tick, ids, timeout) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    collect_intents(tick, MapSet.new(ids), deadline, %{}, 0)
+  end
+  defp collect_intents(_tick, pending, _deadline, intents, late) when map_size(intents) > 0 and map_size(intents) == MapSet.size(pending) + map_size(intents), do: {intents, late}
+  defp collect_intents(tick, pending, deadline, intents, late) do
+    if MapSet.size(pending) == 0 do
+      {intents, late}
+    else
+      remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+      receive do
+        {:dependent_sibling_intent, ^tick, id, action} -> collect_intents(tick, MapSet.delete(pending, id), deadline, Map.put_new(intents, id, %{action: action}), late)
+        {:dependent_sibling_intent, _other, _id, _action} -> collect_intents(tick, pending, deadline, intents, late + 1)
+      after
+        remaining -> {intents, late}
+      end
     end
   end
 
-  defp provide_environmental_support(pid) do
-    state = Learner.snapshot(pid)
-
-    outcome = %{
-      position: state.position,
-      carrying: state.carrying,
-      hunger: max(0.0, state.hunger - 0.35),
-      vitality: min(1.0, state.vitality + 0.12),
-      coherence: 0.0,
-      event: :caregiver_support
-    }
-
-    :ok = Learner.commit(pid, :caregiver_support, outcome)
+  defp other_state(states, :a), do: Map.get(states, :b)
+  defp other_state(states, :b), do: Map.get(states, :a)
+  defp pair_distance(states) do
+    case {Map.get(states, :a), Map.get(states, :b)} do
+      {%{position: a}, %{position: b}} -> manhattan(a, b)
+      _ -> nil
+    end
+  end
+  defp peer_signal(results, id) do
+    case Map.get(results, id) do
+      %{action: action} when action in @peer_signals -> action
+      _ -> nil
+    end
   end
 
-  defp blind_features(state, social) do
-    [
-      {:at_home_contact, state.position == @home},
-      {:at_food_contact, state.position == @food},
-      {:carrying, state.carrying},
-      {:hunger, band(state.hunger)},
-      {:last_action, state.last_action},
-      {:last_event, state.last_event}
-      | social
-    ]
+  defp phase(tick, baby, _participation) when tick <= baby, do: :baby
+  defp phase(tick, baby, participation) when tick <= baby + participation, do: :participation
+  defp phase(_tick, _baby, _participation), do: :withdrawal
+  defp learner_seed(seed, pair, :a), do: seed + pair * 10_007 + 101
+  defp learner_seed(seed, pair, :b), do: seed + pair * 10_007 + 503
+  defp alive_count(pids), do: Enum.count(pids, fn {_id, pid} -> snapshot(pid).alive? end)
+
+  defp move(position, action, fatigue, :baby) when action in @directions, do: {position, fatigue}
+  defp move(position, :wait, fatigue, _phase), do: {position, max(0.0, fatigue - 0.07)}
+  defp move(position, action, fatigue, _phase) when action in [:signal, :orient, :reach, :manipulate] ++ @peer_signals, do: {position, max(0.0, fatigue - 0.02)}
+  defp move(position, direction, fatigue, _phase) when direction in @directions, do: {step(position, direction), min(1.0, fatigue + 0.045)}
+
+  defp interact(amounts, position, action, hunger, phase) when action in [:reach, :manipulate] and phase != :baby do
+    available = Map.get(amounts, position, 0.0)
+    if available > 0.0 do
+      intake = min(available, min(0.20, hunger * 0.30))
+      {Map.put(amounts, position, available - intake), intake}
+    else
+      {amounts, 0.0}
+    end
   end
+  defp interact(amounts, _position, _action, _hunger, _phase), do: {amounts, 0.0}
 
-  defp social_features(_self, _other, _heard, false, _hear?), do: []
+  defp regenerate(amounts), do: Map.new(amounts, fn {position, amount} -> {position, min(0.80, amount + 0.010)} end)
+  defp sensory_signature(position), do: Map.get(@resources, position, Map.get(@distractors, position, :empty))
+  defp direction_toward({x, _y}, {tx, _ty}) when x < tx, do: :east
+  defp direction_toward({x, _y}, {tx, _ty}) when x > tx, do: :west
+  defp direction_toward({_x, y}, {_tx, ty}) when y < ty, do: :south
+  defp direction_toward({_x, y}, {_tx, ty}) when y > ty, do: :north
+  defp direction_toward(_position, _target), do: :here
+  defp step({x, y}, :north), do: {x, max(0, y - 1)}
+  defp step({x, y}, :south), do: {x, min(3, y + 1)}
+  defp step({x, y}, :east), do: {min(3, x + 1), y}
+  defp step({x, y}, :west), do: {max(0, x - 1), y}
+  defp manhattan({x1, y1}, {x2, y2}), do: abs(x1 - x2) + abs(y1 - y2)
 
-  defp social_features(self, other, heard, true, hear?) do
-    [
-      {:sibling_bearing, bearing(self.position, other.position)},
-      {:sibling_carrying, other.carrying},
-      {:sibling_last_action, other.last_action},
-      {:heard_signal, if(hear?, do: heard, else: nil)}
-    ]
-  end
-
-  defp resolve_one(state, action) do
-    {position, carrying, hunger, vitality, coherence, event} =
-      case action do
-        :left -> move_outcome(state, max(0, state.position - 1))
-        :right -> move_outcome(state, min(4, state.position + 1))
-
-        :collect when state.position == @food and not state.carrying ->
-          {state.position, true, state.hunger, state.vitality, 1.0, :food_collected}
-
-        :eat when state.position == @home and state.carrying ->
-          {state.position, false, max(0.0, state.hunger - 0.75),
-           min(1.0, state.vitality + 0.30), 1.0, :food_consumed}
-
-        signal when signal in @signals ->
-          {state.position, state.carrying, state.hunger, state.vitality, 0.0, signal}
-
-        :wait ->
-          {state.position, state.carrying, state.hunger, state.vitality, -0.02, :waited}
-
-        _ ->
-          {state.position, state.carrying, state.hunger, state.vitality, -0.12, :ineffective}
+  defp learned_motor_score(field, action, opts) do
+    targets = DevelopmentalField.active_micro_nodes(field, {:motor_channel, action}, opts)
+    Enum.reduce(field.activity, 0.0, fn {source, activity}, total ->
+      if activity >= 0.18 do
+        total + Enum.reduce(targets, 0.0, fn target, acc -> acc + Map.get(field.edges, {source, target}, 0.0) * activity end)
+      else
+        total
       end
-
-    aged_hunger = min(1.0, hunger + 0.00018)
-    aged_vitality = max(0.0, vitality - 0.00004 - aged_hunger * 0.000055)
-
-    %{
-      position: position,
-      carrying: carrying,
-      hunger: aged_hunger,
-      vitality: aged_vitality,
-      coherence: coherence,
-      event: event
-    }
+    end)
   end
 
-  defp move_outcome(state, next) do
-    coherence = if next == state.position, do: -0.20, else: 0.35
-    {next, state.carrying, state.hunger, state.vitality, coherence, :moved}
-  end
+  defp exploration_gain(:baby), do: 0.12
+  defp exploration_gain(_phase), do: 0.22
+  defp pressure_gain(:baby), do: 0.12
+  defp pressure_gain(:participation), do: 0.26
+  defp pressure_gain(:withdrawal), do: 0.30
+  defp baseline(:wait, :baby, fatigue), do: 0.36 + fatigue * 0.25
+  defp baseline(:wait, _phase, fatigue), do: 0.27 + fatigue * 0.28
+  defp baseline(:signal, :baby, _fatigue), do: 0.12
+  defp baseline(_action, _phase, _fatigue), do: 0.0
+  defp bucket(value) when value < 0.25, do: :very_low
+  defp bucket(value) when value < 0.50, do: :low
+  defp bucket(value) when value < 0.75, do: :high
+  defp bucket(_value), do: :very_high
 
   defp summarize(rows) do
     rows
     |> Enum.group_by(& &1.condition)
     |> Map.new(fn {condition, values} ->
-      learners = length(values) * 2
-      fed = Enum.sum(Enum.map(values, & &1.learners_fed))
-      meals = Enum.sum(Enum.map(values, & &1.total_meals))
-      firsts = Enum.flat_map(values, & &1.first_meal_ticks)
-      audible = Enum.sum(Enum.map(values, & &1.signals_audible))
-      inaudible = Enum.sum(Enum.map(values, & &1.signals_inaudible))
-      attempts = audible + inaudible
-      responses = Enum.sum(Enum.map(values, & &1.receiver_responses))
-      useful = Enum.sum(Enum.map(values, & &1.useful_signals))
-      follow = Enum.sum(Enum.map(values, & &1.follow_events))
-      opportunities = Enum.sum(Enum.map(values, & &1.social_opportunities))
-      matches = Enum.sum(Enum.map(values, & &1.action_matches))
-      comparisons = Enum.sum(Enum.map(values, & &1.action_comparisons))
-      accepted = Enum.sum(Enum.map(values, & &1.accepted_intents))
-      missed = Enum.sum(Enum.map(values, & &1.missed_intents))
-      late = Enum.sum(Enum.map(values, & &1.late_intents))
-      conventions = Enum.sum(Enum.map(values, & &1.conventions))
-
-      {condition,
-       %{
-         pair_survival_rate: fraction(values, & &1.pair_survived?),
-         learner_meal_rate: fed / max(learners, 1),
-         mean_meals: meals / max(learners, 1),
-         mean_first_meal_tick: mean(firsts),
-         follow_rate: ratio(follow, opportunities),
-         action_divergence: 1.0 - ratio(matches, comparisons),
-         missed_intent_rate: ratio(missed, accepted + missed),
-         late_intents: late,
-         signal_attempts: attempts,
-         audience_sensitivity: ratio(audible, attempts),
-         receiver_response_rate: ratio(responses, audible),
-         useful_signal_rate: ratio(useful, attempts),
-         convention_rate: conventions / max(length(values), 1)
-       }}
+      learners = Enum.sum(Enum.map(values, & &1.learner_count))
+      expected = Enum.sum(Enum.map(values, &(&1.accepted_intents + &1.missed_intents)))
+      attempts = Enum.sum(Enum.map(values, & &1.signal_attempts))
+      {condition, %{
+        baby_survival_rate: Enum.sum(Enum.map(values, & &1.baby_survived)) / max(learners, 1),
+        participation_survival_rate: Enum.sum(Enum.map(values, & &1.participation_survived)) / max(learners, 1),
+        withdrawal_survival_rate: Enum.sum(Enum.map(values, & &1.withdrawal_survived)) / max(learners, 1),
+        pair_survival_rate: Enum.count(values, & &1.pair_survived?) / max(length(values), 1),
+        mean_self_intake: Enum.sum(Enum.map(values, & &1.self_intake)) / max(learners, 1),
+        mean_caregiver_intake: Enum.sum(Enum.map(values, & &1.caregiver_intake)) / max(learners, 1),
+        mean_withdrawal_intake: Enum.sum(Enum.map(values, & &1.withdrawal_intake)) / max(learners, 1),
+        follow_rate: Enum.sum(Enum.map(values, & &1.follow_events)) / max(Enum.sum(Enum.map(values, & &1.social_opportunities)), 1),
+        missed_intent_rate: Enum.sum(Enum.map(values, & &1.missed_intents)) / max(expected, 1),
+        late_intents: Enum.sum(Enum.map(values, & &1.late_intents)),
+        signal_attempts: attempts,
+        useful_signal_rate: Enum.sum(Enum.map(values, & &1.useful_signals)) / max(attempts, 1)
+      }}
     end)
   end
 
-  defp maybe_convention(set, nil, _action, _event), do: set
-
-  defp maybe_convention(set, signal, action, event)
-       when event in [:food_collected, :food_consumed],
-       do: MapSet.put(set, {signal, action, event})
-
-  defp maybe_convention(set, _signal, _action, _event), do: set
-  defp bearing(position, target) when position < target, do: :right
-  defp bearing(position, target) when position > target, do: :left
-  defp bearing(_position, _target), do: :here
-  defp band(value) when value < 0.30, do: :low
-  defp band(value) when value < 0.65, do: :rising
-  defp band(_value), do: :critical
-  defp bool(true), do: 1
-  defp bool(false), do: 0
-  defp fraction([], _fun), do: 0.0
-  defp fraction(values, fun), do: Enum.count(values, fun) / length(values)
-  defp mean([]), do: 0.0
-  defp mean(values), do: Enum.sum(values) / length(values)
-  defp ratio(_n, 0), do: 0.0
-  defp ratio(n, d), do: n / d
   defp fmt(value), do: :erlang.float_to_binary(value * 1.0, decimals: 3)
 end
