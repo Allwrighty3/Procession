@@ -1,0 +1,35 @@
+name: Sibling Signal Follow-up
+
+on:
+  pull_request:
+    paths:
+      - 'lib/procession/simulation/sibling_signal_followup_experiment.ex'
+      - 'lib/mix/tasks/procession.metrics.sibling_signal_followup.ex'
+      - 'test/procession/simulation/sibling_signal_followup_experiment_test.exs'
+      - '.github/workflows/sibling-signal-followup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18.3'
+      - run: mix deps.get
+      - run: mix compile
+      - run: mix test test/procession/simulation/sibling_signal_followup_experiment_test.exs
+      - name: Run follow-up diagnostic
+        shell: bash
+        run: |
+          set -o pipefail
+          mix procession.metrics.sibling_signal_followup | tee sibling-signal-followup.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sibling-signal-followup
+          path: sibling-signal-followup.txt
