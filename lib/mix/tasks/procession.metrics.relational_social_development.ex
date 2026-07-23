@@ -6,9 +6,9 @@ defmodule Mix.Tasks.Procession.Metrics.RelationalSocialDevelopment do
   @impl true
   def run(_args) do
     Procession.Simulation.RelationalSocialDevelopmentExperiment.run(
-      population: 24,
-      teaching_ticks: 320,
-      transfer_ticks: 480,
+      population: 12,
+      teaching_ticks: 160,
+      transfer_ticks: 240,
       seed: 41
     )
     |> Procession.Simulation.RelationalSocialDevelopmentExperiment.report()
