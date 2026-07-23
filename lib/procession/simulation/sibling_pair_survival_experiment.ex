@@ -5,8 +5,8 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
   Both learners decide from one immutable world snapshot. Their actions and world
   consequences resolve together. The caregiver emits perceptible signals in every
   teacher condition. A sibling may attempt the ordinary :signal motor action, but
-  it is only transmitted after a generated pathway binds informative teacher signals
-  to the learner's signal motor representation.
+  it is only transmitted after actual teacher exposure and a generated pathway bind
+  informative teacher signals to the learner's signal motor representation.
   """
 
   use GenServer
@@ -60,7 +60,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       participation_ticks: participation,
       withdrawal_ticks: withdrawal,
       learning_scale: 0.01,
-      signal_pathway_rule: :generated_teacher_signal_motor_binding,
+      signal_pathway_rule: :experienced_teacher_signal_and_generated_motor_binding,
       intent_timeout_ms: timeout,
       rows: rows,
       summary: summarize(rows)
@@ -87,7 +87,7 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
       "execution=#{result.execution_model}",
       "population=#{result.population} baby=#{result.baby_ticks} participation=#{result.participation_ticks} withdrawal=#{result.withdrawal_ticks}",
       "learning=#{result.learning_scale} signal_pathway_rule=#{result.signal_pathway_rule}",
-      "teacher signals are perceptible in every teacher condition; sibling emission requires a generated teacher-signal/motor binding",
+      "teacher signals are perceptible in every teacher condition; sibling emission requires teacher experience and a generated signal/motor binding",
       "solo controls archived; all pair actions resolve from the same pre-tick world snapshot",
       ""
       | lines
@@ -245,10 +245,16 @@ defmodule Procession.Simulation.SiblingPairSurvivalExperiment do
     after_distance = manhattan(next_states.a.position, next_states.b.position)
     approached? = social? and after_distance < before_distance
     attempts = Enum.count(actions, fn {_id, action} -> action == :signal end)
+    teacher_experienced? = teacher_mode(condition) != :orphan
 
     emitted =
       Map.new([:a, :b], fn id ->
-        effective? = actions[id] == :signal and intents[id][:signal_ready?] and peer_signals?
+        effective? =
+          actions[id] == :signal and
+            intents[id][:signal_ready?] and
+            peer_signals? and
+            teacher_experienced?
+
         {id, if(effective?, do: signal_symbol(states[id], phase), else: nil)}
       end)
 
