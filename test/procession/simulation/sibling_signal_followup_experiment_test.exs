@@ -25,6 +25,6 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperimentTest do
     assert result.summary.isolated.action_divergence > 0.0
     assert result.summary.visible.action_divergence > 0.0
     assert result.summary.signals.signal_attempts > 0
-    assert Experiment.report(result) =~ "equal-blind"
+    assert Experiment.report(result) =~ "Equal-blind"
   end
 end
