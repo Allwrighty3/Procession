@@ -1,12 +1,4 @@
 defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
-  @moduledoc """
-  Factorial sibling-development diagnostic built on the original dependent
-  development body, teacher, resource, and action mechanics.
-
-  The only additions are a second simultaneous learner, optional peer perception
-  and signaling, supervised OTP learner processes, and world-owned deadline ticks.
-  """
-
   use GenServer
 
   alias Procession.Simulation.DevelopmentalField
@@ -21,8 +13,9 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     :no_teacher_sibling_signals
   ]
   @directions [:north, :south, :east, :west]
-  @base_actions [:signal, :orient, :reach, :manipulate, :wait] ++ @directions
-  @peer_signals [:signal_a, :signal_b]
+  @signals [:signal_a, :signal_b]
+  @actions [:signal, :orient, :reach, :manipulate, :wait] ++ @directions
+  @stationary [:signal, :orient, :reach, :manipulate, :signal_a, :signal_b]
   @resources %{{0, 0} => :rough_cool, {3, 0} => :sweet_soft, {2, 3} => :sharp_dry}
   @distractors %{{1, 0} => :rough_cool, {0, 2} => :sweet_soft, {3, 2} => :sharp_dry, {1, 3} => :smooth_warm}
 
@@ -42,23 +35,23 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
   def run(opts \\ []) do
     population = Keyword.get(opts, :population, 12)
-    baby_ticks = Keyword.get(opts, :baby_ticks, 2_500)
-    participation_ticks = Keyword.get(opts, :participation_ticks, 2_500)
-    withdrawal_ticks = Keyword.get(opts, :withdrawal_ticks, 3_000)
+    baby = Keyword.get(opts, :baby_ticks, 2_500)
+    participation = Keyword.get(opts, :participation_ticks, 2_500)
+    withdrawal = Keyword.get(opts, :withdrawal_ticks, 3_000)
     seed = Keyword.get(opts, :seed, 73)
     timeout = Keyword.get(opts, :intent_timeout_ms, 10)
 
     rows =
       for condition <- @conditions, pair <- 1..population do
-        run_case(condition, pair, seed, baby_ticks, participation_ticks, withdrawal_ticks, timeout)
+        run_case(condition, pair, seed, baby, participation, withdrawal, timeout)
       end
 
     %{
       execution_model: :world_owned_deadline_ticks,
       population: population,
-      baby_ticks: baby_ticks,
-      participation_ticks: participation_ticks,
-      withdrawal_ticks: withdrawal_ticks,
+      baby_ticks: baby,
+      participation_ticks: participation,
+      withdrawal_ticks: withdrawal,
       learning_scale: 0.01,
       intent_timeout_ms: timeout,
       rows: rows,
@@ -86,47 +79,26 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     Enum.join(header ++ lines, "\n")
   end
 
-  defp run_case(condition, pair, seed, baby_ticks, participation_ticks, withdrawal_ticks, timeout) do
+  defp run_case(condition, pair, seed, baby, participation, withdrawal, timeout) do
     {:ok, sup} = DynamicSupervisor.start_link(strategy: :one_for_one)
     ids = if sibling?(condition), do: [:a, :b], else: [:a]
 
     try do
       pids = Map.new(ids, fn id ->
-        field_opts = Keyword.put(@field_opts, :encoding_salt, {:dependent_sibling, pair, id, seed})
-        child = %{id: {__MODULE__, make_ref()}, start: {__MODULE__, :start_link, [[id: id, seed: learner_seed(seed, pair, id), field_opts: field_opts]]}, restart: :temporary}
-        {:ok, pid} = DynamicSupervisor.start_child(sup, child)
+        opts = [id: id, seed: seed + pair * 10_007 + if(id == :a, do: 101, else: 503), field_opts: Keyword.put(@field_opts, :encoding_salt, {:dependent_sibling, pair, id, seed})]
+        spec = %{id: {__MODULE__, make_ref()}, start: {__MODULE__, :start_link, [opts]}, restart: :temporary}
+        {:ok, pid} = DynamicSupervisor.start_child(sup, spec)
         {id, pid}
       end)
 
-      initial = %{
-        resources: Map.new(Map.keys(@resources), &{&1, 0.80}),
-        heard: %{a: nil, b: nil},
-        accepted: 0,
-        missed: 0,
-        late: 0,
-        follow: 0,
-        opportunities: 0,
-        signals: 0,
-        audible: 0,
-        useful: 0,
-        phase_survival: %{baby: 0, participation: 0},
-        records: []
-      }
-
-      total = baby_ticks + participation_ticks + withdrawal_ticks
+      total = baby + participation + withdrawal
+      initial = %{resources: Map.new(Map.keys(@resources), &{&1, 0.80}), heard: %{a: nil, b: nil}, accepted: 0, missed: 0, late: 0, follow: 0, opportunities: 0, signals: 0, useful: 0, baby_survived: 0, participation_survived: 0}
 
       final = Enum.reduce(1..total, initial, fn tick, world ->
-        phase = phase(tick, baby_ticks, participation_ticks)
+        phase = phase(tick, baby, participation)
         world = tick_world(pids, condition, phase, tick, world, timeout)
-
-        phase_survival =
-          cond do
-            tick == baby_ticks -> Map.put(world.phase_survival, :baby, alive_count(pids))
-            tick == baby_ticks + participation_ticks -> Map.put(world.phase_survival, :participation, alive_count(pids))
-            true -> world.phase_survival
-          end
-
-        %{world | phase_survival: phase_survival}
+        world = if tick == baby, do: %{world | baby_survived: alive_count(pids)}, else: world
+        if tick == baby + participation, do: %{world | participation_survived: alive_count(pids)}, else: world
       end)
 
       snapshots = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
@@ -135,9 +107,8 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
       %{
         condition: condition,
         learner_count: length(ids),
-        snapshots: snapshots,
-        baby_survived: final.phase_survival.baby,
-        participation_survived: final.phase_survival.participation,
+        baby_survived: final.baby_survived,
+        participation_survived: final.participation_survived,
         withdrawal_survived: alive,
         pair_survived?: alive == length(ids),
         accepted_intents: final.accepted,
@@ -146,7 +117,6 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
         follow_events: final.follow,
         social_opportunities: final.opportunities,
         signal_attempts: final.signals,
-        audible_signals: final.audible,
         useful_signals: final.useful,
         self_intake: Enum.sum(Enum.map(snapshots, fn {_id, s} -> s.self_intake end)),
         caregiver_intake: Enum.sum(Enum.map(snapshots, fn {_id, s} -> s.caregiver_intake end)),
@@ -161,74 +131,60 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     resources = regenerate(world.resources)
     states = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
     social? = visible?(condition)
-    signals? = signals?(condition)
+    signal_mode? = signals?(condition)
 
     Enum.each(pids, fn {id, pid} ->
       state = states[id]
       other = other_state(states, id)
-      features = perception(state, phase, resources, other, world.heard[id], social?, signals?)
-      actions = allowed_actions(phase, signals?)
-      cue = teacher_cue(condition, phase, state.position, resources, 1.0 - max(0.0, state.vitality - 0.014))
-      request_intent(pid, self(), tick, features, actions, cue, phase)
+      features = perception(state, phase, resources, other, world.heard[id], social?, signal_mode?)
+      actions = allowed_actions(phase, signal_mode?)
+      hunger = 1.0 - max(0.0, state.vitality - 0.014)
+      cue = teacher_cue(condition, phase, state.position, resources, hunger)
+      GenServer.cast(pid, {:intent, self(), tick, features, actions, cue, phase})
     end)
 
-    {intents, late} = collect_intents(tick, Map.keys(pids), timeout)
-    before_distance = pair_distance(states)
+    {intents, late} = collect_intents(tick, MapSet.new(Map.keys(pids)), timeout, %{}, 0)
+    before = pair_distance(states)
 
     {resources, results} = Enum.reduce(Map.keys(pids), {resources, %{}}, fn id, {amounts, acc} ->
       state = states[id]
       action = get_in(intents, [id, :action]) || :wait
       {amounts, result} = resolve(state, action, condition, phase, amounts)
-      :ok = commit(pids[id], action, result, phase)
-      {amounts, Map.put(acc, id, %{action: action, result: result})}
+      :ok = GenServer.call(pids[id], {:commit, action, result, phase}, :infinity)
+      {amounts, Map.put(acc, id, action)}
     end)
 
     next_states = Map.new(pids, fn {id, pid} -> {id, snapshot(pid)} end)
     after_distance = pair_distance(next_states)
-    approached = social? and before_distance != nil and after_distance < before_distance
-    signals = Enum.count(results, fn {_id, r} -> r.action in @peer_signals end)
-    audible = if signals? and before_distance != nil and before_distance <= 2, do: signals, else: 0
-    useful = if approached and Enum.any?(results, fn {_id, r} -> r.action in @peer_signals end), do: 1, else: 0
-
-    heard = %{
-      a: peer_signal(results, :b),
-      b: peer_signal(results, :a)
-    }
-
+    approached = social? and before != nil and after_distance < before
+    signals = Enum.count(results, fn {_id, action} -> action in @signals end)
+    heard = %{a: peer_signal(results, :b), b: peer_signal(results, :a)}
     accepted = map_size(intents)
-    expected = map_size(pids)
 
     %{
       world
       | resources: resources,
         heard: heard,
         accepted: world.accepted + accepted,
-        missed: world.missed + expected - accepted,
+        missed: world.missed + map_size(pids) - accepted,
         late: world.late + late,
         follow: world.follow + if(approached, do: 1, else: 0),
-        opportunities: world.opportunities + if(social? and before_distance != nil and before_distance > 0, do: 1, else: 0),
+        opportunities: world.opportunities + if(social? and before != nil and before > 0, do: 1, else: 0),
         signals: world.signals + signals,
-        audible: world.audible + audible,
-        useful: world.useful + useful
+        useful: world.useful + if(approached and signals > 0, do: 1, else: 0)
     }
   end
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
   def snapshot(pid), do: GenServer.call(pid, :snapshot, :infinity)
-  def request_intent(pid, owner, tick, features, actions, cue, phase), do: GenServer.cast(pid, {:intent, owner, tick, features, actions, cue, phase})
-  def commit(pid, action, result, phase), do: GenServer.call(pid, {:commit, action, result, phase}, :infinity)
 
   @impl true
   def init(opts) do
     field_opts = Keyword.fetch!(opts, :field_opts)
-    {:ok, %{
-      id: Keyword.fetch!(opts, :id), seed: Keyword.fetch!(opts, :seed), field_opts: field_opts,
+    {:ok, %{id: Keyword.fetch!(opts, :id), seed: Keyword.fetch!(opts, :seed), field_opts: field_opts,
       field: DevelopmentalField.new(field_opts), position: {1, 1}, vitality: 0.60,
-      fatigue: 0.0, intake: 0.0, caregiver_intake: 0.0, self_intake: 0.0,
-      withdrawal_intake: 0.0, action_counts: Map.new(@base_actions ++ @peer_signals, &{&1, 0}),
-      visited: MapSet.new([{1, 1}]), alive?: true, tick: 0, last_action: nil,
-      last_caregiver: :none, records: []
-    }}
+      fatigue: 0.0, caregiver_intake: 0.0, self_intake: 0.0, withdrawal_intake: 0.0,
+      alive?: true, tick: 0, last_action: nil, last_caregiver: :none}}
   end
 
   @impl true
@@ -241,17 +197,17 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
 
   @impl true
   def handle_call({:commit, action, result, phase}, _from, state) do
-    record = %{tick: state.tick + 1, phase: phase, action: action, self_intake: result.self_intake, caregiver_intake: result.caregiver_intake, caregiver: result.caregiver_action}
     next = %{state |
-      position: result.position, vitality: result.vitality, fatigue: result.fatigue,
-      intake: state.intake + result.self_intake + result.caregiver_intake,
+      position: result.position,
+      vitality: result.vitality,
+      fatigue: result.fatigue,
       caregiver_intake: state.caregiver_intake + result.caregiver_intake,
       self_intake: state.self_intake + result.self_intake,
       withdrawal_intake: state.withdrawal_intake + if(phase == :withdrawal, do: result.self_intake, else: 0.0),
-      action_counts: Map.update(state.action_counts, action, 1, &(&1 + 1)),
-      visited: MapSet.put(state.visited, result.position), alive?: result.vitality > 0.0,
-      tick: state.tick + 1, last_action: action, last_caregiver: result.caregiver_action,
-      records: [record | state.records]
+      alive?: result.vitality > 0.0,
+      tick: state.tick + 1,
+      last_action: action,
+      last_caregiver: result.caregiver_action
     }
     {:reply, :ok, next}
   end
@@ -259,8 +215,8 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   def handle_call(:snapshot, _from, state), do: {:reply, Map.drop(state, [:field_opts, :field]), state}
 
   defp choose_action(state, actions, cue, phase, tick) do
-    signature = sensory_signature(state.position)
     hunger = 1.0 - max(0.0, state.vitality - 0.014)
+    signature = sensory_signature(state.position)
 
     actions
     |> Enum.map(fn action ->
@@ -281,27 +237,24 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
     hunger = 1.0 - depleted
     {position, fatigue} = move(state.position, action, state.fatigue, phase)
     {amounts, self_intake} = interact(amounts, position, action, hunger, phase)
-    teacher = teacher_mode(condition)
-    {amounts, caregiver_intake, caregiver_action} = caregiver(teacher, phase, position, amounts, hunger, self_intake)
+    {amounts, caregiver_intake, caregiver_action} = caregiver(teacher_mode(condition), phase, position, amounts, hunger, self_intake)
     vitality = min(1.0, depleted + self_intake + caregiver_intake)
     {amounts, %{position: position, fatigue: fatigue, vitality: vitality, self_intake: self_intake, caregiver_intake: caregiver_intake, caregiver_action: caregiver_action}}
   end
 
-  defp perception(state, phase, resources, other, heard, social?, signals?) do
+  defp perception(state, phase, resources, other, heard, social?, signal_mode?) do
     base = [
       {:development_phase, phase}, {:body_channel, :vitality, bucket(state.vitality)},
       {:body_channel, :hunger, bucket(1.0 - state.vitality)}, {:body_channel, :fatigue, bucket(state.fatigue)},
       {:place_channel, state.position}, {:sensory_channel, sensory_signature(state.position)},
-      {:caregiver_channel, state.last_caregiver}, {:motor_channel, state.last_action}
+      {:motor_channel, state.last_action}, {:caregiver_channel, state.last_caregiver}
     ]
 
-    social = if social? and other do
-      [{:peer_bearing, direction_toward(state.position, other.position)}, {:peer_action, other.last_action}, {:peer_alive, other.alive?}, {:peer_signal, if(signals?, do: heard, else: nil)}, {:peer_resource_contact, Map.get(resources, other.position, 0.0) > 0.01}]
+    if social? and other do
+      base ++ [{:peer_bearing, direction_toward(state.position, other.position)}, {:peer_action, other.last_action}, {:peer_alive, other.alive?}, {:peer_signal, if(signal_mode?, do: heard, else: nil)}, {:peer_resource_contact, Map.get(resources, other.position, 0.0) > 0.01}]
     else
-      []
+      base
     end
-
-    base ++ social
   end
 
   defp caregiver(:orphan, _phase, _position, amounts, _hunger, _self), do: {amounts, 0.0, :none}
@@ -309,7 +262,9 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   defp caregiver(_teacher, _phase, _position, amounts, _hunger, self) when self > 0.0, do: {amounts, 0.0, :observe_success}
   defp caregiver(:participatory, :baby, _position, amounts, hunger, _self), do: direct_feed(amounts, hunger, :feed_and_expose)
   defp caregiver(:participatory, :participation, position, amounts, hunger, _self) do
-    if hunger > 0.58, do: {Map.put(amounts, position, max(Map.get(amounts, position, 0.0), 0.20)), 0.0, :provision_for_participation}, else: {amounts, 0.0, :none}
+    if hunger > 0.58,
+      do: {Map.put(amounts, position, max(Map.get(amounts, position, 0.0), 0.20)), 0.0, :provision_for_participation},
+      else: {amounts, 0.0, :none}
   end
 
   defp direct_feed(amounts, hunger, action) do
@@ -318,40 +273,49 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   end
 
   defp teacher_cue(condition, :participation, position, amounts, hunger) do
-    if teacher_mode(condition) == :participatory and hunger > 0.58 and Map.get(amounts, position, 0.0) > 0.01, do: :manipulate, else: :none
+    if teacher_mode(condition) == :participatory and hunger > 0.58 and Map.get(amounts, position, 0.0) > 0.01,
+      do: :manipulate,
+      else: :none
   end
   defp teacher_cue(_condition, _phase, _position, _amounts, _hunger), do: :none
+
+  defp collect_intents(tick, pending, timeout, intents, late) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    collect_until(tick, pending, deadline, intents, late)
+  end
+
+  defp collect_until(_tick, pending, _deadline, intents, late) when map_size(intents) >= 0 do
+    if MapSet.size(pending) == 0, do: {intents, late}, else: :continue
+  end
+
+  defp collect_until(tick, pending, deadline, intents, late) do
+    case MapSet.size(pending) do
+      0 -> {intents, late}
+      _ ->
+        remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+        receive do
+          {:dependent_sibling_intent, ^tick, id, action} -> collect_until(tick, MapSet.delete(pending, id), deadline, Map.put_new(intents, id, %{action: action}), late)
+          {:dependent_sibling_intent, _other, _id, _action} -> collect_until(tick, pending, deadline, intents, late + 1)
+        after
+          remaining -> {intents, late}
+        end
+    end
+  end
 
   defp teacher_mode(condition) when condition in [:no_teacher_alone, :no_teacher_sibling_visible, :no_teacher_sibling_signals], do: :orphan
   defp teacher_mode(_condition), do: :participatory
   defp sibling?(condition), do: condition not in [:no_teacher_alone, :teacher_alone]
   defp visible?(condition), do: condition in [:teacher_sibling_visible, :teacher_sibling_signals, :no_teacher_sibling_visible, :no_teacher_sibling_signals]
   defp signals?(condition), do: condition in [:teacher_sibling_signals, :no_teacher_sibling_signals]
-
   defp allowed_actions(:baby, false), do: [:signal, :orient, :reach, :wait]
-  defp allowed_actions(:baby, true), do: [:signal, :orient, :reach, :wait] ++ @peer_signals
-  defp allowed_actions(_phase, false), do: @base_actions
-  defp allowed_actions(_phase, true), do: @base_actions ++ @peer_signals
+  defp allowed_actions(:baby, true), do: [:signal, :orient, :reach, :wait] ++ @signals
+  defp allowed_actions(_phase, false), do: @actions
+  defp allowed_actions(_phase, true), do: @actions ++ @signals
 
-  defp collect_intents(tick, ids, timeout) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    collect_intents(tick, MapSet.new(ids), deadline, %{}, 0)
-  end
-  defp collect_intents(_tick, pending, _deadline, intents, late) when map_size(intents) > 0 and map_size(intents) == MapSet.size(pending) + map_size(intents), do: {intents, late}
-  defp collect_intents(tick, pending, deadline, intents, late) do
-    if MapSet.size(pending) == 0 do
-      {intents, late}
-    else
-      remaining = max(deadline - System.monotonic_time(:millisecond), 0)
-      receive do
-        {:dependent_sibling_intent, ^tick, id, action} -> collect_intents(tick, MapSet.delete(pending, id), deadline, Map.put_new(intents, id, %{action: action}), late)
-        {:dependent_sibling_intent, _other, _id, _action} -> collect_intents(tick, pending, deadline, intents, late + 1)
-      after
-        remaining -> {intents, late}
-      end
-    end
-  end
-
+  defp phase(tick, baby, _participation) when tick <= baby, do: :baby
+  defp phase(tick, baby, participation) when tick <= baby + participation, do: :participation
+  defp phase(_tick, _baby, _participation), do: :withdrawal
+  defp alive_count(pids), do: Enum.count(pids, fn {_id, pid} -> snapshot(pid).alive? end)
   defp other_state(states, :a), do: Map.get(states, :b)
   defp other_state(states, :b), do: Map.get(states, :a)
   defp pair_distance(states) do
@@ -362,21 +326,14 @@ defmodule Procession.Simulation.SiblingSignalFollowupExperiment do
   end
   defp peer_signal(results, id) do
     case Map.get(results, id) do
-      %{action: action} when action in @peer_signals -> action
+      action when action in @signals -> action
       _ -> nil
     end
   end
 
-  defp phase(tick, baby, _participation) when tick <= baby, do: :baby
-  defp phase(tick, baby, participation) when tick <= baby + participation, do: :participation
-  defp phase(_tick, _baby, _participation), do: :withdrawal
-  defp learner_seed(seed, pair, :a), do: seed + pair * 10_007 + 101
-  defp learner_seed(seed, pair, :b), do: seed + pair * 10_007 + 503
-  defp alive_count(pids), do: Enum.count(pids, fn {_id, pid} -> snapshot(pid).alive? end)
-
   defp move(position, action, fatigue, :baby) when action in @directions, do: {position, fatigue}
   defp move(position, :wait, fatigue, _phase), do: {position, max(0.0, fatigue - 0.07)}
-  defp move(position, action, fatigue, _phase) when action in [:signal, :orient, :reach, :manipulate] ++ @peer_signals, do: {position, max(0.0, fatigue - 0.02)}
+  defp move(position, action, fatigue, _phase) when action in @stationary, do: {position, max(0.0, fatigue - 0.02)}
   defp move(position, direction, fatigue, _phase) when direction in @directions, do: {step(position, direction), min(1.0, fatigue + 0.045)}
 
   defp interact(amounts, position, action, hunger, phase) when action in [:reach, :manipulate] and phase != :baby do
