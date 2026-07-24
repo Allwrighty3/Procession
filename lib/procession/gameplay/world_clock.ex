@@ -34,16 +34,23 @@ defmodule Procession.WorldClock do
   def active_processes(clock \\ @name), do: GenServer.call(clock, :active_processes)
   def completed_processes(clock \\ @name), do: GenServer.call(clock, :completed_processes)
 
-  def start_process(clock \\ @name, attrs) when is_map(attrs) do
+  def start_process(attrs) when is_map(attrs), do: start_process(@name, attrs)
+
+  def start_process(clock, attrs) when is_map(attrs) do
     GenServer.call(clock, {:start_process, attrs})
   end
 
-  def cancel_process(clock \\ @name, process_id) do
+  def cancel_process(process_id), do: cancel_process(@name, process_id)
+
+  def cancel_process(clock, process_id) do
     GenServer.call(clock, {:cancel_process, process_id})
   end
 
-  def advance_to(clock \\ @name, target_ms)
-      when is_integer(target_ms) and target_ms >= 0 do
+  def advance_to(target_ms) when is_integer(target_ms) and target_ms >= 0 do
+    advance_to(@name, target_ms)
+  end
+
+  def advance_to(clock, target_ms) when is_integer(target_ms) and target_ms >= 0 do
     GenServer.call(clock, {:advance_to, target_ms})
   end
 
@@ -101,26 +108,28 @@ defmodule Procession.WorldClock do
     {due, pending} =
       state.processes
       |> Map.values()
-      |> Enum.split_with(&TemporalProcess.due?(&1, target_ms))
+      |> Enum.split_with(fn process -> TemporalProcess.due?(process, target_ms) end)
 
     completed =
       due
-      |> Enum.sort_by(&{&1.next_transition_at, inspect(&1.id)})
-      |> Enum.map(&TemporalProcess.complete(&1, &1.next_transition_at))
+      |> Enum.sort_by(fn process -> {process.next_transition_at, inspect(process.id)} end)
+      |> Enum.map(fn process ->
+        TemporalProcess.complete(process, process.next_transition_at)
+      end)
 
     %{
       state
       | now_ms: target_ms,
-        processes: Map.new(pending, &{&1.id, &1}),
+        processes: Map.new(pending, fn process -> {process.id, process} end),
         completed_processes: Enum.reverse(completed) ++ state.completed_processes
     }
   end
 
   defp next_transition_time(state) do
-    state.processes
-    |> Map.values()
-    |> Enum.map(& &1.next_transition_at)
-    |> Enum.min(fn -> nil end)
+    case Map.values(state.processes) do
+      [] -> nil
+      processes -> processes |> Enum.map(& &1.next_transition_at) |> Enum.min()
+    end
   end
 
   defp schedule_next_interval(%{interval_ms: nil} = state), do: state
@@ -153,7 +162,11 @@ defmodule Procession.WorldClock do
   def handle_call(:now, _from, state), do: {:reply, state.now_ms, state}
 
   def handle_call(:active_processes, _from, state) do
-    processes = state.processes |> Map.values() |> Enum.sort_by(&{&1.next_transition_at, inspect(&1.id)})
+    processes =
+      state.processes
+      |> Map.values()
+      |> Enum.sort_by(fn process -> {process.next_transition_at, inspect(process.id)} end)
+
     {:reply, processes, state}
   end
 
@@ -162,15 +175,16 @@ defmodule Procession.WorldClock do
   end
 
   def handle_call({:start_process, attrs}, _from, state) do
-    attrs =
+    next_transition_at =
+      Map.get(attrs, :next_transition_at, state.now_ms + Map.get(attrs, :duration_ms, 0))
+
+    process_attrs =
       attrs
       |> Map.put_new(:started_at, state.now_ms)
-      |> Map.put_new_lazy(:next_transition_at, fn ->
-        state.now_ms + Map.get(attrs, :duration_ms, 0)
-      end)
+      |> Map.put(:next_transition_at, next_transition_at)
       |> Map.delete(:duration_ms)
 
-    case TemporalProcess.new(attrs) do
+    case TemporalProcess.new(process_attrs) do
       {:ok, process} ->
         if Map.has_key?(state.processes, process.id) do
           {:reply, {:error, :temporal_process_already_exists}, state}
