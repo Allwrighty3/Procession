@@ -77,10 +77,12 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   motor pattern. Consequence features then enter through the ordinary sensory path.
   """
   @spec feedback(t(), list(), number(), keyword()) :: t()
+  def feedback(loop, features, coherence, opts \\ [])
+
   def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts),
     do: raise(ArgumentError, "cannot apply feedback without a pending motor output")
 
-  def feedback(%__MODULE__{} = loop, features, coherence, opts \\ [])
+  def feedback(%__MODULE__{} = loop, features, coherence, opts)
       when is_list(features) and is_number(coherence) do
     field =
       loop.field
