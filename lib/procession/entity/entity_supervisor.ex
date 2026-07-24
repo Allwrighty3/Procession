@@ -25,13 +25,19 @@ defmodule Procession.EntitySupervisor do
   def start_entity(id, attrs) do
     {sensorimotor_opts, entity_attrs} = Map.pop(attrs, :sensorimotor)
 
-    with {:ok, entity_pid} <- start_entity_process(id, entity_attrs),
-         :ok <- maybe_start_sensorimotor(id, sensorimotor_opts) do
-      {:ok, entity_pid}
-    else
-      {:error, reason} = error ->
-        stop_started_entity(id)
-        if reason == :sensorimotor_not_enabled, do: error, else: error
+    case start_entity_process(id, entity_attrs) do
+      {:ok, entity_pid} ->
+        case maybe_start_sensorimotor(id, sensorimotor_opts) do
+          :ok ->
+            {:ok, entity_pid}
+
+          {:error, reason} ->
+            DynamicSupervisor.terminate_child(__MODULE__, entity_pid)
+            {:error, reason}
+        end
+
+      error ->
+        error
     end
   end
 
@@ -149,6 +155,7 @@ defmodule Procession.EntitySupervisor do
   end
 
   defp maybe_start_sensorimotor(_id, nil), do: :ok
+
   defp maybe_start_sensorimotor(id, opts) when is_list(opts) do
     case start_sensorimotor(id, opts) do
       {:ok, _pid} -> :ok
@@ -163,13 +170,6 @@ defmodule Procession.EntitySupervisor do
 
   defp stop_sensorimotor(id) do
     case Registry.lookup(Procession.EntityRegistry, {:sensorimotor, id}) do
-      [{pid, _value}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
-      [] -> :ok
-    end
-  end
-
-  defp stop_started_entity(id) do
-    case Registry.lookup(Procession.EntityRegistry, id) do
       [{pid, _value}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
       [] -> :ok
     end
