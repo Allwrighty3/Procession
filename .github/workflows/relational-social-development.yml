@@ -1,0 +1,45 @@
+name: Relational Social Development
+
+on:
+  pull_request:
+    paths:
+      - 'lib/procession/simulation/relational_social_development_experiment.ex'
+      - 'lib/mix/tasks/procession.metrics.relational_social_development.ex'
+      - 'test/procession/simulation/relational_social_development_experiment_test.exs'
+      - '.github/workflows/relational-social-development.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18.3'
+      - run: mix deps.get
+      - name: Compile with diagnostics
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile 2>&1 | tee relational-social-compile.txt
+      - name: Upload compile diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relational-social-compile
+          path: relational-social-compile.txt
+      - run: mix test test/procession/simulation/relational_social_development_experiment_test.exs
+      - name: Run diagnostic
+        shell: bash
+        run: |
+          set -o pipefail
+          mix procession.metrics.relational_social_development | tee relational-social-development.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relational-social-development
+          path: relational-social-development.txt
