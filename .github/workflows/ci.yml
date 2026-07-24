@@ -36,18 +36,8 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Compile for behavioral validation
-        shell: bash
-        run: |
-          set -o pipefail
-          mix compile 2>&1 | tee compile-output.txt
-
-      - name: Upload compile output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compile-output
-          path: compile-output.txt
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
 
       - name: Run full test suite
         shell: bash
