@@ -1,7 +1,9 @@
-defmodule Procession.Simulation.PrimitiveDevelopmentExperimentTest do
+defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
   use ExUnit.Case, async: false
 
-  alias Procession.Simulation.PrimitiveDevelopmentExperiment, as: Experiment
+  alias Procession.Simulation.ClosedLoopPrimitiveExperiment, as: Experiment
+  alias Procession.Simulation.DevelopmentalField
+  alias Procession.Simulation.MentalPlaneMotorReadout
 
   test "exposes only low-level body controls" do
     controls = Experiment.controls()
@@ -25,7 +27,41 @@ defmodule Procession.Simulation.PrimitiveDevelopmentExperimentTest do
     refute :signal in controls
   end
 
-  test "runs paired primitive bodies through world-owned deadlines" do
+  test "learned field edges directly increase a motor population drive" do
+    opts = [
+      micro_nodes: 128,
+      input_width: 3,
+      encoding_salt: :motor_readout_test,
+      consolidation_threshold: 4,
+      coherence_threshold: 0.01,
+      minimum_compression_gain: -100.0,
+      plasticity_budget: 0.20,
+      activity_retention: 0.75,
+      edge_retention: 1.0,
+      propagation_gain: 1.5
+    ]
+
+    field = DevelopmentalField.new(opts)
+
+    trained =
+      Enum.reduce(1..80, field, fn _iteration, acc ->
+        acc
+        |> DevelopmentalField.step({:features, [{:body_hunger, :high}, {:local_signature, :rough_cool}]}, opts)
+        |> DevelopmentalField.step({:features, [{:motor_channel, :extend_limb}]}, opts)
+      end)
+
+    primed =
+      DevelopmentalField.step(
+        trained,
+        {:features, [{:body_hunger, :high}, {:local_signature, :rough_cool}]},
+        Keyword.put(opts, :plasticity_budget, 0.0)
+      )
+
+    drives = MentalPlaneMotorReadout.drives(primed, [:extend_limb, :phonate_high], opts)
+    assert drives.extend_limb > drives.phonate_high
+  end
+
+  test "runs paired bodies through a mental-plane closed loop" do
     result =
       Experiment.run(
         population: 1,
@@ -36,8 +72,9 @@ defmodule Procession.Simulation.PrimitiveDevelopmentExperimentTest do
         intent_timeout_ms: 20
       )
 
-    assert result.execution_model == :simultaneous_primitive_body_deadlines
+    assert result.execution_model == :mental_plane_closed_sensorimotor_loop
     assert result.action_level == :body_control_primitives
+    assert result.controller == :developmental_field_motor_populations
 
     assert Map.keys(result.summary) |> Enum.sort() ==
              [
@@ -56,31 +93,26 @@ defmodule Procession.Simulation.PrimitiveDevelopmentExperimentTest do
       assert row.baby_survived <= 2
       assert row.participation_survived <= 2
       assert row.withdrawal_survived <= 2
-      assert row.learned_ticks == 160
-      assert row.episode_count <= 24
-      assert row.plasticity_total > 0.0
-      assert row.surprise_total > 0.0
+      assert row.field_driven_controls + row.spontaneous_controls == row.ticks
+      assert row.generated_nodes >= 0
     end)
   end
 
-  test "observer diagnostics do not become learner action names" do
+  test "report states that no parallel learner controller exists" do
     result =
       Experiment.run(
         population: 1,
-        baby_ticks: 30,
-        participation_ticks: 30,
-        withdrawal_ticks: 60,
+        baby_ticks: 20,
+        participation_ticks: 20,
+        withdrawal_ticks: 40,
         seed: 11,
         intent_timeout_ms: 20
       )
 
     report = Experiment.report(result)
-
-    assert report =~ "named behaviors are observer diagnostics"
-    assert report =~ "contacts="
-    assert report =~ "feed_sequences="
-    assert report =~ "phonations="
-    assert report =~ "plasticity="
-    assert report =~ "surprise="
+    assert report =~ "mental-plane activity and directed edges directly excite motor populations"
+    assert report =~ "no learner action values, prediction maps, episode memory"
+    assert report =~ "field_driven="
+    assert report =~ "motor_margin="
   end
 end
