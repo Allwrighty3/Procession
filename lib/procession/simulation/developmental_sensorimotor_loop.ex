@@ -19,28 +19,24 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
             cycles: 0
 
   def new(opts \\ []) do
-    field_opts = Keyword.get(opts, :field_opts, [])
-    body_opts = Keyword.get(opts, :body_opts, [])
-
     %__MODULE__{
-      field: DevelopmentalSensorimotorField.new(field_opts),
-      body: DevelopmentalMotorBody.new(body_opts),
+      field:
+        DevelopmentalSensorimotorField.new(
+          Keyword.get(opts, :field_opts, [])
+        ),
+      body:
+        DevelopmentalMotorBody.new(
+          Keyword.get(opts, :body_opts, [])
+        ),
       position: Keyword.get(opts, :position, {0, 0})
     }
   end
 
-  @doc "Feed currently available sensory features into the relational field."
   def sense(%__MODULE__{} = loop, features, opts \\ []) when is_list(features) do
-    %{loop | field: DevelopmentalSensorimotorField.sense(loop.field, features, opts)}
+    field = DevelopmentalSensorimotorField.sense(loop.field, features, opts)
+    %{loop | field: field}
   end
 
-  @doc """
-  Let current field activity activate one opaque motor pattern and affect the body.
-
-  Pattern selection combines learned field support with deterministic exploration.
-  The returned direction is a physical consequence of channel activation, never a
-  semantically selected action.
-  """
   def emit(%__MODULE__{} = loop, tick, opts \\ []) when is_integer(tick) do
     seed = Keyword.get(opts, :seed, 1)
     patterns = DevelopmentalMotorBody.patterns()
@@ -48,7 +44,13 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     pattern = select_pattern(patterns, scores, tick, seed, opts)
 
     {body, outcome} =
-      DevelopmentalMotorBody.attempt(loop.body, pattern, loop.position, tick, opts)
+      DevelopmentalMotorBody.attempt(
+        loop.body,
+        pattern,
+        loop.position,
+        tick,
+        opts
+      )
 
     position = DevelopmentalMotorBody.apply_displacement(loop.position, outcome)
 
@@ -64,33 +66,29 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     {updated, Map.put(outcome, :position, position)}
   end
 
-  @doc """
-  Close the loop with the locally sensed consequence of the pending motor output.
-
-  `coherence` is supplied by the body/world boundary and is limited to `-1.0..1.0`.
-  It changes support from the previously active field context to the emitted opaque
-  motor pattern. Consequence features then enter through the ordinary sensory path.
-  """
-  def feedback(%__MODULE__{} = loop, features, coherence) do
-    feedback(loop, features, coherence, [])
-  end
+  def feedback(loop, features, coherence, opts \\ [])
 
   def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts) do
     raise ArgumentError, "cannot apply feedback without a pending motor output"
   end
 
   def feedback(%__MODULE__{} = loop, features, coherence, opts)
-      when is_list(features) and is_number(coherence) and is_list(opts) do
+      when is_list(features) and is_number(coherence) do
     field =
-      loop.field
-      |> DevelopmentalSensorimotorField.record_output(loop.pending_output, coherence, opts)
-      |> DevelopmentalSensorimotorField.sense(features, opts)
+      DevelopmentalSensorimotorField.record_output(
+        loop.field,
+        loop.pending_output,
+        coherence,
+        opts
+      )
 
+    field = DevelopmentalSensorimotorField.sense(field, features, opts)
     %{loop | field: field, pending_output: nil}
   end
 
-  @doc "Run one complete externally grounded sensorimotor cycle."
-  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts \\ [])
+  def cycle(loop, features, tick, feedback_fun, opts \\ [])
+
+  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts)
       when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
     sensed = sense(loop, features, opts)
     {emitted, outcome} = emit(sensed, tick, opts)
@@ -98,7 +96,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     {feedback(emitted, consequence_features, coherence, opts), outcome}
   end
 
-  @doc "Observer-facing trace of the current loop boundary."
   def trace(%__MODULE__{} = loop) do
     %{
       position: loop.position,
