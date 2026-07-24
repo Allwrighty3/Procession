@@ -18,9 +18,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
             last_outcome: nil,
             cycles: 0
 
-  @type t :: %__MODULE__{}
-
-  @spec new(keyword()) :: t()
   def new(opts \\ []) do
     field_opts = Keyword.get(opts, :field_opts, [])
     body_opts = Keyword.get(opts, :body_opts, [])
@@ -33,7 +30,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   @doc "Feed currently available sensory features into the relational field."
-  @spec sense(t(), list(), keyword()) :: t()
   def sense(%__MODULE__{} = loop, features, opts \\ []) when is_list(features) do
     %{loop | field: DevelopmentalSensorimotorField.sense(loop.field, features, opts)}
   end
@@ -45,7 +41,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   The returned direction is a physical consequence of channel activation, never a
   semantically selected action.
   """
-  @spec emit(t(), integer(), keyword()) :: {t(), map()}
   def emit(%__MODULE__{} = loop, tick, opts \\ []) when is_integer(tick) do
     seed = Keyword.get(opts, :seed, 1)
     patterns = DevelopmentalMotorBody.patterns()
@@ -76,14 +71,16 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   It changes support from the previously active field context to the emitted opaque
   motor pattern. Consequence features then enter through the ordinary sensory path.
   """
-  @spec feedback(t(), list(), number(), keyword()) :: t()
-  def feedback(loop, features, coherence, opts \\ [])
+  def feedback(%__MODULE__{} = loop, features, coherence) do
+    feedback(loop, features, coherence, [])
+  end
 
-  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts),
-    do: raise(ArgumentError, "cannot apply feedback without a pending motor output")
+  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts) do
+    raise ArgumentError, "cannot apply feedback without a pending motor output"
+  end
 
   def feedback(%__MODULE__{} = loop, features, coherence, opts)
-      when is_list(features) and is_number(coherence) do
+      when is_list(features) and is_number(coherence) and is_list(opts) do
     field =
       loop.field
       |> DevelopmentalSensorimotorField.record_output(loop.pending_output, coherence, opts)
@@ -93,8 +90,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   @doc "Run one complete externally grounded sensorimotor cycle."
-  @spec cycle(t(), list(), integer(), (map(), {integer(), integer()} -> {list(), number()}), keyword()) ::
-          {t(), map()}
   def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts \\ [])
       when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
     sensed = sense(loop, features, opts)
@@ -104,7 +99,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   @doc "Observer-facing trace of the current loop boundary."
-  @spec trace(t()) :: map()
   def trace(%__MODULE__{} = loop) do
     %{
       position: loop.position,
@@ -118,7 +112,11 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   defp select_pattern(patterns, scores, tick, seed, opts) do
-    exploration = Keyword.get(opts, :output_exploration, 0.20) |> max(0.0) |> min(1.0)
+    exploration =
+      opts
+      |> Keyword.get(:output_exploration, 0.20)
+      |> max(0.0)
+      |> min(1.0)
 
     patterns
     |> Enum.map(fn pattern ->
