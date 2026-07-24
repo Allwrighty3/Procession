@@ -1,12 +1,12 @@
 defmodule Mix.Tasks.Procession.Metrics.SiblingSignalFollowup do
   use Mix.Task
 
-  @shortdoc "Runs the simultaneous sibling-only developmental diagnostic"
+  @shortdoc "Runs the primitive-body sibling developmental diagnostic"
 
   @impl true
   def run(_args) do
-    Procession.Simulation.SiblingPairSurvivalExperiment.run()
-    |> Procession.Simulation.SiblingPairSurvivalExperiment.report()
+    Procession.Simulation.PrimitiveDevelopmentExperiment.run()
+    |> Procession.Simulation.PrimitiveDevelopmentExperiment.report()
     |> Mix.shell().info()
   end
 end
