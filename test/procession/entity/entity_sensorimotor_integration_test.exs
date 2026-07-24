@@ -82,8 +82,10 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
 
     assert EntitySupervisor.sensorimotor_enabled?(id)
     assert :ok = EntitySupervisor.stop_entity(id)
-    refute EntitySupervisor.exists?(id)
-    refute EntitySupervisor.sensorimotor_enabled?(id)
+
+    assert_eventually(fn ->
+      not EntitySupervisor.exists?(id) and not EntitySupervisor.sensorimotor_enabled?(id)
+    end)
   end
 
   test "entity listings exclude subsystem registry entries", %{id: id} do
@@ -96,5 +98,17 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
     refute Enum.any?(EntitySupervisor.list_entities(), fn {listed_id, _pid} ->
              match?({:sensorimotor, _}, listed_id)
            end)
+  end
+
+  defp assert_eventually(predicate, attempts \\ 20)
+  defp assert_eventually(predicate, 0), do: assert(predicate.())
+
+  defp assert_eventually(predicate, attempts) do
+    if predicate.() do
+      assert true
+    else
+      Process.sleep(5)
+      assert_eventually(predicate, attempts - 1)
+    end
   end
 end
