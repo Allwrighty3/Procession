@@ -24,7 +24,17 @@ jobs:
           otp-version: '27'
           elixir-version: '1.18.3'
       - run: mix deps.get
-      - run: mix compile
+      - name: Compile closed-loop implementation
+        shell: bash
+        run: |
+          set -o pipefail
+          mix compile 2>&1 | tee closed-loop-compile.txt
+      - name: Upload compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-loop-compile
+          path: closed-loop-compile.txt
       - name: Run focused closed-loop tests
         shell: bash
         run: |
