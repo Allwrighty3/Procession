@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Procession.Metrics.SiblingSignalFollowup do
 
   @impl true
   def run(_args) do
-    Procession.Simulation.PrimitiveDevelopmentExperiment.run()
+    Procession.Simulation.PrimitiveDevelopmentExperiment.run(population: 4)
     |> Procession.Simulation.PrimitiveDevelopmentExperiment.report()
     |> Mix.shell().info()
   end
