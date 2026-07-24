@@ -3,8 +3,7 @@ name: Sibling Signal Follow-up
 on:
   pull_request:
     paths:
-      - 'lib/procession/simulation/sibling_learner_process.ex'
-      - 'lib/procession/simulation/sibling_signal_followup_experiment.ex'
+      - 'lib/procession/simulation/primitive_development_experiment.ex'
       - 'lib/mix/tasks/procession.metrics.sibling_signal_followup.ex'
       - 'test/procession/simulation/sibling_signal_followup_experiment_test.exs'
       - '.github/workflows/sibling-signal-followup.yml'
@@ -24,7 +23,7 @@ jobs:
           elixir-version: '1.18.3'
       - run: mix deps.get
       - run: mix compile
-      - name: Run focused OTP sibling tests
+      - name: Run focused primitive-body tests
         shell: bash
         run: |
           set -o pipefail
@@ -35,7 +34,7 @@ jobs:
         with:
           name: sibling-signal-test
           path: sibling-signal-test.txt
-      - name: Run follow-up diagnostic
+      - name: Run primitive developmental diagnostic
         shell: bash
         run: |
           set -o pipefail
