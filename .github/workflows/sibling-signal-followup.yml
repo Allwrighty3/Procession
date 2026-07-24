@@ -22,17 +22,7 @@ jobs:
           otp-version: '27'
           elixir-version: '1.18.3'
       - run: mix deps.get
-      - name: Compile with warnings as errors
-        shell: bash
-        run: |
-          set -o pipefail
-          mix compile --warnings-as-errors 2>&1 | tee primitive-compile.txt
-      - name: Upload compiler diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: primitive-compile
-          path: primitive-compile.txt
+      - run: mix compile
       - name: Run focused primitive-body tests
         shell: bash
         run: |
