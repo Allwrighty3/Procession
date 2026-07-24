@@ -263,7 +263,8 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperiment do
     contact? = body.limb_extension >= 0.60 and amount > 0.01
 
     desired =
-      if action.control == :contract_limb and action.elapsed == 0 and state.contact? and phase != :baby do
+      if action.control == :contract_limb and PrimitiveActionDynamics.completing?(action) and
+           state.contact? and phase != :baby do
         min(amount, min(0.20, (1.0 - depleted) * 0.30))
       else
         0.0
