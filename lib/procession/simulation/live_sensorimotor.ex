@@ -14,21 +14,23 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   def start_link(opts) do
     entity_id = Keyword.fetch!(opts, :entity_id)
-    name = Keyword.get(opts, :name)
-    server_opts = if name, do: [name: name], else: []
-    GenServer.start_link(__MODULE__, {entity_id, opts}, server_opts)
+    GenServer.start_link(__MODULE__, {entity_id, opts}, name: via_tuple(entity_id))
   end
 
-  def cycle(server, features, tick, feedback_fun, opts \\ []) do
-    GenServer.call(server, {:cycle, features, tick, feedback_fun, opts})
+  def cycle(entity_id, features, tick, feedback_fun, opts \\ []) do
+    GenServer.call(via_tuple(entity_id), {:cycle, features, tick, feedback_fun, opts})
   end
 
-  def trace(server) do
-    GenServer.call(server, :trace)
+  def trace(entity_id) do
+    GenServer.call(via_tuple(entity_id), :trace)
   end
 
-  def entity_id(server) do
-    GenServer.call(server, :entity_id)
+  def entity_id(entity_id) do
+    GenServer.call(via_tuple(entity_id), :entity_id)
+  end
+
+  def via_tuple(entity_id) do
+    {:via, Registry, {Procession.EntityRegistry, {:sensorimotor, entity_id}}}
   end
 
   @impl true
