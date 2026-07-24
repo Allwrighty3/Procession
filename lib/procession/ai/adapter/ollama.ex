@@ -12,7 +12,7 @@ defmodule Procession.AI.Ollama do
 
   @behaviour Procession.AI
 
-  @default_url 'http://localhost:11434/api/generate'
+  @default_url ~c"http://localhost:11434/api/generate"
   @default_model "llama3.2:1b"
   @default_timeout 60_000
 
@@ -29,8 +29,8 @@ defmodule Procession.AI.Ollama do
 
     request = {
       url,
-      [{'content-type', 'application/json'}],
-      'application/json',
+      [{~c"content-type", ~c"application/json"}],
+      ~c"application/json",
       body
     }
 
