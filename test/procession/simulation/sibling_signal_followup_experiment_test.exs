@@ -4,8 +4,9 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
   alias Procession.Simulation.ClosedLoopPrimitiveExperiment, as: Experiment
   alias Procession.Simulation.DevelopmentalField
   alias Procession.Simulation.MentalPlaneMotorReadout
+  alias Procession.Simulation.PrimitiveActionDynamics
 
-  test "exposes only low-level body controls" do
+  test "exposes only low-level body controls with physical durations" do
     controls = Experiment.controls()
 
     assert controls == [
@@ -20,11 +21,24 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
              :relax
            ]
 
+    assert Enum.all?(Experiment.action_durations(), fn {_control, duration} -> duration > 1 end)
     refute :reach in controls
     refute :manipulate in controls
     refute :feed in controls
     refute :follow in controls
     refute :signal in controls
+  end
+
+  test "body action progresses over several ticks before completing" do
+    action = PrimitiveActionDynamics.start(:extend_limb)
+    assert action.elapsed == 0
+    refute PrimitiveActionDynamics.completing?(action)
+
+    {:continuing, action} = PrimitiveActionDynamics.advance(action)
+    {:continuing, action} = PrimitiveActionDynamics.advance(action)
+    {:continuing, action} = PrimitiveActionDynamics.advance(action)
+    assert PrimitiveActionDynamics.completing?(action)
+    assert {:completed, %{elapsed: 4}} = PrimitiveActionDynamics.advance(action)
   end
 
   test "learned field edges directly increase a motor population drive" do
@@ -46,7 +60,10 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
     trained =
       Enum.reduce(1..80, field, fn _iteration, acc ->
         acc
-        |> DevelopmentalField.step({:features, [{:body_hunger, :high}, {:local_signature, :rough_cool}]}, opts)
+        |> DevelopmentalField.step(
+          {:features, [{:body_hunger, :high}, {:local_signature, :rough_cool}]},
+          opts
+        )
         |> DevelopmentalField.step({:features, [{:motor_channel, :extend_limb}]}, opts)
       end)
 
@@ -61,7 +78,7 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
     assert drives.extend_limb > drives.phonate_high
   end
 
-  test "runs paired bodies through a mental-plane closed loop" do
+  test "runs paired bodies through a temporally extended mental-plane loop" do
     result =
       Experiment.run(
         population: 1,
@@ -73,7 +90,7 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
       )
 
     assert result.execution_model == :mental_plane_closed_sensorimotor_loop
-    assert result.action_level == :body_control_primitives
+    assert result.action_level == :temporally_extended_body_control_primitives
     assert result.controller == :developmental_field_motor_populations
 
     assert Map.keys(result.summary) |> Enum.sort() ==
@@ -93,12 +110,15 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
       assert row.baby_survived <= 2
       assert row.participation_survived <= 2
       assert row.withdrawal_survived <= 2
-      assert row.field_driven_controls + row.spontaneous_controls == row.ticks
+      assert row.action_starts < row.ticks
+      assert row.action_completions <= row.action_starts
+      assert row.busy_ticks > 0
+      assert row.field_driven_starts + row.spontaneous_starts == row.action_starts
       assert row.generated_nodes >= 0
     end)
   end
 
-  test "report states that no parallel learner controller exists" do
+  test "report states that motor processes take multiple ticks" do
     result =
       Experiment.run(
         population: 1,
@@ -110,9 +130,10 @@ defmodule Procession.Simulation.ClosedLoopPrimitiveExperimentTest do
       )
 
     report = Experiment.report(result)
-    assert report =~ "mental-plane activity and directed edges directly excite motor populations"
+    assert report =~ "bodies advance them over multiple ticks"
     assert report =~ "no learner action values, prediction maps, episode memory"
-    assert report =~ "field_driven="
-    assert report =~ "motor_margin="
+    assert report =~ "starts="
+    assert report =~ "completions="
+    assert report =~ "busy_ticks="
   end
 end
