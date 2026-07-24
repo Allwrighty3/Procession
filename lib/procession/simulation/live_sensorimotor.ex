@@ -14,19 +14,20 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   def start_link(opts) do
     entity_id = Keyword.fetch!(opts, :entity_id)
-    GenServer.start_link(__MODULE__, {entity_id, opts}, name: via_tuple(entity_id))
+    name = Keyword.get(opts, :name, via_tuple(entity_id))
+    GenServer.start_link(__MODULE__, {entity_id, opts}, name: name)
   end
 
-  def cycle(entity_id, features, tick, feedback_fun, opts \\ []) do
-    GenServer.call(via_tuple(entity_id), {:cycle, features, tick, feedback_fun, opts})
+  def cycle(server_or_entity_id, features, tick, feedback_fun, opts \\ []) do
+    GenServer.call(server_ref(server_or_entity_id), {:cycle, features, tick, feedback_fun, opts})
   end
 
-  def trace(entity_id) do
-    GenServer.call(via_tuple(entity_id), :trace)
+  def trace(server_or_entity_id) do
+    GenServer.call(server_ref(server_or_entity_id), :trace)
   end
 
-  def entity_id(entity_id) do
-    GenServer.call(via_tuple(entity_id), :entity_id)
+  def entity_id(server_or_entity_id) do
+    GenServer.call(server_ref(server_or_entity_id), :entity_id)
   end
 
   def via_tuple(entity_id) do
@@ -73,4 +74,8 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
     {:reply, {:ok, result}, %{state | loop: loop}}
   end
+
+  defp server_ref(server) when is_pid(server), do: server
+  defp server_ref({:via, _module, _term} = server), do: server
+  defp server_ref(entity_id), do: via_tuple(entity_id)
 end
