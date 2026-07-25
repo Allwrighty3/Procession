@@ -135,27 +135,29 @@ defmodule Procession.Simulation.LiveSensorimotor do
   end
 
   def handle_call({:cycle, features, tick, feedback_fun, opts}, _from, state) do
-    with {:ok, emitted, outcome} <- emit_loop(state.loop, features, tick, opts),
-         {:ok, consequence_features, coherence} <-
-           invoke_feedback(feedback_fun, outcome, emitted.position) do
-      loop =
-        DevelopmentalSensorimotorLoop.feedback(
-          emitted,
-          consequence_features,
-          coherence,
-          opts
-        )
+    case emit_loop(state.loop, features, tick, opts) do
+      {:ok, emitted, outcome} ->
+        case invoke_feedback(feedback_fun, outcome, emitted.position) do
+          {:ok, consequence_features, coherence} ->
+            loop =
+              DevelopmentalSensorimotorLoop.feedback(
+                emitted,
+                consequence_features,
+                coherence,
+                opts
+              )
 
-      result = %{
-        entity_id: state.entity_id,
-        outcome: outcome,
-        trace: DevelopmentalSensorimotorLoop.trace(loop)
-      }
+            result = %{
+              entity_id: state.entity_id,
+              outcome: outcome,
+              trace: DevelopmentalSensorimotorLoop.trace(loop)
+            }
 
-      {:reply, {:ok, result}, %{state | loop: loop}}
-    else
-      {:error, {:feedback_failed, reason, emitted, outcome}} ->
-        {:reply, {:error, {:feedback_failed, reason, outcome}}, %{state | loop: emitted}}
+            {:reply, {:ok, result}, %{state | loop: loop}}
+
+          {:error, reason} ->
+            {:reply, {:error, {:feedback_failed, reason, outcome}}, %{state | loop: emitted}}
+        end
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
@@ -226,10 +228,6 @@ defmodule Procession.Simulation.LiveSensorimotor do
       error -> {:error, {:exception, Exception.message(error)}}
     catch
       kind, reason -> {:error, {kind, reason}}
-    end
-    |> case do
-      {:ok, features, coherence} -> {:ok, features, coherence}
-      {:error, reason} -> {:error, {:feedback_failed, reason, nil, nil}}
     end
   end
 
