@@ -14,7 +14,6 @@ defmodule Procession.Simulation.RegionObservationPublisher do
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.AutomaticResolutionPolicy
-  alias Procession.Simulation.LiveResolutionManager
 
   @name __MODULE__
 
@@ -24,7 +23,6 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       dependencies: %{},
       region_positions: %{},
       policy_server: Keyword.get(opts, :policy_server, AutomaticResolutionPolicy),
-      resolution_server: Keyword.get(opts, :resolution_server, LiveResolutionManager),
       entity_supervisor: Keyword.get(opts, :entity_supervisor, EntitySupervisor),
       config: Keyword.get(opts, :config, [])
     }
@@ -103,7 +101,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
     entity_samples = sample_entities(state.entity_supervisor)
     players = Enum.filter(entity_samples, &(&1.type == :player and not is_nil(&1.location)))
     grouped = Enum.group_by(entity_samples, & &1.location)
-    regions = known_regions(state.resolution_server, grouped, events, dependencies)
+    regions = known_regions(grouped, events, dependencies)
 
     observations =
       Map.new(regions, fn region_id ->
@@ -142,7 +140,16 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       try do
         entity = Entity.get_state(id)
         salience = sample_salience(supervisor, id)
-        [%{id: id, type: entity.type, location: entity.location, salience: salience, mind_sampled?: not is_nil(salience)}]
+
+        [
+          %{
+            id: id,
+            type: entity.type,
+            location: entity.location,
+            salience: salience,
+            mind_sampled?: not is_nil(salience)
+          }
+        ]
       catch
         :exit, _reason -> []
       end
@@ -154,7 +161,14 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       {:ok, %{salience: salience}} when is_map(salience) ->
         active = number(salience, :active_mass, 0.0)
         imprints = number(salience, :imprint_count, 0.0)
-        effective = salience |> Map.get(:effective_signals, %{}) |> Map.values() |> Enum.map(&abs/1) |> Enum.max(fn -> 0.0 end)
+
+        effective =
+          salience
+          |> Map.get(:effective_signals, %{})
+          |> Map.values()
+          |> Enum.map(&abs/1)
+          |> Enum.max(fn -> 0.0 end)
+
         clamp(max(effective, active / 10.0) + min(imprints * 0.05, 0.35), 0.0, 1.0)
 
       _ ->
@@ -164,15 +178,25 @@ defmodule Procession.Simulation.RegionObservationPublisher do
 
   defp aggregate_salience(residents) do
     values = residents |> Enum.map(& &1.salience) |> Enum.reject(&is_nil/1)
-    if values == [], do: 0.0, else: clamp(Enum.sum(values) / length(values), 0.0, 1.0)
+
+    case values do
+      [] ->
+        0.0
+
+      _ ->
+        mean = Enum.sum(values) / length(values)
+        peak = Enum.max(values)
+        clamp(max(mean, peak * 0.75), 0.0, 1.0)
+    end
   end
 
-  defp known_regions(resolution_server, grouped, events, dependencies) do
-    resolution = LiveResolutionManager.trace(resolution_server) |> Map.keys()
-    dependency_regions = dependencies |> Map.keys() |> Enum.flat_map(fn {from, to} -> [from, to] end)
+  defp known_regions(grouped, events, dependencies) do
+    dependency_regions =
+      dependencies
+      |> Map.keys()
+      |> Enum.flat_map(fn {from, to} -> [from, to] end)
 
-    resolution
-    |> Enum.concat(Map.keys(grouped))
+    Map.keys(grouped)
     |> Enum.concat(Map.keys(events))
     |> Enum.concat(dependency_regions)
     |> Enum.reject(&is_nil/1)
@@ -182,14 +206,18 @@ defmodule Procession.Simulation.RegionObservationPublisher do
 
   defp player_distance(region_id, players, positions) do
     cond do
-      Enum.any?(players, &(&1.location == region_id)) -> 0.0
+      Enum.any?(players, &(&1.location == region_id)) ->
+        0.0
+
       Map.has_key?(positions, region_id) ->
         players
         |> Enum.map(&Map.get(positions, &1.location))
         |> Enum.reject(&is_nil/1)
         |> Enum.map(&euclidean(Map.fetch!(positions, region_id), &1))
         |> Enum.min(fn -> 1.0e6 end)
-      true -> 1.0e6
+
+      true ->
+        1.0e6
     end
   end
 
@@ -208,7 +236,11 @@ defmodule Procession.Simulation.RegionObservationPublisher do
     |> Map.new()
   end
 
-  defp euclidean({x1, y1}, {x2, y2}), do: :math.sqrt(:math.pow(x1 - x2, 2) + :math.pow(y1 - y2, 2))
-  defp number(map, key, default), do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: default)
+  defp euclidean({x1, y1}, {x2, y2}),
+    do: :math.sqrt(:math.pow(x1 - x2, 2) + :math.pow(y1 - y2, 2))
+
+  defp number(map, key, default),
+    do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: default)
+
   defp clamp(value, minimum, maximum), do: value |> max(minimum) |> min(maximum)
 end
