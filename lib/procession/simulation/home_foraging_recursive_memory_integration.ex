@@ -132,7 +132,7 @@ defmodule Procession.Simulation.HomeForagingRecursiveMemoryIntegration do
   defp select_pattern(:memory_disabled, _field, body, tick, seed, entity),
     do: Body.choose_pattern(body, tick, seed + entity * 149)
 
-  defp select_pattern(:memory_plane, field, body, tick, seed, entity) do
+  defp select_pattern(:memory_plane, field, _body, tick, seed, entity) do
     patterns = Body.patterns()
     scores = Field.output_scores(field, patterns, field_opts(seed, entity))
     exploration = if tick <= 2_400, do: 0.30, else: 0.06
@@ -146,7 +146,7 @@ defmodule Procession.Simulation.HomeForagingRecursiveMemoryIntegration do
     |> elem(0)
   end
 
-  defp apply_support(before, natural_body, natural, position, pattern, desired, false),
+  defp apply_support(_before, natural_body, natural, position, _pattern, _desired, false),
     do: {natural_body, natural, Body.apply_displacement(position, natural), false}
 
   defp apply_support(before, _natural_body, natural, position, pattern, :contact, true) do

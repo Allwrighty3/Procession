@@ -121,7 +121,7 @@ defmodule Procession.Simulation.HomeForagingMemoryPerformanceExperiment do
   defp select_pattern(:memory_ignored, _field, body, tick, seed, entity, _teaching, _opts),
     do: Body.choose_pattern(body, tick, seed + entity * 149)
 
-  defp select_pattern(condition, field, body, tick, seed, entity, teaching_ticks, opts)
+  defp select_pattern(condition, field, _body, tick, seed, entity, teaching_ticks, opts)
        when condition in [:legacy_memory, :quality_memory] do
     patterns = Body.patterns()
     scores = Field.output_scores(field, patterns, opts)
