@@ -13,6 +13,8 @@ defmodule Procession.Application do
       {DynamicSupervisor,
        strategy: :one_for_one, name: Procession.Simulation.InternalFieldSupervisor},
       {Procession.EntitySupervisor, []},
+      {Procession.Simulation.LiveResolutionManager, []},
+      {Procession.Simulation.RegionActivationLifecycle, []},
       {Procession.WorldClock, []}
     ]
 
