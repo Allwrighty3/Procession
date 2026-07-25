@@ -170,7 +170,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
   defp build_compressed_candidate(region, opts) do
     try do
-      candidate = MultiResolutionRegion.compress(region, opts)
+      candidate = LiveResolutionManager.compress_region(region, opts)
 
       candidate =
         if Keyword.get(opts, :inert, true),
@@ -221,7 +221,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
   defp refine_candidate(region, seed, opts) do
     try do
-      {:ok, MultiResolutionRegion.refine(region, seed, opts)}
+      {:ok, LiveResolutionManager.refine_region(region, seed, opts)}
     rescue
       error in ArgumentError -> {:error, Exception.message(error)}
     end
