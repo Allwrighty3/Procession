@@ -4,19 +4,17 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   @moduledoc """
   Transactional process lifecycle for multi-resolution regions.
 
-  Compression is validated before any entity is stopped. Full entity snapshots exist
-  only for the duration of a deactivation transaction so rollback can be exact. Once
-  compression succeeds, only bounded identity-anchor snapshots remain archived;
-  unanchored population detail is reconstructed from the coarse summary.
-
-  Regions containing live sensorimotor owners are rejected because developmental
-  geometry does not yet have a loss-aware snapshot format.
+  Exact entity and mind checkpoints exist only during deactivation rollback. Successful
+  dormant storage retains individual state and mind snapshots only for bounded identity
+  anchors. Unanchored developmental minds are represented by a bounded population
+  summary of causally distinct cohorts.
   """
 
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.LiveResolutionManager
   alias Procession.Simulation.MultiResolutionRegion
+  alias Procession.Simulation.PopulationMindSummary
 
   @name __MODULE__
 
@@ -30,12 +28,8 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     GenServer.start_link(__MODULE__, state, name: Keyword.get(opts, :name, @name))
   end
 
-  def deactivate(region_id, opts \\ [], server \\ @name),
-    do: GenServer.call(server, {:deactivate, region_id, opts}, :infinity)
-
-  def activate(region_id, seed, opts \\ [], server \\ @name),
-    do: GenServer.call(server, {:activate, region_id, seed, opts}, :infinity)
-
+  def deactivate(region_id, opts \\ [], server \\ @name), do: GenServer.call(server, {:deactivate, region_id, opts}, :infinity)
+  def activate(region_id, seed, opts \\ [], server \\ @name), do: GenServer.call(server, {:activate, region_id, seed, opts}, :infinity)
   def archive(region_id, server \\ @name), do: GenServer.call(server, {:archive, region_id})
   def trace(server \\ @name), do: GenServer.call(server, :trace)
 
@@ -57,19 +51,19 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     end
   end
 
-  def handle_call({:archive, region_id}, _from, state),
-    do: {:reply, Map.fetch(state.archives, region_id), state}
+  def handle_call({:archive, region_id}, _from, state), do: {:reply, Map.fetch(state.archives, region_id), state}
 
   def handle_call(:trace, _from, state) do
-    trace =
-      Map.new(state.archives, fn {region_id, archive} ->
-        {region_id,
-         %{
-           identity_count: map_size(archive.snapshots),
-           identities: archive.snapshots |> Map.keys() |> Enum.sort(),
-           compressed_at_tick: archive.compressed_at_tick
-         }}
-      end)
+    trace = Map.new(state.archives, fn {region_id, archive} ->
+      {region_id, %{
+        identity_count: map_size(archive.snapshots),
+        identities: archive.snapshots |> Map.keys() |> Enum.sort(),
+        anchored_mind_count: map_size(archive.mind_snapshots),
+        population_minds: archive.population_minds.population,
+        population_cohorts: length(archive.population_minds.cohorts),
+        compressed_at_tick: archive.compressed_at_tick
+      }}
+    end)
 
     {:reply, trace, state}
   end
@@ -78,18 +72,21 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     with {:ok, region} <- LiveResolutionManager.fetch(region_id, state.resolution_server),
          :ok <- require_live(region),
          :ok <- require_entities_present(region, state.entity_supervisor),
-         :ok <- require_serializable_minds(region, state.entity_supervisor),
          {:ok, candidate} <- build_compressed_candidate(region, opts),
-         {:ok, all_snapshots} <- capture_snapshots(Map.keys(region.entities)),
+         {:ok, entity_snapshots} <- capture_entity_snapshots(Map.keys(region.entities)),
+         {:ok, mind_checkpoints, mind_snapshots} <- capture_minds(Map.keys(region.entities), state.entity_supervisor, opts),
          {:ok, _trace} <- LiveResolutionManager.put(candidate, state.resolution_server) do
       ids = region.entities |> Map.keys() |> Enum.sort()
 
       case stop_all(ids, state.entity_supervisor) do
         {:ok, stopped} ->
           anchored_ids = Map.get(candidate.summary, :identity_anchors, [])
+          population_entries = mind_snapshots |> Map.drop(anchored_ids) |> Enum.sort_by(&elem(&1, 0))
 
           archive = %{
-            snapshots: Map.take(all_snapshots, anchored_ids),
+            snapshots: Map.take(entity_snapshots, anchored_ids),
+            mind_snapshots: Map.take(mind_snapshots, anchored_ids),
+            population_minds: PopulationMindSummary.build(population_entries, opts),
             compressed_at_tick: region.tick,
             stopped_entity_ids: stopped
           }
@@ -97,7 +94,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
           {:ok, MultiResolutionRegion.trace(candidate), put_in(state.archives[region_id], archive)}
 
         {:error, reason, stopped} ->
-          rollback_stopped(stopped, all_snapshots, state.entity_supervisor)
+          rollback_stopped(stopped, entity_snapshots, mind_checkpoints, state.entity_supervisor)
           LiveResolutionManager.put(region, state.resolution_server)
           {:error, {:deactivation_failed, reason}}
       end
@@ -110,7 +107,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
          {:ok, archive} <- fetch_archive(state, region_id),
          {:ok, refined} <- refine_candidate(region, seed, opts),
          :ok <- require_no_collisions(refined, state.entity_supervisor),
-         {:ok, started} <- start_all(refined, archive, state.entity_supervisor) do
+         {:ok, started} <- start_all(refined, archive, seed, opts, state.entity_supervisor) do
       case LiveResolutionManager.put(refined, state.resolution_server) do
         {:ok, _trace} ->
           updated = update_in(state.archives, &Map.delete(&1, region_id))
@@ -124,9 +121,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
       {:error, {:start_failed, reason, started}} ->
         stop_started(started, state.entity_supervisor)
         {:error, {:activation_failed, reason}}
-
-      {:error, reason} ->
-        {:error, reason}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -140,50 +135,25 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   defp require_live(%MultiResolutionRegion{resolution: :live}), do: :ok
   defp require_live(_region), do: {:error, :region_not_live}
 
-  defp require_compressed(%MultiResolutionRegion{resolution: resolution})
-       when resolution in [:coarse, :inert],
-       do: :ok
-
+  defp require_compressed(%MultiResolutionRegion{resolution: resolution}) when resolution in [:coarse, :inert], do: :ok
   defp require_compressed(_region), do: {:error, :region_not_compressed}
 
   defp require_entities_present(region, supervisor) do
-    missing =
-      region.entities
-      |> Map.keys()
-      |> Enum.reject(&supervisor.exists?/1)
-      |> Enum.sort()
-
+    missing = region.entities |> Map.keys() |> Enum.reject(&supervisor.exists?/1) |> Enum.sort()
     if missing == [], do: :ok, else: {:error, {:entities_not_live, missing}}
-  end
-
-  defp require_serializable_minds(region, supervisor) do
-    unsnapshottable =
-      region.entities
-      |> Map.keys()
-      |> Enum.filter(&supervisor.sensorimotor_enabled?/1)
-      |> Enum.sort()
-
-    if unsnapshottable == [],
-      do: :ok,
-      else: {:error, {:live_minds_not_serializable, unsnapshottable}}
   end
 
   defp build_compressed_candidate(region, opts) do
     try do
       candidate = LiveResolutionManager.compress_region(region, opts)
-
-      candidate =
-        if Keyword.get(opts, :inert, true),
-          do: MultiResolutionRegion.make_inert(candidate),
-          else: candidate
-
+      candidate = if Keyword.get(opts, :inert, true), do: MultiResolutionRegion.make_inert(candidate), else: candidate
       {:ok, candidate}
     rescue
       error in ArgumentError -> {:error, Exception.message(error)}
     end
   end
 
-  defp capture_snapshots(ids) do
+  defp capture_entity_snapshots(ids) do
     ids
     |> Enum.sort()
     |> Enum.reduce_while(%{}, fn id, acc ->
@@ -196,6 +166,24 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     |> case do
       {:error, _reason} = error -> error
       snapshots -> {:ok, snapshots}
+    end
+  end
+
+  defp capture_minds(ids, supervisor, opts) do
+    ids
+    |> Enum.sort()
+    |> Enum.filter(&supervisor.sensorimotor_enabled?/1)
+    |> Enum.reduce_while({%{}, %{}}, fn id, {checkpoints, snapshots} ->
+      with {:ok, checkpoint} <- supervisor.sensorimotor_checkpoint(id),
+           {:ok, snapshot} <- supervisor.sensorimotor_snapshot(id, opts) do
+        {:cont, {Map.put(checkpoints, id, checkpoint), Map.put(snapshots, id, snapshot)}}
+      else
+        {:error, reason} -> {:halt, {:error, {:mind_snapshot_failed, id, reason}}}
+      end
+    end)
+    |> case do
+      {:error, _reason} = error -> error
+      {checkpoints, snapshots} -> {:ok, checkpoints, snapshots}
     end
   end
 
@@ -212,10 +200,10 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     end
   end
 
-  defp rollback_stopped(stopped, snapshots, supervisor) do
+  defp rollback_stopped(stopped, snapshots, mind_checkpoints, supervisor) do
     Enum.each(stopped, fn id ->
-      snapshot = Map.fetch!(snapshots, id)
-      supervisor.start_entity(id, entity_attrs(snapshot))
+      attrs = snapshots |> Map.fetch!(id) |> entity_attrs() |> maybe_attach_loop(Map.get(mind_checkpoints, id))
+      supervisor.start_entity(id, attrs)
     end)
   end
 
@@ -228,34 +216,28 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   end
 
   defp require_no_collisions(refined, supervisor) do
-    collisions =
-      refined.entities
-      |> Map.keys()
-      |> Enum.filter(&supervisor.exists?/1)
-      |> Enum.sort()
-
+    collisions = refined.entities |> Map.keys() |> Enum.filter(&supervisor.exists?/1) |> Enum.sort()
     if collisions == [], do: :ok, else: {:error, {:entity_id_collisions, collisions}}
   end
 
-  defp start_all(refined, archive, supervisor) do
+  defp start_all(refined, archive, seed, opts, supervisor) do
+    anchored_ids = archive.snapshots |> Map.keys() |> MapSet.new()
+    unanchored_ids = refined.entities |> Map.keys() |> Enum.reject(&MapSet.member?(anchored_ids, &1)) |> Enum.sort()
+    population_minds = PopulationMindSummary.refine(archive.population_minds, unanchored_ids, seed, opts)
+
     refined.entities
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.reduce_while({:ok, []}, fn {id, physical}, {:ok, started} ->
       attrs =
         case Map.fetch(archive.snapshots, id) do
-          {:ok, snapshot} ->
-            snapshot
-            |> entity_attrs()
-            |> merge_physical_attrs(physical, refined.id)
-
-          :error ->
-            reconstructed_attrs(physical, refined.id)
+          {:ok, snapshot} -> snapshot |> entity_attrs() |> merge_physical_attrs(physical, refined.id)
+          :error -> reconstructed_attrs(physical, refined.id)
         end
+        |> maybe_attach_snapshot(Map.get(archive.mind_snapshots, id) || Map.get(population_minds, id))
 
       case supervisor.start_entity(id, attrs) do
         {:ok, _pid} -> {:cont, {:ok, [id | started]}}
-        {:error, reason} ->
-          {:halt, {:error, {:start_failed, {id, reason}, Enum.reverse(started)}}}
+        {:error, reason} -> {:halt, {:error, {:start_failed, {id, reason}, Enum.reverse(started)}}}
       end
     end)
     |> case do
@@ -266,28 +248,19 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
   defp stop_started(ids, supervisor), do: Enum.each(ids, &supervisor.stop_entity/1)
 
-  defp entity_attrs(%Entity{} = snapshot) do
-    snapshot
-    |> Map.from_struct()
-    |> Map.delete(:id)
-  end
+  defp entity_attrs(%Entity{} = snapshot), do: snapshot |> Map.from_struct() |> Map.delete(:id)
 
   defp merge_physical_attrs(attrs, physical, region_id) do
     metadata = attrs |> Map.get(:metadata, %{}) |> Map.put(:physical_state, physical)
-
-    attrs
-    |> Map.put(:location, region_id)
-    |> Map.put(:metadata, metadata)
+    attrs |> Map.put(:location, region_id) |> Map.put(:metadata, metadata)
   end
 
   defp reconstructed_attrs(physical, region_id) do
-    %{
-      name: to_string(physical.id),
-      type: :npc,
-      location: region_id,
-      status: :idle,
-      traits: %{},
-      metadata: %{physical_state: physical}
-    }
+    %{name: to_string(physical.id), type: :npc, location: region_id, status: :idle, traits: %{}, metadata: %{physical_state: physical}}
   end
+
+  defp maybe_attach_loop(attrs, nil), do: attrs
+  defp maybe_attach_loop(attrs, loop), do: Map.put(attrs, :sensorimotor, [loop: loop])
+  defp maybe_attach_snapshot(attrs, nil), do: attrs
+  defp maybe_attach_snapshot(attrs, snapshot), do: Map.put(attrs, :sensorimotor, [snapshot: snapshot])
 end
