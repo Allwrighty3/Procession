@@ -9,6 +9,7 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
     assert {:ok, process} =
              LiveSensorimotor.start_link(
                entity_id: "npc_learner",
+               owner_pid: self(),
                loop_opts: [
                  field_opts: @field_opts,
                  body_opts: [initial_coordination: 1.0],
@@ -25,14 +26,12 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
       {features, if(outcome.displaced?, do: 1.0, else: -0.2)}
     end
 
-    opts =
-      @field_opts ++
-        [
-          seed: 7,
-          bounds: {3, 3},
-          output_exploration: 1.0,
-          output_source_threshold: 0.0
-        ]
+    opts = [
+      seed: 7,
+      bounds: {3, 3},
+      output_exploration: 1.0,
+      output_source_threshold: 0.0
+    ]
 
     assert {:ok, first} =
              LiveSensorimotor.cycle(
@@ -59,5 +58,6 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
     assert second.trace.learned_output_edges > 0
     assert LiveSensorimotor.entity_id(process) == "npc_learner"
     assert LiveSensorimotor.trace(process).cycles == 2
+    assert LiveSensorimotor.trace(process).attached?
   end
 end
