@@ -69,9 +69,26 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     assert violated.exposure == expected.exposure + 1.0
   end
 
-  test "extreme observed transfer leaves a persistent bounded imprint" do
+  test "ordinary resistance is not automatically an extreme social event" do
+    blocked = event(%{position: {1, 1}, displaced?: false, blocked?: true})
+    {plane, _} = SocialRelationPlane.observe(SocialRelationPlane.new(), "observer", blocked, 1)
+
+    relation =
+      SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
+
+    assert relation.persistence < 0.5
+  end
+
+  test "grounded extreme observation leaves a persistent bounded imprint" do
     plane = SocialRelationPlane.new()
-    extreme = event(%{transferred: 0.25, displaced?: false, position: {1, 1}})
+
+    extreme =
+      event(%{
+        transferred: 0.25,
+        displaced?: false,
+        position: {1, 1},
+        observed_intensity: 1.0
+      })
 
     {plane, _} =
       SocialRelationPlane.observe(
@@ -79,7 +96,6 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
         "observer",
         extreme,
         1,
-        social_transfer_scale: 4.0,
         extreme_social_threshold: 0.8
       )
 
