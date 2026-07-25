@@ -4,8 +4,9 @@ defmodule Procession.Simulation.SocialRelationPlane do
 
   The plane stores no named social conclusions such as trust, theft, help, trade, or authority.
   It learns expected physical-event intensity for each observer/actor/context relation.
-  Repetition builds confidence and habituates surprise. Persistent extreme influence is derived
-  from the observer's own post-perception salience response, not declared by the event source.
+  Repetition builds confidence and habituates surprise. Ordinary surprise may create persistent
+  relational learning, while extreme imprint strength is derived only from the observer's own
+  post-perception salience response.
   """
 
   defstruct relations: %{}, observations: 0, tick: 0
@@ -16,6 +17,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
           confidence: float(),
           exposure: float(),
           persistence: float(),
+          extreme_imprint: float(),
           last_surprise: float(),
           last_salience: float(),
           last_tick: non_neg_integer()
@@ -36,9 +38,11 @@ defmodule Procession.Simulation.SocialRelationPlane do
     exposure_gain = Keyword.get(opts, :social_exposure_gain, 1.0)
     exposure_ceiling = Keyword.get(opts, :social_exposure_ceiling, 100.0)
     persistence_retention = Keyword.get(opts, :social_persistence_retention, 0.985)
+    extreme_retention = Keyword.get(opts, :extreme_social_imprint_retention, 0.997)
     extreme_threshold = Keyword.get(opts, :extreme_social_salience_threshold, 3.0)
     extreme_scale = Keyword.get(opts, :extreme_social_imprint_scale, 0.65)
     max_persistence = Keyword.get(opts, :social_persistence_ceiling, 4.0)
+    max_extreme_imprint = Keyword.get(opts, :extreme_social_imprint_ceiling, 6.0)
 
     expectation =
       previous.expectation +
@@ -57,9 +61,15 @@ defmodule Procession.Simulation.SocialRelationPlane do
       exposure: clamp(previous.exposure + exposure_gain, 0.0, exposure_ceiling),
       persistence:
         clamp(
-          previous.persistence * persistence_retention + surprise * 0.15 + extreme_gain,
+          previous.persistence * persistence_retention + surprise * 0.15,
           0.0,
           max_persistence
+        ),
+      extreme_imprint:
+        clamp(
+          previous.extreme_imprint * extreme_retention + extreme_gain,
+          0.0,
+          max_extreme_imprint
         ),
       last_surprise: surprise,
       last_salience: observer_salience,
@@ -79,6 +89,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
   def advance(%__MODULE__{} = plane, tick, opts \\ []) do
     confidence_retention = Keyword.get(opts, :social_confidence_retention, 0.997)
     persistence_retention = Keyword.get(opts, :social_persistence_retention, 0.985)
+    extreme_retention = Keyword.get(opts, :extreme_social_imprint_retention, 0.997)
     exposure_retention = Keyword.get(opts, :social_exposure_retention, 0.999)
     prune_threshold = Keyword.get(opts, :social_prune_threshold, 1.0e-5)
     elapsed = max(0, tick - plane.tick)
@@ -90,11 +101,15 @@ defmodule Procession.Simulation.SocialRelationPlane do
           | confidence: relation.confidence * :math.pow(confidence_retention, elapsed),
             exposure: relation.exposure * :math.pow(exposure_retention, elapsed),
             persistence: relation.persistence * :math.pow(persistence_retention, elapsed),
+            extreme_imprint: relation.extreme_imprint * :math.pow(extreme_retention, elapsed),
             last_surprise: relation.last_surprise * :math.pow(persistence_retention, elapsed),
             last_salience: relation.last_salience * :math.pow(persistence_retention, elapsed)
         }
 
-        if decayed.confidence + decayed.persistence + decayed.exposure > prune_threshold,
+        retained_mass =
+          decayed.confidence + decayed.persistence + decayed.extreme_imprint + decayed.exposure
+
+        if retained_mass > prune_threshold,
           do: Map.put(acc, key, decayed),
           else: acc
       end)
@@ -176,11 +191,17 @@ defmodule Procession.Simulation.SocialRelationPlane do
   defp signals(observer_id, actor_id, context, intensity, relation, opts) do
     surprise_gain = Keyword.get(opts, :social_surprise_gain, 3.0)
     persistence_gain = Keyword.get(opts, :social_persistence_gain, 0.35)
+    extreme_gain = Keyword.get(opts, :extreme_social_signal_gain, 0.45)
     expectation_gain = Keyword.get(opts, :social_expectation_gain, 0.8)
 
     [
       {:signal, {:social_presence, actor_id, context},
-       clamp(0.25 + relation.confidence + relation.persistence * persistence_gain, 0.0, 8.0)},
+       clamp(
+         0.25 + relation.confidence + relation.persistence * persistence_gain +
+           relation.extreme_imprint * extreme_gain,
+         0.0,
+         8.0
+       )},
       {:signal, {:social_expectation, actor_id, context},
        clamp(relation.expectation * expectation_gain, 0.0, 8.0)},
       {:signal, {:social_surprise, actor_id, context},
@@ -195,6 +216,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
       confidence: 0.0,
       exposure: 0.0,
       persistence: 0.0,
+      extreme_imprint: 0.0,
       last_surprise: 0.0,
       last_salience: 0.0,
       last_tick: 0
