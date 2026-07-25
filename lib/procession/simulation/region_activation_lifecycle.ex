@@ -17,6 +17,8 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   alias Procession.Simulation.PopulationMindSummary
 
   @name __MODULE__
+  @stop_visibility_attempts 50
+  @stop_visibility_delay_ms 2
 
   def start_link(opts \\ []) do
     state = %{
@@ -87,24 +89,32 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
       case stop_all(ids, state.entity_supervisor) do
         {:ok, stopped} ->
-          anchored_ids = Map.get(candidate.summary, :identity_anchors, [])
-          unanchored_ids = ids -- anchored_ids
+          case await_stopped(ids, state.entity_supervisor) do
+            :ok ->
+              anchored_ids = Map.get(candidate.summary, :identity_anchors, [])
+              unanchored_ids = ids -- anchored_ids
 
-          population_snapshots =
-            mind_snapshots
-            |> Map.take(unanchored_ids)
-            |> Map.values()
+              population_snapshots =
+                mind_snapshots
+                |> Map.take(unanchored_ids)
+                |> Map.values()
 
-          archive = %{
-            snapshots: Map.take(entity_snapshots, anchored_ids),
-            mind_snapshots: Map.take(mind_snapshots, anchored_ids),
-            population_minds:
-              PopulationMindSummary.capture(population_snapshots, length(unanchored_ids), opts),
-            compressed_at_tick: region.tick,
-            stopped_entity_ids: stopped
-          }
+              archive = %{
+                snapshots: Map.take(entity_snapshots, anchored_ids),
+                mind_snapshots: Map.take(mind_snapshots, anchored_ids),
+                population_minds:
+                  PopulationMindSummary.capture(population_snapshots, length(unanchored_ids), opts),
+                compressed_at_tick: region.tick,
+                stopped_entity_ids: stopped
+              }
 
-          {:ok, MultiResolutionRegion.trace(candidate), put_in(state.archives[region_id], archive)}
+              {:ok, MultiResolutionRegion.trace(candidate), put_in(state.archives[region_id], archive)}
+
+            {:error, still_live} ->
+              rollback_stopped(stopped, entity_snapshots, mind_checkpoints, state.entity_supervisor)
+              LiveResolutionManager.put(region, state.resolution_server)
+              {:error, {:deactivation_visibility_failed, still_live}}
+          end
 
         {:error, reason, stopped} ->
           rollback_stopped(stopped, entity_snapshots, mind_checkpoints, state.entity_supervisor)
@@ -225,6 +235,23 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     |> case do
       {:ok, stopped} -> {:ok, Enum.reverse(stopped)}
       other -> other
+    end
+  end
+
+  defp await_stopped(ids, supervisor) do
+    Enum.reduce_while(1..@stop_visibility_attempts, ids, fn _, _remaining ->
+      still_live = Enum.filter(ids, &supervisor.exists?/1)
+
+      if still_live == [] do
+        {:halt, :ok}
+      else
+        Process.sleep(@stop_visibility_delay_ms)
+        {:cont, still_live}
+      end
+    end)
+    |> case do
+      :ok -> :ok
+      still_live -> {:error, still_live}
     end
   end
 
