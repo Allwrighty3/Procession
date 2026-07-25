@@ -26,11 +26,12 @@ defmodule Procession.Simulation.DevelopmentalMindSnapshot do
     retained = retained_nodes(field, generated_limit)
 
     nodes = Map.take(sensory.nodes, MapSet.to_list(retained))
-    nodes = Map.new(nodes, fn {id, node} -> {id, %{node | support: MapSet.intersection(node.support, retained)}} end)
 
     edges =
       sensory.edges
-      |> Enum.filter(fn {{from, to}, _weight} -> MapSet.member?(retained, from) and MapSet.member?(retained, to) end)
+      |> Enum.filter(fn {{from, to}, _weight} ->
+        MapSet.member?(retained, from) and MapSet.member?(retained, to)
+      end)
       |> strongest(edge_limit)
 
     output_edges =
@@ -74,7 +75,11 @@ defmodule Procession.Simulation.DevelopmentalMindSnapshot do
   end
 
   def restore(%{version: @version, loop: %DevelopmentalSensorimotorLoop{} = loop}), do: loop
-  def restore(%{version: version}), do: raise(ArgumentError, "unsupported mind snapshot version #{inspect(version)}")
+
+  def restore(%{version: version}) do
+    raise ArgumentError, "unsupported mind snapshot version #{inspect(version)}"
+  end
+
   def restore(_snapshot), do: raise(ArgumentError, "invalid developmental mind snapshot")
 
   def cost(%{loop: %DevelopmentalSensorimotorLoop{} = loop}) do
@@ -87,17 +92,44 @@ defmodule Procession.Simulation.DevelopmentalMindSnapshot do
 
   defp retained_nodes(field, generated_limit) do
     sensory = field.sensory
-    micro = 0..max(sensory.micro_nodes - 1, -1) |> Enum.filter(&Map.has_key?(sensory.nodes, &1)) |> MapSet.new()
 
-    generated =
-      sensory.generated
-      |> Enum.map(fn id -> {id, node_score(id, field)} end)
-      |> Enum.sort_by(fn {id, score} -> {-score, id} end)
-      |> Enum.take(max(generated_limit, 0))
+    micro =
+      sensory.nodes
+      |> Enum.filter(fn {_id, node} -> node.kind == :micro end)
       |> Enum.map(&elem(&1, 0))
       |> MapSet.new()
 
+    ranked =
+      sensory.generated
+      |> Enum.map(fn id -> {id, node_score(id, field)} end)
+      |> Enum.sort_by(fn {id, score} -> {-score, id} end)
+      |> Enum.map(&elem(&1, 0))
+
+    generated =
+      Enum.reduce(ranked, MapSet.new(), fn id, selected ->
+        closure = generated_support_closure(id, sensory, MapSet.new())
+        candidate = MapSet.union(selected, closure)
+
+        if MapSet.size(candidate) <= max(generated_limit, 0), do: candidate, else: selected
+      end)
+
     MapSet.union(micro, generated)
+  end
+
+  defp generated_support_closure(id, sensory, visited) do
+    if MapSet.member?(visited, id) do
+      visited
+    else
+      visited = MapSet.put(visited, id)
+      node = Map.fetch!(sensory.nodes, id)
+
+      Enum.reduce(node.support, visited, fn support_id, acc ->
+        case Map.get(sensory.nodes, support_id) do
+          %{kind: :generated} -> generated_support_closure(support_id, sensory, acc)
+          _ -> acc
+        end
+      end)
+    end
   end
 
   defp node_score(id, field) do
