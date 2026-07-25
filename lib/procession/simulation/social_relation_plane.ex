@@ -41,12 +41,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
       previous.expectation +
         learning_rate * (intensity - previous.expectation) / (1.0 + previous.confidence * 0.5)
 
-    extreme_gain =
-      if intensity >= extreme_threshold do
-        intensity * extreme_scale
-      else
-        0.0
-      end
+    extreme_gain = if intensity >= extreme_threshold, do: intensity * extreme_scale, else: 0.0
 
     relation = %{
       expectation: clamp(expectation, 0.0, 1.0),
@@ -77,12 +72,10 @@ defmodule Procession.Simulation.SocialRelationPlane do
     persistence_retention = Keyword.get(opts, :social_persistence_retention, 0.985)
     exposure_retention = Keyword.get(opts, :social_exposure_retention, 0.999)
     prune_threshold = Keyword.get(opts, :social_prune_threshold, 1.0e-5)
-
     elapsed = max(0, tick - plane.tick)
 
     relations =
-      plane.relations
-      |> Enum.reduce(%{}, fn {key, relation}, acc ->
+      Enum.reduce(plane.relations, %{}, fn {key, relation}, acc ->
         decayed = %{
           relation
           | confidence: relation.confidence * :math.pow(confidence_retention, elapsed),
@@ -91,11 +84,9 @@ defmodule Procession.Simulation.SocialRelationPlane do
             last_surprise: relation.last_surprise * :math.pow(persistence_retention, elapsed)
         }
 
-        if decayed.confidence + decayed.persistence + decayed.exposure > prune_threshold do
-          Map.put(acc, key, decayed)
-        else
-          acc
-        end
+        if decayed.confidence + decayed.persistence + decayed.exposure > prune_threshold,
+          do: Map.put(acc, key, decayed),
+          else: acc
       end)
 
     %{plane | relations: relations, tick: max(plane.tick, tick)}
@@ -117,13 +108,26 @@ defmodule Procession.Simulation.SocialRelationPlane do
   def event_context(event) do
     cond do
       Map.get(event, :transferred, 0.0) > 0.0 ->
+        {:resource_contact, quantity_band(event.transferred)}
+
+      Map.get(event, :blocked?, false) or Map.get(event, :displaced?, false) ->
+        {:movement_attempt, attempted_direction(event)}
+
+      true ->
+        :stationary_motor_event
+    end
+  end
+
+  def event_signature(event) do
+    cond do
+      Map.get(event, :transferred, 0.0) > 0.0 ->
         {:resource_transfer, quantity_band(event.transferred)}
 
       Map.get(event, :blocked?, false) ->
-        {:resisted_displacement, displacement_direction(event)}
+        {:resisted_displacement, attempted_direction(event)}
 
       Map.get(event, :displaced?, false) ->
-        {:displacement, displacement_direction(event)}
+        {:displacement, attempted_direction(event)}
 
       true ->
         :stationary_motor_event
@@ -138,7 +142,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
         clamp(event.transferred * transfer_scale, 0.0, 1.0)
 
       Map.get(event, :blocked?, false) ->
-        0.72
+        0.88
 
       Map.get(event, :displaced?, false) ->
         0.42
@@ -149,7 +153,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
   end
 
   def physical_observation_feature(event) do
-    {:observed_physical_event, Map.fetch!(event, :entity_id), event_context(event)}
+    {:observed_physical_event, Map.fetch!(event, :entity_id), event_signature(event)}
   end
 
   defp signals(observer_id, actor_id, context, intensity, relation, opts) do
@@ -179,7 +183,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     }
   end
 
-  defp displacement_direction(%{from: {x, y}, position: {x2, y2}}) do
+  defp attempted_direction(%{from: {x, y}, proposed: {x2, y2}}) do
     cond do
       x2 > x -> :east
       x2 < x -> :west
@@ -189,7 +193,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     end
   end
 
-  defp displacement_direction(_event), do: :none
+  defp attempted_direction(_event), do: :none
 
   defp quantity_band(quantity) when quantity < 0.05, do: :trace
   defp quantity_band(quantity) when quantity < 0.15, do: :small
