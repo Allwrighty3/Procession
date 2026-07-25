@@ -47,24 +47,27 @@ defmodule Procession.Simulation.LiveCausalWorld do
   def handle_call({:tick, opts}, _from, state) do
     case advance_tick(state, opts) do
       {:ok, updated} -> {:reply, {:ok, trace_with_minds(updated)}, updated}
-      {:error, reason, unchanged} -> {:reply, {:error, reason}, unchanged}
+      {:error, reason, updated} -> {:reply, {:error, reason}, updated}
     end
   end
 
+  def handle_call({:run, 0, _opts}, _from, state) do
+    {:reply, {:ok, trace_with_minds(state)}, state}
+  end
+
   def handle_call({:run, ticks, opts}, _from, state)
-      when is_integer(ticks) and ticks >= 0 do
+      when is_integer(ticks) and ticks > 0 do
     result =
       Enum.reduce_while(1..ticks, {:ok, state}, fn _, {:ok, current} ->
         case advance_tick(current, opts) do
           {:ok, updated} -> {:cont, {:ok, updated}}
-          {:error, reason, unchanged} -> {:halt, {:error, reason, unchanged}}
+          {:error, reason, updated} -> {:halt, {:error, reason, updated}}
         end
       end)
 
-    case {ticks, result} do
-      {0, _} -> {:reply, {:ok, trace_with_minds(state)}, state}
-      {_, {:ok, updated}} -> {:reply, {:ok, trace_with_minds(updated)}, updated}
-      {_, {:error, reason, unchanged}} -> {:reply, {:error, reason}, unchanged}
+    case result do
+      {:ok, updated} -> {:reply, {:ok, trace_with_minds(updated)}, updated}
+      {:error, reason, updated} -> {:reply, {:error, reason}, updated}
     end
   end
 
@@ -82,34 +85,43 @@ defmodule Procession.Simulation.LiveCausalWorld do
       started
       |> CausalWorldKernel.entity_ids()
       |> Enum.reduce_while({:ok, started}, fn entity_id, {:ok, world} ->
-        with :ok <- validate_entity(entity_id),
-             features <- CausalWorldKernel.perceive(world, entity_id),
-             {:ok, emission} <- LiveSensorimotor.emit(entity_id, features, world.tick, opts),
-             {resolved_world, resolution} <-
-               CausalWorldKernel.resolve(
-                 world,
-                 entity_id,
-                 emission.outcome,
-                 emission.proposed_position,
-                 opts
-               ),
-             {:ok, _trace} <-
-               LiveSensorimotor.resolve(
-                 entity_id,
-                 resolution.position,
-                 resolution.feedback_features,
-                 resolution.coherence,
-                 opts
-               ) do
-          {:cont, {:ok, resolved_world}}
-        else
-          {:error, reason} -> {:halt, {:error, {entity_id, reason}, state}}
+        case advance_entity(world, entity_id, opts) do
+          {:ok, updated} -> {:cont, {:ok, updated}}
+          {:error, reason, updated} -> {:halt, {:error, reason, updated}}
         end
       end)
 
     case result do
       {:ok, world} -> {:ok, CausalWorldKernel.finish_tick(world)}
-      {:error, reason, unchanged} -> {:error, reason, unchanged}
+      {:error, reason, world} -> {:error, reason, CausalWorldKernel.finish_tick(world)}
+    end
+  end
+
+  defp advance_entity(world, entity_id, opts) do
+    with :ok <- validate_entity(entity_id),
+         features <- CausalWorldKernel.perceive(world, entity_id),
+         {:ok, emission} <- LiveSensorimotor.emit(entity_id, features, world.tick, opts) do
+      {resolved_world, resolution} =
+        CausalWorldKernel.resolve(
+          world,
+          entity_id,
+          emission.outcome,
+          emission.proposed_position,
+          opts
+        )
+
+      case LiveSensorimotor.resolve(
+             entity_id,
+             resolution.position,
+             resolution.feedback_features,
+             resolution.coherence,
+             opts
+           ) do
+        {:ok, _trace} -> {:ok, resolved_world}
+        {:error, reason} -> {:error, {entity_id, {:feedback_failed, reason}}, resolved_world}
+      end
+    else
+      {:error, reason} -> {:error, {entity_id, reason}, world}
     end
   end
 
