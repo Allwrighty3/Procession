@@ -19,13 +19,13 @@ defmodule Procession.Simulation.LiveCausalWorld do
     GenServer.start_link(__MODULE__, kernel_opts, name: name)
   end
 
-  def tick(server \\ @name, opts \\ []) do
-    GenServer.call(server, {:tick, opts})
-  end
+  def tick, do: tick(@name, [])
+  def tick(server), do: tick(server, [])
+  def tick(server, opts), do: GenServer.call(server, {:tick, opts})
 
-  def run(server \\ @name, ticks, opts \\ []) do
-    GenServer.call(server, {:run, ticks, opts}, :infinity)
-  end
+  def run(ticks), do: run(@name, ticks, [])
+  def run(server, ticks), do: run(server, ticks, [])
+  def run(server, ticks, opts), do: GenServer.call(server, {:run, ticks, opts}, :infinity)
 
   def trace(server \\ @name), do: GenServer.call(server, :trace)
   def state(server \\ @name), do: GenServer.call(server, :state)
