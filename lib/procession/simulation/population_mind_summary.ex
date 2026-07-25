@@ -1,196 +1,229 @@
 defmodule Procession.Simulation.PopulationMindSummary do
   @moduledoc """
-  Bounded coarse representation of unanchored developmental minds.
+  Bounded population-level summaries for dormant developmental minds.
 
-  The summary retains a limited set of causally distinct exemplar snapshots rather
-  than one averaged mind or one snapshot per individual. Each cohort records its
-  population weight and scalar variation. Refinement deterministically samples
-  cohorts and perturbs only numeric strengths, preserving each exemplar's valid
-  relational structure while producing compatible non-identical minds.
+  Individual snapshots are grouped into causal cohorts. Each cohort retains one bounded
+  prototype, its prevalence, and aggregate causal severity. Common cohorts and rare
+  high-impact cohorts both compete for a fixed number of slots. Refinement selects a
+  cohort deterministically and applies bounded variation without inventing new topology.
   """
 
   alias Procession.Simulation.DevelopmentalMindSnapshot
+  alias Procession.Simulation.DevelopmentalSensorimotorLoop
 
   @version 1
 
-  def build(entries, opts \\ []) when is_list(entries) do
-    limit = max(1, Keyword.get(opts, :population_mind_cohort_limit, 8))
+  def capture(snapshots, total_population, opts \\ [])
+      when is_list(snapshots) and is_integer(total_population) and total_population >= 0 do
+    cohort_limit = max(Keyword.get(opts, :population_mind_cohort_limit, 8), 0)
+    normalized = Enum.map(snapshots, &normalize_snapshot!/1)
 
-    samples =
-      entries
-      |> Enum.with_index()
-      |> Enum.map(fn
-        {{id, snapshot}, index} -> %{id: id, index: index, snapshot: snapshot, vector: vector(snapshot)}
-        {snapshot, index} -> %{id: {:anonymous, index}, index: index, snapshot: snapshot, vector: vector(snapshot)}
-      end)
+    all_cohorts =
+      normalized
+      |> Enum.group_by(&signature/1)
+      |> Enum.map(fn {signature, members} -> build_cohort(signature, members) end)
 
-    cohorts =
-      samples
-      |> seed_cohorts(limit)
-      |> assign_samples(samples)
-      |> Enum.map(&finalize_cohort/1)
+    cohorts = select_cohorts(all_cohorts, cohort_limit)
 
     %{
       version: @version,
-      population: length(samples),
+      total_population: total_population,
+      minded_population: length(normalized),
       cohorts: cohorts,
-      metrics: %{
-        cohort_count: length(cohorts),
-        exemplar_cost: Enum.sum(Enum.map(cohorts, &DevelopmentalMindSnapshot.cost(&1.exemplar)))
-      }
+      omitted_cohorts: max(length(all_cohorts) - length(cohorts), 0)
     }
   end
 
-  def refine(%{version: @version, population: population, cohorts: cohorts}, ids, seed, _opts \\ [])
-      when is_list(ids) and is_integer(seed) do
-    count = min(length(ids), population)
-    selected_ids = Enum.take(ids, count)
-    total_weight = max(Enum.sum(Enum.map(cohorts, & &1.count)), 1)
+  def instantiate(%{version: @version} = summary, seed, ordinal, opts \\ [])
+      when is_integer(seed) and is_integer(ordinal) and ordinal > 0 do
+    if receives_mind?(summary, seed, ordinal) and summary.cohorts != [] do
+      cohort = choose_cohort(summary.cohorts, seed, ordinal)
+      {:ok, vary_snapshot(cohort.prototype, seed, ordinal, opts)}
+    else
+      :none
+    end
+  end
 
-    selected_ids
-    |> Enum.with_index(1)
-    |> Map.new(fn {id, index} ->
-      ticket = rem(:erlang.phash2({seed, id, index, :cohort}), total_weight)
-      cohort = weighted_pick(cohorts, ticket)
-      factor = variation_factor(cohort, seed, id, index)
-      {id, vary_snapshot(cohort.exemplar, factor)}
+  def instantiate(%{version: version}, _seed, _ordinal, _opts),
+    do: {:error, {:unsupported_population_mind_summary, version}}
+
+  def instantiate(_summary, _seed, _ordinal, _opts), do: {:error, :invalid_population_mind_summary}
+
+  def cost(%{version: @version, cohorts: cohorts}) do
+    Enum.reduce(cohorts, 5, fn cohort, total ->
+      total + 4 + DevelopmentalMindSnapshot.cost(cohort.prototype)
     end)
   end
 
-  def refine(%{version: version}, _ids, _seed, _opts),
-    do: raise(ArgumentError, "unsupported population mind summary version #{inspect(version)}")
-
-  def refine(_summary, _ids, _seed, _opts),
-    do: raise(ArgumentError, "invalid population mind summary")
-
-  def cost(%{cohorts: cohorts}) do
-    Enum.sum(Enum.map(cohorts, &(DevelopmentalMindSnapshot.cost(&1.exemplar) + 8)))
+  def trace(%{version: @version} = summary) do
+    %{
+      total_population: summary.total_population,
+      minded_population: summary.minded_population,
+      cohort_count: length(summary.cohorts),
+      represented_minds: Enum.sum(Enum.map(summary.cohorts, & &1.count)),
+      omitted_cohorts: summary.omitted_cohorts,
+      cost: cost(summary)
+    }
   end
 
-  defp seed_cohorts([], _limit), do: []
-  defp seed_cohorts([sample], _limit), do: [%{exemplar: sample, members: []}]
-
-  defp seed_cohorts(samples, limit) do
-    first = Enum.max_by(samples, &vector_mass(&1.vector))
-    count = min(limit, length(samples))
-
-    Enum.reduce(2..count, [%{exemplar: first, members: []}], fn _, cohorts ->
-      candidate =
-        samples
-        |> Enum.reject(fn sample -> Enum.any?(cohorts, &(&1.exemplar.index == sample.index)) end)
-        |> Enum.max_by(fn sample ->
-          cohorts
-          |> Enum.map(&distance(sample.vector, &1.exemplar.vector))
-          |> Enum.min(fn -> 0.0 end)
-        end)
-
-      [%{exemplar: candidate, members: []} | cohorts]
-    end)
-    |> Enum.reverse()
+  defp normalize_snapshot!(snapshot) do
+    case DevelopmentalMindSnapshot.restore(snapshot) do
+      %DevelopmentalSensorimotorLoop{} -> snapshot
+    end
   end
 
-  defp assign_samples([], _samples), do: []
-
-  defp assign_samples(cohorts, samples) do
-    Enum.reduce(samples, cohorts, fn sample, current ->
-      {cohort, index} =
-        current
-        |> Enum.with_index()
-        |> Enum.min_by(fn {candidate, _index} -> distance(sample.vector, candidate.exemplar.vector) end)
-
-      _ = cohort
-      List.update_at(current, index, fn candidate -> %{candidate | members: [sample | candidate.members]} end)
-    end)
-  end
-
-  defp finalize_cohort(%{exemplar: exemplar, members: members}) do
-    vectors = Enum.map(members, & &1.vector)
-    mean = mean_vector(vectors)
-    variance = mean(Enum.map(vectors, &:math.pow(distance(&1, mean), 2)))
-
-    %{exemplar: exemplar.snapshot, count: length(members), mean: mean, variance: variance}
-  end
-
-  defp vector(snapshot) do
-    loop = DevelopmentalMindSnapshot.restore(snapshot)
-    sensory = loop.field.sensory
+  defp build_cohort(signature, members) do
+    prototype = Enum.max_by(members, &causal_mass/1)
 
     %{
-      generated: MapSet.size(sensory.generated) * 1.0,
-      edge_mass: sum_abs(sensory.edges),
-      output_mass: sum_abs(loop.field.output_edges),
-      imprint_mass: Enum.sum(Map.values(loop.field.salience.imprints)),
-      exposure_mass: Enum.sum(Map.values(loop.field.salience.exposure)),
-      active_mass: Enum.sum(Map.values(sensory.activity)),
-      cycles: loop.cycles * 0.001
+      signature: signature,
+      count: length(members),
+      severity: Enum.max(Enum.map(members, &causal_mass/1), fn -> 0.0 end),
+      prototype: prototype
     }
   end
 
-  defp vector_mass(vector), do: vector |> Map.values() |> Enum.sum()
+  defp select_cohorts(_cohorts, limit) when limit <= 0, do: []
 
-  defp distance(left, right) do
-    keys = Map.keys(left) |> Enum.concat(Map.keys(right)) |> Enum.uniq()
+  defp select_cohorts(cohorts, limit) do
+    common = Enum.sort_by(cohorts, fn cohort -> {-cohort.count, -cohort.severity, cohort.signature} end)
+    severe = Enum.sort_by(cohorts, fn cohort -> {-cohort.severity, -cohort.count, cohort.signature} end)
+    common_slots = div(limit + 1, 2)
 
-    keys
-    |> Enum.map(fn key -> :math.pow(Map.get(left, key, 0.0) - Map.get(right, key, 0.0), 2) end)
-    |> Enum.sum()
-    |> :math.sqrt()
+    selected =
+      (Enum.take(common, common_slots) ++ Enum.take(severe, limit - common_slots))
+      |> Enum.uniq_by(& &1.signature)
+
+    if length(selected) < min(limit, length(cohorts)) do
+      remainder = Enum.reject(common, fn cohort -> Enum.any?(selected, &(&1.signature == cohort.signature)) end)
+      Enum.take(selected ++ remainder, limit)
+    else
+      selected
+    end
+    |> Enum.sort_by(& &1.signature)
   end
 
-  defp mean_vector([]), do: %{}
+  defp receives_mind?(%{total_population: total, minded_population: minded}, _seed, _ordinal)
+       when total <= 0 or minded <= 0,
+       do: false
 
-  defp mean_vector(vectors) do
-    keys = vectors |> Enum.flat_map(&Map.keys/1) |> Enum.uniq()
-    Map.new(keys, fn key -> {key, mean(Enum.map(vectors, &Map.get(&1, key, 0.0)))} end)
+  defp receives_mind?(%{total_population: total, minded_population: minded}, seed, ordinal) do
+    threshold = min(minded / total, 1.0)
+    :erlang.phash2({:population_mind_presence, seed, ordinal}, 1_000_000) / 1_000_000 < threshold
   end
 
-  defp mean([]), do: 0.0
-  defp mean(values), do: Enum.sum(values) / length(values)
-  defp sum_abs(map), do: map |> Map.values() |> Enum.map(&abs/1) |> Enum.sum()
+  defp choose_cohort(cohorts, seed, ordinal) do
+    total = Enum.sum(Enum.map(cohorts, & &1.count))
+    target = rem(:erlang.phash2({:population_mind_cohort, seed, ordinal}), max(total, 1))
 
-  defp weighted_pick([cohort | rest], ticket) do
-    if ticket < cohort.count, do: cohort, else: weighted_pick(rest, ticket - cohort.count)
+    Enum.reduce_while(cohorts, target, fn cohort, remaining ->
+      if remaining < cohort.count, do: {:halt, cohort}, else: {:cont, remaining - cohort.count}
+    end)
   end
 
-  defp weighted_pick([], _ticket), do: raise(ArgumentError, "population mind summary has no weighted cohort")
-
-  defp variation_factor(cohort, seed, id, index) do
-    spread = min(:math.sqrt(max(cohort.variance, 0.0)) * 0.02, 0.20)
-    unit = :erlang.phash2({seed, id, index, :mind_variation}, 10_001) / 10_000
-    1.0 + (unit * 2.0 - 1.0) * spread
-  end
-
-  defp vary_snapshot(snapshot, factor) do
+  defp vary_snapshot(snapshot, seed, ordinal, opts) do
+    scale = Keyword.get(opts, :population_mind_variation, 0.08) |> max(0.0) |> min(0.35)
     loop = DevelopmentalMindSnapshot.restore(snapshot)
-    sensory = loop.field.sensory
+    field = loop.field
+    sensory = field.sensory
 
-    sensory = %{
-      sensory
-      | edges: scale_map(sensory.edges, factor, 0.0, 10.0),
-        activity: scale_map(sensory.activity, factor, 0.0, 10.0)
+    varied = %{
+      loop
+      | field: %{
+          field
+          | sensory: %{
+              sensory
+              | edges: vary_weights(sensory.edges, seed, ordinal, :sensory, scale, 0.0, 10.0),
+                activity: vary_weights(sensory.activity, seed, ordinal, :activity, scale, 0.0, 10.0),
+                history: []
+            },
+            output_edges:
+              vary_weights(field.output_edges, seed, ordinal, :output, scale, 0.0, 3.0),
+            previous_activity: %{},
+            salience: %{
+              field.salience
+              | imprints:
+                  vary_weights(
+                    field.salience.imprints,
+                    seed,
+                    ordinal,
+                    :imprint,
+                    scale,
+                    0.0,
+                    100.0
+                  ),
+                last_metrics: %{}
+            }
+        },
+        pending_output: nil,
+        last_outcome: nil
     }
 
-    salience = %{
-      loop.field.salience
-      | exposure: scale_map(loop.field.salience.exposure, factor, 0.0, 1.0e9),
-        imprints: scale_map(loop.field.salience.imprints, factor, 0.0, 1.0e9),
-        last_metrics: %{}
-    }
-
-    field = %{
-      loop.field
-      | sensory: sensory,
-        salience: salience,
-        output_edges: scale_map(loop.field.output_edges, factor, 0.0, 3.0),
-        previous_activity: scale_map(loop.field.previous_activity, factor, 0.0, 10.0)
-    }
-
-    %{snapshot | loop: %{loop | field: field, pending_output: nil}}
+    DevelopmentalMindSnapshot.capture(varied, opts)
   end
 
-  defp scale_map(map, factor, minimum, maximum) do
-    Map.new(map, fn {key, value} -> {key, clamp(value * factor, minimum, maximum)} end)
+  defp vary_weights(weights, seed, ordinal, domain, scale, minimum, maximum) do
+    Map.new(weights, fn {key, value} ->
+      noise = (:erlang.phash2({domain, seed, ordinal, key}, 20_001) - 10_000) / 10_000
+      varied = value * (1.0 + noise * scale)
+      {key, varied |> max(minimum) |> min(maximum)}
+    end)
   end
 
-  defp clamp(value, minimum, maximum), do: value |> max(minimum) |> min(maximum)
+  defp signature(snapshot) do
+    loop = DevelopmentalMindSnapshot.restore(snapshot)
+    field = loop.field
+
+    dominant_output =
+      field.output_edges
+      |> Enum.group_by(fn {{_source, output}, _weight} -> output end, fn {_edge, weight} -> weight end)
+      |> Enum.map(fn {output, weights} -> {output, Enum.sum(weights)} end)
+      |> Enum.max_by(fn {output, weight} -> {weight, output} end, fn -> {:none, 0.0} end)
+      |> elem(0)
+
+    imprint_bucket =
+      field.salience.imprints
+      |> Map.values()
+      |> Enum.sum()
+      |> Kernel.*(2.0)
+      |> round()
+      |> min(20)
+
+    motif_fingerprints =
+      field.sensory.generated
+      |> Enum.map(fn id -> micro_support_fingerprint(id, field.sensory.nodes, MapSet.new()) end)
+      |> Enum.sort()
+      |> Enum.take(4)
+
+    :erlang.phash2({field.sensory.micro_nodes, dominant_output, imprint_bucket, motif_fingerprints})
+  end
+
+  defp micro_support_fingerprint(id, nodes, seen) do
+    if MapSet.member?(seen, id) do
+      []
+    else
+      node = Map.fetch!(nodes, id)
+
+      if node.kind == :micro do
+        [id]
+      else
+        seen = MapSet.put(seen, id)
+
+        node.support
+        |> Enum.flat_map(&micro_support_fingerprint(&1, nodes, seen))
+        |> Enum.uniq()
+        |> Enum.sort()
+      end
+    end
+  end
+
+  defp causal_mass(snapshot) do
+    loop = DevelopmentalMindSnapshot.restore(snapshot)
+    field = loop.field
+
+    Enum.sum(Map.values(field.sensory.activity)) +
+      Enum.sum(Enum.map(field.sensory.edges, fn {_edge, weight} -> abs(weight) end)) * 0.2 +
+      Enum.sum(Enum.map(field.output_edges, fn {_edge, weight} -> abs(weight) end)) +
+      Enum.sum(Map.values(field.salience.imprints)) * 2.0
+  end
 end
