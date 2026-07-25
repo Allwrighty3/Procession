@@ -6,6 +6,10 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   actions, infer goals, or let the world write directly into the sensory field.
   The world supplies sensed features and a local signed coherence assessment of
   the resulting transition.
+
+  Construction options are retained by the loop so an entity does not silently
+  change its sensory encoding or plasticity rules when callers omit per-cycle
+  overrides.
   """
 
   alias Procession.Simulation.DevelopmentalMotorBody
@@ -14,34 +18,50 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   defstruct field: nil,
             body: nil,
             position: {0, 0},
+            config: [],
             pending_output: nil,
             last_outcome: nil,
+            last_tick: nil,
             cycles: 0
 
   def new(opts \\ []) do
+    field_opts = Keyword.get(opts, :field_opts, [])
+
+    config =
+      field_opts
+      |> Keyword.merge(Keyword.drop(opts, [:field_opts, :body_opts, :position]))
+
     %__MODULE__{
-      field:
-        DevelopmentalSensorimotorField.new(
-          Keyword.get(opts, :field_opts, [])
-        ),
-      body:
-        DevelopmentalMotorBody.new(
-          Keyword.get(opts, :body_opts, [])
-        ),
-      position: Keyword.get(opts, :position, {0, 0})
+      field: DevelopmentalSensorimotorField.new(config),
+      body: DevelopmentalMotorBody.new(Keyword.get(opts, :body_opts, [])),
+      position: Keyword.get(opts, :position, {0, 0}),
+      config: config
     }
   end
 
   def sense(%__MODULE__{} = loop, features, opts \\ []) when is_list(features) do
-    field = DevelopmentalSensorimotorField.sense(loop.field, features, opts)
+    effective_opts = effective_opts(loop, opts)
+    field = DevelopmentalSensorimotorField.sense(loop.field, features, effective_opts)
     %{loop | field: field}
   end
 
-  def emit(%__MODULE__{} = loop, tick, opts \\ []) when is_integer(tick) do
-    seed = Keyword.get(opts, :seed, 1)
+  def emit(loop, tick, opts \\ [])
+
+  def emit(%__MODULE__{pending_output: pending}, _tick, _opts) when not is_nil(pending) do
+    raise ArgumentError, "cannot emit another motor output before feedback closes the pending output"
+  end
+
+  def emit(%__MODULE__{last_tick: last_tick}, tick, _opts)
+      when is_integer(last_tick) and is_integer(tick) and tick <= last_tick do
+    raise ArgumentError, "motor ticks must increase monotonically"
+  end
+
+  def emit(%__MODULE__{} = loop, tick, opts) when is_integer(tick) do
+    effective_opts = effective_opts(loop, opts)
+    seed = Keyword.get(effective_opts, :seed, 1)
     patterns = DevelopmentalMotorBody.patterns()
-    scores = DevelopmentalSensorimotorField.output_scores(loop.field, patterns, opts)
-    pattern = select_pattern(patterns, scores, tick, seed, opts)
+    scores = DevelopmentalSensorimotorField.output_scores(loop.field, patterns, effective_opts)
+    pattern = select_pattern(patterns, scores, tick, seed, effective_opts)
 
     {body, outcome} =
       DevelopmentalMotorBody.attempt(
@@ -49,7 +69,7 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
         pattern,
         loop.position,
         tick,
-        opts
+        effective_opts
       )
 
     position = DevelopmentalMotorBody.apply_displacement(loop.position, outcome)
@@ -60,6 +80,7 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
         position: position,
         pending_output: pattern,
         last_outcome: outcome,
+        last_tick: tick,
         cycles: loop.cycles + 1
     }
 
@@ -74,15 +95,17 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
 
   def feedback(%__MODULE__{} = loop, features, coherence, opts)
       when is_list(features) and is_number(coherence) do
+    effective_opts = effective_opts(loop, opts)
+
     field =
       DevelopmentalSensorimotorField.record_output(
         loop.field,
         loop.pending_output,
         coherence,
-        opts
+        effective_opts
       )
 
-    field = DevelopmentalSensorimotorField.sense(field, features, opts)
+    field = DevelopmentalSensorimotorField.sense(field, features, effective_opts)
     %{loop | field: field, pending_output: nil}
   end
 
@@ -101,12 +124,15 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
       position: loop.position,
       pending_output: loop.pending_output,
       last_outcome: loop.last_outcome,
+      last_tick: loop.last_tick,
       cycles: loop.cycles,
       active_sensory_nodes: map_size(loop.field.sensory.activity),
       learned_output_edges: map_size(loop.field.output_edges),
       motor_attempts: loop.body.attempts
     }
   end
+
+  defp effective_opts(loop, opts), do: Keyword.merge(loop.config, opts)
 
   defp select_pattern(patterns, scores, tick, seed, opts) do
     exploration =
