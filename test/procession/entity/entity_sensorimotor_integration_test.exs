@@ -2,6 +2,7 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
   use ExUnit.Case, async: false
 
   alias Procession.EntitySupervisor
+  alias Procession.Simulation.LiveSensorimotor
 
   setup do
     id = "sensorimotor_entity_#{System.unique_integer([:positive])}"
@@ -16,7 +17,12 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
   end
 
   test "opted-in entities own persistent sensorimotor state", %{id: id} do
-    field_opts = [micro_nodes: 64, input_width: 3, encoding_salt: {:entity_loop, id}]
+    field_opts = [
+      micro_nodes: 64,
+      input_width: 3,
+      encoding_salt: {:entity_loop, id},
+      output_source_threshold: 0.0
+    ]
 
     assert {:ok, _pid} =
              EntitySupervisor.start_npc(id, %{
@@ -40,14 +46,11 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
       }
     end
 
-    opts =
-      field_opts ++
-        [
-          seed: 7,
-          bounds: {3, 3},
-          output_exploration: 1.0,
-          output_source_threshold: 0.0
-        ]
+    opts = [
+      seed: 7,
+      bounds: {3, 3},
+      output_exploration: 1.0
+    ]
 
     assert {:ok, first} =
              EntitySupervisor.sensorimotor_cycle(
@@ -72,6 +75,69 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
     assert second.trace.motor_attempts == 2
     assert second.trace.learned_output_edges > 0
     refute Map.has_key?(second.outcome, :action)
+  end
+
+  test "sensorimotor geometry survives an OTP entity restart", %{id: id} do
+    assert {:ok, entity_pid} =
+             EntitySupervisor.start_npc(id, %{
+               sensorimotor: [
+                 field_opts: [
+                   micro_nodes: 64,
+                   input_width: 3,
+                   encoding_salt: {:restart_loop, id},
+                   output_source_threshold: 0.0
+                 ],
+                 body_opts: [initial_coordination: 1.0],
+                 position: {1, 1}
+               ]
+             })
+
+    feedback = fn outcome, position ->
+      {[{:motor_consequence, outcome.consequence}, {:position, position}], 1.0}
+    end
+
+    assert {:ok, before_restart} =
+             EntitySupervisor.sensorimotor_cycle(
+               id,
+               [{:stimulus, :near}],
+               1,
+               feedback,
+               seed: 3,
+               bounds: {3, 3},
+               output_exploration: 1.0
+             )
+
+    sensorimotor_pid = GenServer.whereis(LiveSensorimotor.via_tuple(id))
+    Process.exit(entity_pid, :kill)
+
+    assert_eventually(fn ->
+      case EntitySupervisor.lookup_entity(id) do
+        {:ok, replacement_pid} -> replacement_pid != entity_pid and Process.alive?(replacement_pid)
+        _ -> false
+      end
+    end)
+
+    assert_eventually(fn ->
+      case EntitySupervisor.sensorimotor_trace(id) do
+        {:ok, trace} -> trace.attached? and trace.cycles == before_restart.trace.cycles
+        _ -> false
+      end
+    end)
+
+    assert GenServer.whereis(LiveSensorimotor.via_tuple(id)) == sensorimotor_pid
+
+    assert {:ok, after_restart} =
+             EntitySupervisor.sensorimotor_cycle(
+               id,
+               [{:stimulus, :near}],
+               2,
+               feedback,
+               seed: 3,
+               bounds: {3, 3},
+               output_exploration: 1.0
+             )
+
+    assert after_restart.trace.cycles == before_restart.trace.cycles + 1
   end
 
   test "stopping an entity also stops its sensorimotor owner", %{id: id} do
@@ -100,14 +166,14 @@ defmodule Procession.EntitySensorimotorIntegrationTest do
            end)
   end
 
-  defp assert_eventually(predicate, attempts \\ 20)
+  defp assert_eventually(predicate, attempts \\ 100)
   defp assert_eventually(predicate, 0), do: assert(predicate.())
 
   defp assert_eventually(predicate, attempts) do
     if predicate.() do
       assert true
     else
-      Process.sleep(5)
+      Process.sleep(10)
       assert_eventually(predicate, attempts - 1)
     end
   end
