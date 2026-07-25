@@ -3,15 +3,12 @@ defmodule Procession.Simulation.CausalWorldKernel do
   Deterministic authoritative physical kernel for an active local world.
 
   The kernel owns positions, obstruction, bodily state, and conserved resource
-  quantities. Entity mental planes receive only locally derived signals and emit
-  opaque motor-channel patterns. The kernel resolves the resulting displacement,
-  contact, and transfer before returning locally sensed consequences to the plane.
+  quantities. It derives locally available sensory signals and resolves proposed
+  physical consequences. Individual mental and motor state remains owned by each
+  entity's `LiveSensorimotor` process.
 
-  It does not select named actions, infer goals, or write desired outcomes into an
-  entity's mental state.
+  It does not select named actions, infer goals, or store entity mental geometry.
   """
-
-  alias Procession.Simulation.DevelopmentalSensorimotorLoop
 
   defstruct tick: 0,
             bounds: {8, 8},
@@ -22,29 +19,18 @@ defmodule Procession.Simulation.CausalWorldKernel do
             events: []
 
   def new(opts \\ []) do
-    bounds = Keyword.get(opts, :bounds, {8, 8})
-    radius = Keyword.get(opts, :perception_radius, 3)
-
     entities =
       opts
       |> Keyword.get(:entities, [])
       |> Map.new(fn attrs ->
         id = Map.fetch!(attrs, :id)
-        position = Map.get(attrs, :position, {0, 0})
-
-        loop_opts =
-          attrs
-          |> Map.get(:loop_opts, [])
-          |> Keyword.put_new(:position, position)
-          |> Keyword.put_new(:bounds, bounds)
 
         {id,
          %{
            id: id,
-           position: position,
+           position: Map.get(attrs, :position, {0, 0}),
            energy: Map.get(attrs, :energy, 0.75),
-           inventory: Map.get(attrs, :inventory, 0.0),
-           loop: DevelopmentalSensorimotorLoop.new(loop_opts)
+           inventory: Map.get(attrs, :inventory, 0.0)
          }}
       end)
 
@@ -64,34 +50,20 @@ defmodule Procession.Simulation.CausalWorldKernel do
       end)
 
     %__MODULE__{
-      bounds: bounds,
-      perception_radius: radius,
+      bounds: Keyword.get(opts, :bounds, {8, 8}),
+      perception_radius: Keyword.get(opts, :perception_radius, 3),
       entities: entities,
       resources: resources,
       obstacles: MapSet.new(Keyword.get(opts, :obstacles, []))
     }
   end
 
-  def tick(%__MODULE__{} = world, opts \\ []) do
-    tick = world.tick + 1
-
-    world =
-      world.entities
-      |> Map.keys()
-      |> Enum.sort()
-      |> Enum.reduce(%{world | tick: tick, events: []}, fn entity_id, state ->
-        step_entity(state, entity_id, opts)
-      end)
-
-    %{world | events: Enum.reverse(world.events)}
+  def begin_tick(%__MODULE__{} = world) do
+    %{world | tick: world.tick + 1, events: []}
   end
 
-  def run(world, ticks, opts \\ [])
-
-  def run(%__MODULE__{} = world, 0, _opts), do: world
-
-  def run(%__MODULE__{} = world, ticks, opts) when is_integer(ticks) and ticks > 0 do
-    Enum.reduce(1..ticks, world, fn _, state -> tick(state, opts) end)
+  def entity_ids(%__MODULE__{} = world) do
+    world.entities |> Map.keys() |> Enum.sort()
   end
 
   def perceive(%__MODULE__{} = world, entity_id) do
@@ -144,42 +116,11 @@ defmodule Procession.Simulation.CausalWorldKernel do
     ]
   end
 
-  def trace(%__MODULE__{} = world) do
-    %{
-      tick: world.tick,
-      entities:
-        Map.new(world.entities, fn {id, entity} ->
-          {id,
-           %{
-             position: entity.position,
-             energy: entity.energy,
-             inventory: entity.inventory,
-             sensorimotor: DevelopmentalSensorimotorLoop.trace(entity.loop)
-           }}
-        end),
-      resources: Map.new(world.resources, fn {id, resource} -> {id, resource.quantity} end),
-      events: world.events
-    }
-  end
-
-  def total_resource(%__MODULE__{} = world) do
-    loose = world.resources |> Map.values() |> Enum.map(& &1.quantity) |> Enum.sum()
-    held = world.entities |> Map.values() |> Enum.map(& &1.inventory) |> Enum.sum()
-    loose + held
-  end
-
-  defp step_entity(world, entity_id, opts) do
+  def resolve(%__MODULE__{} = world, entity_id, outcome, proposed_position, opts \\ []) do
     original = Map.fetch!(world.entities, entity_id)
-    features = perceive(world, entity_id)
-    effective_opts = Keyword.put_new(opts, :bounds, world.bounds)
-    sensed = DevelopmentalSensorimotorLoop.sense(original.loop, features, effective_opts)
-    {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, world.tick, effective_opts)
-
-    proposed = emitted.position
-    actual = resolve_position(world, entity_id, original.position, proposed)
+    actual = resolve_position(world, entity_id, original.position, proposed_position)
     moved? = actual != original.position
-    blocked? = actual != proposed or outcome.blocked?
-    emitted = %{emitted | position: actual}
+    blocked? = actual != proposed_position or Map.get(outcome, :blocked?, false)
 
     {world, contacted, contact_features, intake} =
       world
@@ -194,7 +135,9 @@ defmodule Procession.Simulation.CausalWorldKernel do
       |> Kernel.+(intake)
       |> clamp(0.0, 1.0)
 
-    consequence_features = [
+    entity = %{contacted | position: actual, energy: energy}
+
+    feedback_features = [
       {:position, actual},
       {:signal, {:body, :energy_pressure}, 1.0 + (1.0 - energy) * 5.0},
       {:signal, {:body, :displacement}, if(moved?, do: 1.0, else: 0.25)},
@@ -202,31 +145,58 @@ defmodule Procession.Simulation.CausalWorldKernel do
       | contact_features
     ]
 
-    loop =
-      DevelopmentalSensorimotorLoop.feedback(
-        emitted,
-        consequence_features,
-        local_coherence(intake, blocked?),
-        effective_opts
-      )
-
-    entity = %{contacted | position: actual, energy: energy, loop: loop}
-
     event = %{
       tick: world.tick,
       entity_id: entity_id,
-      motor_pattern: outcome.pattern,
+      motor_pattern: Map.fetch!(outcome, :pattern),
       from: original.position,
-      proposed: proposed,
+      proposed: proposed_position,
       position: actual,
       displaced?: moved?,
       blocked?: blocked?,
       transferred: intake
     }
 
-    world
-    |> put_entity(entity)
-    |> Map.update!(:events, &[event | &1])
+    updated =
+      world
+      |> put_entity(entity)
+      |> Map.update!(:events, &[event | &1])
+
+    resolution = %{
+      position: actual,
+      feedback_features: feedback_features,
+      coherence: local_coherence(intake, blocked?),
+      event: event
+    }
+
+    {updated, resolution}
+  end
+
+  def finish_tick(%__MODULE__{} = world) do
+    %{world | events: Enum.reverse(world.events)}
+  end
+
+  def trace(%__MODULE__{} = world) do
+    %{
+      tick: world.tick,
+      entities:
+        Map.new(world.entities, fn {id, entity} ->
+          {id,
+           %{
+             position: entity.position,
+             energy: entity.energy,
+             inventory: entity.inventory
+           }}
+        end),
+      resources: Map.new(world.resources, fn {id, resource} -> {id, resource.quantity} end),
+      events: world.events
+    }
+  end
+
+  def total_resource(%__MODULE__{} = world) do
+    loose = world.resources |> Map.values() |> Enum.map(& &1.quantity) |> Enum.sum()
+    held = world.entities |> Map.values() |> Enum.map(& &1.inventory) |> Enum.sum()
+    loose + held
   end
 
   defp transfer_contact_resource(world, entity_id, opts) do
