@@ -18,13 +18,16 @@ defmodule Procession.Simulation.LiveSocialPlane do
     GenServer.start_link(__MODULE__, plane_opts, name: name)
   end
 
-  def observe(server \\ @name, observer_id, event, tick, opts \\ []) do
+  def observe(observer_id, event, tick), do: observe(@name, observer_id, event, tick, [])
+  def observe(observer_id, event, tick, opts), do: observe(@name, observer_id, event, tick, opts)
+
+  def observe(server, observer_id, event, tick, opts) do
     GenServer.call(server, {:observe, observer_id, event, tick, opts})
   end
 
-  def advance(server \\ @name, tick, opts \\ []) do
-    GenServer.call(server, {:advance, tick, opts})
-  end
+  def advance(tick), do: advance(@name, tick, [])
+  def advance(tick, opts), do: advance(@name, tick, opts)
+  def advance(server, tick, opts), do: GenServer.call(server, {:advance, tick, opts})
 
   def trace(server \\ @name), do: GenServer.call(server, :trace)
   def state(server \\ @name), do: GenServer.call(server, :state)
