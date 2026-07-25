@@ -6,6 +6,8 @@ defmodule Procession.Simulation.LiveResolutionManager do
 
   The manager records whether a region is live, coarse, or inert and applies explicit
   transitions. It does not spawn entity processes or advance active entity minds.
+  Socially referenced identities are retained as bounded causal anchors so refined
+  relations do not point to nonexistent entities.
   """
 
   alias Procession.Simulation.MultiResolutionRegion
@@ -39,14 +41,62 @@ defmodule Procession.Simulation.LiveResolutionManager do
     end
   end
 
-  def handle_call({:compress, id, opts}, _from, state), do: transition(state, id, &MultiResolutionRegion.compress(&1, opts))
-  def handle_call({:make_inert, id}, _from, state), do: transition(state, id, &MultiResolutionRegion.make_inert/1)
-  def handle_call({:advance, id, ticks, opts}, _from, state), do: transition(state, id, &MultiResolutionRegion.coarse_run(&1, ticks, opts))
-  def handle_call({:refine, id, seed, opts}, _from, state), do: transition(state, id, &MultiResolutionRegion.refine(&1, seed, opts))
+  def handle_call({:compress, id, opts}, _from, state) do
+    transition(state, id, &compress_with_identities(&1, opts))
+  end
+
+  def handle_call({:make_inert, id}, _from, state) do
+    transition(state, id, &MultiResolutionRegion.make_inert/1)
+  end
+
+  def handle_call({:advance, id, ticks, opts}, _from, state) do
+    transition(state, id, &MultiResolutionRegion.coarse_run(&1, ticks, opts))
+  end
+
+  def handle_call({:refine, id, seed, opts}, _from, state) do
+    transition(state, id, &refine_with_identities(&1, seed, opts))
+  end
 
   def handle_call(:trace, _from, state) do
     trace = Map.new(state, fn {id, region} -> {id, MultiResolutionRegion.trace(region)} end)
     {:reply, trace, state}
+  end
+
+  defp compress_with_identities(region, opts) do
+    limit = Keyword.get(opts, :summary_identity_limit, 16)
+    coarse = MultiResolutionRegion.compress(region, opts)
+
+    identities =
+      coarse.summary.relation_anchors
+      |> Enum.flat_map(fn
+        {{observer_id, actor_id, _context}, _relation} -> [observer_id, actor_id]
+        {_key, _relation} -> []
+      end)
+      |> Enum.filter(&Map.has_key?(region.entities, &1))
+      |> Enum.uniq()
+      |> Enum.take(limit)
+
+    summary = Map.put(coarse.summary, :identity_anchors, identities)
+    %{coarse | summary: summary}
+  end
+
+  defp refine_with_identities(region, seed, opts) do
+    anchors = Map.get(region.summary, :identity_anchors, [])
+    refined = MultiResolutionRegion.refine(region, seed, opts)
+    generated = refined.entities |> Map.keys() |> Enum.sort()
+
+    rename_pairs = Enum.zip(Enum.take(generated, length(anchors)), anchors)
+
+    entities =
+      Enum.reduce(rename_pairs, refined.entities, fn {generated_id, anchored_id}, acc ->
+        entity = Map.fetch!(acc, generated_id)
+
+        acc
+        |> Map.delete(generated_id)
+        |> Map.put(anchored_id, %{entity | id: anchored_id})
+      end)
+
+    %{refined | entities: entities}
   end
 
   defp transition(state, id, fun) do
