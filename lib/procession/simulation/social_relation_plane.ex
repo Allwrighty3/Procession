@@ -3,9 +3,9 @@ defmodule Procession.Simulation.SocialRelationPlane do
   Directed, context-sensitive social structure derived from locally observed physical events.
 
   The plane stores no named social conclusions such as trust, theft, help, trade, or authority.
-  It learns expected intensities of physical event signatures for each observer/actor/context
-  relation. Repetition builds confidence and habituates surprise. Unexpected or extreme
-  observations produce stronger and more persistent relational influence.
+  It learns expected physical-event intensity for each observer/actor/context relation.
+  Repetition builds confidence and habituates surprise. Persistent extreme influence is derived
+  from the observer's own post-perception salience response, not declared by the event source.
   """
 
   defstruct relations: %{}, observations: 0, tick: 0
@@ -17,6 +17,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
           exposure: float(),
           persistence: float(),
           last_surprise: float(),
+          last_salience: float(),
           last_tick: non_neg_integer()
         }
 
@@ -26,6 +27,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     actor_id = Map.fetch!(event, :entity_id)
     context = event_context(event)
     intensity = event_intensity(event, opts)
+    observer_salience = max(0.0, Keyword.get(opts, :observer_salience, intensity))
     key = {observer_id, actor_id, context}
     previous = Map.get(plane.relations, key, blank_relation())
     surprise = abs(intensity - previous.expectation)
@@ -34,7 +36,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     exposure_gain = Keyword.get(opts, :social_exposure_gain, 1.0)
     exposure_ceiling = Keyword.get(opts, :social_exposure_ceiling, 100.0)
     persistence_retention = Keyword.get(opts, :social_persistence_retention, 0.985)
-    extreme_threshold = Keyword.get(opts, :extreme_social_threshold, 0.82)
+    extreme_threshold = Keyword.get(opts, :extreme_social_salience_threshold, 3.0)
     extreme_scale = Keyword.get(opts, :extreme_social_imprint_scale, 0.65)
     max_persistence = Keyword.get(opts, :social_persistence_ceiling, 4.0)
 
@@ -42,7 +44,12 @@ defmodule Procession.Simulation.SocialRelationPlane do
       previous.expectation +
         learning_rate * (intensity - previous.expectation) / (1.0 + previous.confidence * 0.5)
 
-    extreme_gain = if intensity >= extreme_threshold, do: intensity * extreme_scale, else: 0.0
+    extreme_gain =
+      if observer_salience >= extreme_threshold do
+        (observer_salience - extreme_threshold + 1.0) * extreme_scale
+      else
+        0.0
+      end
 
     relation = %{
       expectation: clamp(expectation, 0.0, 1.0),
@@ -55,6 +62,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
           max_persistence
         ),
       last_surprise: surprise,
+      last_salience: observer_salience,
       last_tick: tick
     }
 
@@ -65,7 +73,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
         tick: max(plane.tick, tick)
     }
 
-    {updated, signals(actor_id, context, intensity, relation, opts)}
+    {updated, signals(observer_id, actor_id, context, intensity, relation, opts)}
   end
 
   def advance(%__MODULE__{} = plane, tick, opts \\ []) do
@@ -82,7 +90,8 @@ defmodule Procession.Simulation.SocialRelationPlane do
           | confidence: relation.confidence * :math.pow(confidence_retention, elapsed),
             exposure: relation.exposure * :math.pow(exposure_retention, elapsed),
             persistence: relation.persistence * :math.pow(persistence_retention, elapsed),
-            last_surprise: relation.last_surprise * :math.pow(persistence_retention, elapsed)
+            last_surprise: relation.last_surprise * :math.pow(persistence_retention, elapsed),
+            last_salience: relation.last_salience * :math.pow(persistence_retention, elapsed)
         }
 
         if decayed.confidence + decayed.persistence + decayed.exposure > prune_threshold,
@@ -138,24 +147,21 @@ defmodule Procession.Simulation.SocialRelationPlane do
   def event_intensity(event, opts \\ []) do
     transfer_scale = Keyword.get(opts, :social_transfer_scale, 4.0)
 
-    case Map.get(event, :observed_intensity) do
-      grounded when is_number(grounded) ->
-        clamp(grounded, 0.0, 1.0)
+    cond do
+      is_number(Map.get(event, :observed_intensity)) ->
+        clamp(event.observed_intensity * 1.0, 0.0, 10.0)
 
-      _ ->
-        cond do
-          Map.get(event, :transferred, 0.0) > 0.0 ->
-            clamp(event.transferred * transfer_scale, 0.0, 0.75)
+      Map.get(event, :transferred, 0.0) > 0.0 ->
+        clamp(event.transferred * transfer_scale, 0.0, 1.0)
 
-          Map.get(event, :blocked?, false) ->
-            0.55
+      Map.get(event, :blocked?, false) ->
+        0.68
 
-          Map.get(event, :displaced?, false) ->
-            0.35
+      Map.get(event, :displaced?, false) ->
+        0.42
 
-          true ->
-            0.15
-        end
+      true ->
+        0.18
     end
   end
 
@@ -163,7 +169,11 @@ defmodule Procession.Simulation.SocialRelationPlane do
     {:observed_physical_event, Map.fetch!(event, :entity_id), event_signature(event)}
   end
 
-  defp signals(actor_id, context, intensity, relation, opts) do
+  def physical_observation_signal(event, opts \\ []) do
+    {:signal, physical_observation_feature(event), event_intensity(event, opts)}
+  end
+
+  defp signals(observer_id, actor_id, context, intensity, relation, opts) do
     surprise_gain = Keyword.get(opts, :social_surprise_gain, 3.0)
     persistence_gain = Keyword.get(opts, :social_persistence_gain, 0.35)
     expectation_gain = Keyword.get(opts, :social_expectation_gain, 0.8)
@@ -174,7 +184,8 @@ defmodule Procession.Simulation.SocialRelationPlane do
       {:signal, {:social_expectation, actor_id, context},
        clamp(relation.expectation * expectation_gain, 0.0, 8.0)},
       {:signal, {:social_surprise, actor_id, context},
-       clamp(relation.last_surprise * surprise_gain + intensity * 0.1, 0.0, 8.0)}
+       clamp(relation.last_surprise * surprise_gain + intensity * 0.1, 0.0, 8.0)},
+      {:social_observer, observer_id}
     ]
   end
 
@@ -185,6 +196,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
       exposure: 0.0,
       persistence: 0.0,
       last_surprise: 0.0,
+      last_salience: 0.0,
       last_tick: 0
     }
   end
