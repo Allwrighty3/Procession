@@ -49,9 +49,10 @@ defmodule Procession.Simulation.SocialPlaneScalingAndCausalityTest do
     assert relation.exposure == 25.0
     assert relation.confidence <= 1.0
     assert relation.persistence <= 4.0
+    assert relation.extreme_imprint <= 6.0
   end
 
-  test "the same event creates different social persistence after different salience histories" do
+  test "the same event creates different extreme imprints after different salience histories" do
     feature = SocialRelationPlane.physical_observation_feature(event())
     signal = {:signal, feature, 3.0}
 
@@ -100,7 +101,7 @@ defmodule Procession.Simulation.SocialPlaneScalingAndCausalityTest do
     habituated =
       SocialRelationPlane.relation(habituated_plane, "habituated_observer", "actor", context)
 
-    assert fresh.persistence > habituated.persistence
+    assert fresh.extreme_imprint > habituated.extreme_imprint
   end
 
   test "social-plane signals become learned support for later opaque motor output" do
