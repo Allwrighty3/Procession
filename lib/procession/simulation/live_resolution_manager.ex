@@ -81,10 +81,9 @@ defmodule Procession.Simulation.LiveResolutionManager do
   end
 
   defp refine_with_identities(region, seed, opts) do
-    anchors = Map.get(region.summary, :identity_anchors, [])
     refined = MultiResolutionRegion.refine(region, seed, opts)
+    anchors = Map.get(region.summary, :identity_anchors, [])
     generated = refined.entities |> Map.keys() |> Enum.sort()
-
     rename_pairs = Enum.zip(Enum.take(generated, length(anchors)), anchors)
 
     entities =
