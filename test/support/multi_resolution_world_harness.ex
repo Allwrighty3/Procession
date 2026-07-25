@@ -118,9 +118,10 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
     settlement_food = max(0.0, settlement_food - consumed)
 
     unmet =
-      Enum.sum(Map.values(households), fn household ->
-        max(0.0, length(household.members) * 0.55 - household.food)
-      end)
+      households
+      |> Map.values()
+      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.55 - household.food) end)
+      |> Enum.sum()
 
     population = max(map_size(people), 1)
     food_pressure = clamp(unmet / population, 0.0, 1.0)
@@ -256,10 +257,13 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
 
   def state_cost(%__MODULE__{} = world) do
     mental =
-      Enum.sum(Map.values(world.people), fn person ->
+      world.people
+      |> Map.values()
+      |> Enum.map(fn person ->
         map_size(person.mental.sensory.nodes) + map_size(person.mental.sensory.edges) +
           map_size(person.mental.sensory.activity) + map_size(person.mental.salience.imprints)
       end)
+      |> Enum.sum()
 
     mental + map_size(world.people) + map_size(world.households) * 2 + map_size(world.institutions) + map_size(world.settlement)
   end
@@ -306,7 +310,11 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
   end
 
   defp distribute_household_food(households, available) do
-    total_need = Enum.sum(Map.values(households), fn household -> max(0.0, length(household.members) * 0.55 - household.food) end)
+    total_need =
+      households
+      |> Map.values()
+      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.55 - household.food) end)
+      |> Enum.sum()
 
     if total_need <= 0.0 or available <= 0.0 do
       {households, 0.0}
