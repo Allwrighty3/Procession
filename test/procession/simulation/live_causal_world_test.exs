@@ -15,6 +15,7 @@ defmodule Procession.Simulation.LiveCausalWorldTest do
     start_supervised!({LiveCausalWorld,
       kernel_opts: [
         bounds: {4, 4},
+        obstacles: [{1, 0}, {1, 2}, {0, 1}, {2, 1}],
         entities: [
           %{
             id: "mara",
