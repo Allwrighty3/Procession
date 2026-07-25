@@ -116,11 +116,12 @@ defmodule Procession.Simulation.CausalWorldKernel do
     ]
   end
 
-  def resolve(%__MODULE__{} = world, entity_id, outcome, proposed_position, opts \\ []) do
+  def resolve(%__MODULE__{} = world, entity_id, outcome, mental_position, opts \\ []) do
     original = Map.fetch!(world.entities, entity_id)
-    actual = resolve_position(world, entity_id, original.position, proposed_position)
+    proposed = physical_proposal(original.position, outcome)
+    actual = resolve_position(world, entity_id, original.position, proposed)
     moved? = actual != original.position
-    blocked? = actual != proposed_position or Map.get(outcome, :blocked?, false)
+    blocked? = actual != proposed or Map.get(outcome, :blocked?, false)
 
     {world, contacted, contact_features, intake} =
       world
@@ -150,7 +151,8 @@ defmodule Procession.Simulation.CausalWorldKernel do
       entity_id: entity_id,
       motor_pattern: Map.fetch!(outcome, :pattern),
       from: original.position,
-      proposed: proposed_position,
+      mental_position: mental_position,
+      proposed: proposed,
       position: actual,
       displaced?: moved?,
       blocked?: blocked?,
@@ -198,6 +200,18 @@ defmodule Procession.Simulation.CausalWorldKernel do
     held = world.entities |> Map.values() |> Enum.map(& &1.inventory) |> Enum.sum()
     loose + held
   end
+
+  defp physical_proposal(position, %{displaced?: true, direction: direction}) do
+    move(position, direction)
+  end
+
+  defp physical_proposal(position, _outcome), do: position
+
+  defp move({x, y}, :north), do: {x, y - 1}
+  defp move({x, y}, :south), do: {x, y + 1}
+  defp move({x, y}, :east), do: {x + 1, y}
+  defp move({x, y}, :west), do: {x - 1, y}
+  defp move(position, _direction), do: position
 
   defp transfer_contact_resource(world, entity_id, opts) do
     entity = Map.fetch!(world.entities, entity_id)
