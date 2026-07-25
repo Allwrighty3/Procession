@@ -315,7 +315,8 @@ defmodule Procession.Simulation.HomeForagingEmergentMotorControlExperiment do
 
   defp fraction([], _predicate), do: 0.0
   defp fraction(records, predicate), do: Enum.count(records, predicate) / length(records)
-  defp mean([], default \\ 0.0), do: default
+  defp mean(values, default \\ 0.0)
+  defp mean([], default), do: default
   defp mean(values, _default), do: Enum.sum(values) / length(values)
   defp median([]), do: 0.0
 

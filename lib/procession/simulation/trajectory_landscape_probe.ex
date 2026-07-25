@@ -150,7 +150,8 @@ defmodule Procession.Simulation.TrajectoryLandscapeProbe do
     |> Enum.map_join(",", fn {symbol, value} -> "#{symbol}:#{fmt(value)}" end)
   end
 
-  defp ratio(_value, 0.0), do: 0.0
+  defp ratio(_value, +0.0), do: 0.0
+  defp ratio(_value, -0.0), do: 0.0
   defp ratio(value, baseline), do: value / baseline
   defp mean([]), do: 0.0
   defp mean(values), do: Enum.sum(values) / length(values)

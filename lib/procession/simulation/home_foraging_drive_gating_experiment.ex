@@ -208,7 +208,7 @@ defmodule Procession.Simulation.HomeForagingDriveGatingExperiment do
     |> elem(0) |> Kernel.==(desired)
   end
 
-  defp progress?(before, after_, carrying_before, carrying_after) when carrying_before != carrying_after,
+  defp progress?(_before, _after, carrying_before, carrying_after) when carrying_before != carrying_after,
     do: true
   defp progress?(before, after_, false, false), do: distance(after_, @food) < distance(before, @food)
   defp progress?(before, after_, true, true), do: distance(after_, @home) < distance(before, @home)
@@ -222,7 +222,7 @@ defmodule Procession.Simulation.HomeForagingDriveGatingExperiment do
   end
 
   defp longest_repeat(rows) do
-    {_last, best, current} = Enum.reduce(rows, {nil, 0, 0}, fn row, {last, best, current} ->
+    {_last, best, _current} = Enum.reduce(rows, {nil, 0, 0}, fn row, {last, best, current} ->
       next = if row.pattern == last, do: current + 1, else: 1
       {row.pattern, max(best, next), next}
     end)
