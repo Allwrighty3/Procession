@@ -86,7 +86,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
 
     result =
       started
-      |> CausalWorldKernel.entity_ids()
+      |> rotating_entity_order()
       |> Enum.reduce_while({:ok, started}, fn entity_id, {:ok, world} ->
         case advance_entity(world, entity_id, opts) do
           {:ok, updated} -> {:cont, {:ok, updated}}
@@ -167,6 +167,20 @@ defmodule Procession.Simulation.LiveCausalWorld do
     end)
     |> Enum.map(&elem(&1, 0))
     |> Enum.sort()
+  end
+
+  defp rotating_entity_order(world) do
+    ids = CausalWorldKernel.entity_ids(world)
+
+    case ids do
+      [] ->
+        []
+
+      _ ->
+        offset = rem(max(world.tick - 1, 0), length(ids))
+        {front, back} = Enum.split(ids, offset)
+        back ++ front
+    end
   end
 
   defp advance_social_plane(tick, opts) do
