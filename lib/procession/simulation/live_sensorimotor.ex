@@ -10,7 +10,8 @@ defmodule Procession.Simulation.LiveSensorimotor do
   attached, and the loop terminates if the entity does not return.
 
   A world may use the two-phase `emit/4` and `resolve/5` handshake so physical
-  authority remains outside the mental process. `cycle/5` remains available for
+  authority remains outside the mental process. `observe/3` admits grounded
+  perception without fabricating a motor output. `cycle/5` remains available for
   callers that already own a complete feedback function.
   """
 
@@ -39,6 +40,10 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   def cycle(server_or_entity_id, features, tick, feedback_fun, opts \\ []) do
     GenServer.call(server_ref(server_or_entity_id), {:cycle, features, tick, feedback_fun, opts})
+  end
+
+  def observe(server_or_entity_id, features, opts \\ []) do
+    GenServer.call(server_ref(server_or_entity_id), {:observe, features, opts})
   end
 
   def emit(server_or_entity_id, features, tick, opts \\ []) do
@@ -102,8 +107,18 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   @impl true
   def handle_call(request, _from, %{owner_pid: nil} = state)
-      when elem(request, 0) in [:cycle, :emit, :resolve, :feedback] do
+      when elem(request, 0) in [:cycle, :observe, :emit, :resolve, :feedback] do
     {:reply, {:error, :entity_restarting}, state}
+  end
+
+  def handle_call({:observe, features, opts}, _from, state) do
+    try do
+      loop = DevelopmentalSensorimotorLoop.sense(state.loop, features, opts)
+      {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
+    rescue
+      error ->
+        {:reply, {:error, {:invalid_observation, Exception.message(error)}}, state}
+    end
   end
 
   def handle_call({:emit, features, tick, opts}, _from, state) do

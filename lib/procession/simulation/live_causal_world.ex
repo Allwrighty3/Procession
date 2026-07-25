@@ -6,12 +6,14 @@ defmodule Procession.Simulation.LiveCausalWorld do
 
   This process owns physical world truth only. Each entity-associated
   `LiveSensorimotor` process remains the sole owner of that entity's mental and
-  motor state. A tick coordinates a two-phase handshake: entity emission, world
-  resolution, then grounded feedback.
+  motor state. A tick coordinates entity emission, world resolution, grounded
+  feedback, and optional local observation through a separately owned social plane.
   """
 
   alias Procession.EntitySupervisor
   alias Procession.Simulation.CausalWorldKernel
+  alias Procession.Simulation.LiveSocialPlane
+  alias Procession.Simulation.SocialRelationPlane
 
   @name __MODULE__
 
@@ -22,6 +24,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
   end
 
   def tick, do: tick(@name, [])
+  def tick(opts) when is_list(opts), do: tick(@name, opts)
   def tick(server), do: tick(server, [])
   def tick(server, opts), do: GenServer.call(server, {:tick, opts}, :infinity)
 
@@ -45,13 +48,13 @@ defmodule Procession.Simulation.LiveCausalWorld do
   @impl true
   def handle_call({:tick, opts}, _from, state) do
     case advance_tick(state, opts) do
-      {:ok, updated} -> {:reply, {:ok, trace_with_minds(updated)}, updated}
+      {:ok, updated} -> {:reply, {:ok, trace_with_planes(updated)}, updated}
       {:error, reason, updated} -> {:reply, {:error, reason}, updated}
     end
   end
 
   def handle_call({:run, 0, _opts}, _from, state) do
-    {:reply, {:ok, trace_with_minds(state)}, state}
+    {:reply, {:ok, trace_with_planes(state)}, state}
   end
 
   def handle_call({:run, ticks, opts}, _from, state)
@@ -65,7 +68,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
       end)
 
     case result do
-      {:ok, updated} -> {:reply, {:ok, trace_with_minds(updated)}, updated}
+      {:ok, updated} -> {:reply, {:ok, trace_with_planes(updated)}, updated}
       {:error, reason, updated} -> {:reply, {:error, reason}, updated}
     end
   end
@@ -74,15 +77,16 @@ defmodule Procession.Simulation.LiveCausalWorld do
     {:reply, {:error, :invalid_tick_count}, state}
   end
 
-  def handle_call(:trace, _from, state), do: {:reply, trace_with_minds(state), state}
+  def handle_call(:trace, _from, state), do: {:reply, trace_with_planes(state), state}
   def handle_call(:state, _from, state), do: {:reply, state, state}
 
   defp advance_tick(state, opts) do
     started = CausalWorldKernel.begin_tick(state)
+    advance_social_plane(started.tick, opts)
 
     result =
       started
-      |> CausalWorldKernel.entity_ids()
+      |> rotating_entity_order()
       |> Enum.reduce_while({:ok, started}, fn entity_id, {:ok, world} ->
         case advance_entity(world, entity_id, opts) do
           {:ok, updated} -> {:cont, {:ok, updated}}
@@ -116,11 +120,95 @@ defmodule Procession.Simulation.LiveCausalWorld do
              resolution.coherence,
              opts
            ) do
-        {:ok, _trace} -> {:ok, resolved_world}
-        {:error, reason} -> {:error, {entity_id, {:feedback_failed, reason}}, resolved_world}
+        {:ok, _trace} ->
+          observe_social_event(resolved_world, resolution.event, opts)
+          {:ok, resolved_world}
+
+        {:error, reason} ->
+          {:error, {entity_id, {:feedback_failed, reason}}, resolved_world}
       end
     else
       {:error, reason} -> {:error, {entity_id, reason}, world}
+    end
+  end
+
+  defp observe_social_event(world, event, opts) do
+    case Process.whereis(LiveSocialPlane) do
+      nil ->
+        :ok
+
+      social_pid ->
+        world
+        |> local_observers(event.entity_id, opts)
+        |> Enum.each(fn observer_id ->
+          raw_signal = SocialRelationPlane.physical_observation_signal(event, opts)
+          raw_feature = signal_feature(raw_signal)
+
+          case EntitySupervisor.sensorimotor_observe(observer_id, [raw_signal], opts) do
+            {:ok, observer_trace} ->
+              observer_salience = effective_salience(observer_trace, raw_feature)
+              social_opts = Keyword.put(opts, :observer_salience, observer_salience)
+
+              with {:ok, signals, _social_trace} <-
+                     LiveSocialPlane.observe(
+                       social_pid,
+                       observer_id,
+                       event,
+                       world.tick,
+                       social_opts
+                     ) do
+                EntitySupervisor.sensorimotor_observe(observer_id, signals, opts)
+              end
+
+            {:error, _reason} ->
+              :ok
+          end
+        end)
+    end
+  end
+
+  defp effective_salience(observer_trace, raw_feature) do
+    observer_trace
+    |> get_in([:salience, :effective_signals])
+    |> case do
+      signals when is_map(signals) -> max(0.0, Map.get(signals, raw_feature, 0.0))
+      _ -> 0.0
+    end
+  end
+
+  defp signal_feature({:signal, feature, _magnitude}), do: feature
+  defp signal_feature(feature), do: feature
+
+  defp local_observers(world, actor_id, opts) do
+    actor = Map.fetch!(world.entities, actor_id)
+    radius = Keyword.get(opts, :social_observation_radius, world.perception_radius)
+
+    world.entities
+    |> Enum.filter(fn {observer_id, observer} ->
+      observer_id != actor_id and manhattan(observer.position, actor.position) <= radius
+    end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.sort()
+  end
+
+  defp rotating_entity_order(world) do
+    ids = CausalWorldKernel.entity_ids(world)
+
+    case ids do
+      [] ->
+        []
+
+      _ ->
+        offset = rem(max(world.tick - 1, 0), length(ids))
+        {front, back} = Enum.split(ids, offset)
+        back ++ front
+    end
+  end
+
+  defp advance_social_plane(tick, opts) do
+    case Process.whereis(LiveSocialPlane) do
+      nil -> :ok
+      pid -> LiveSocialPlane.advance(pid, tick, opts)
     end
   end
 
@@ -135,7 +223,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
     end
   end
 
-  defp trace_with_minds(state) do
+  defp trace_with_planes(state) do
     physical = CausalWorldKernel.trace(state)
 
     entities =
@@ -149,6 +237,16 @@ defmodule Procession.Simulation.LiveCausalWorld do
         {entity_id, Map.put(attrs, :sensorimotor, sensorimotor)}
       end)
 
-    %{physical | entities: entities}
+    social =
+      case Process.whereis(LiveSocialPlane) do
+        nil -> %{status: :skipped, reason: :social_plane_not_running}
+        pid -> LiveSocialPlane.trace(pid)
+      end
+
+    physical
+    |> Map.put(:entities, entities)
+    |> Map.put(:social, social)
   end
+
+  defp manhattan({ax, ay}, {bx, by}), do: abs(ax - bx) + abs(ay - by)
 end
