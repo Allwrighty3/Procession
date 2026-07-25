@@ -86,9 +86,11 @@ defmodule Procession.Simulation.CausalWorldKernel do
     %{world | events: Enum.reverse(world.events)}
   end
 
+  def run(world, ticks, opts \\ [])
+
   def run(%__MODULE__{} = world, 0, _opts), do: world
 
-  def run(%__MODULE__{} = world, ticks, opts \\ []) when is_integer(ticks) and ticks > 0 do
+  def run(%__MODULE__{} = world, ticks, opts) when is_integer(ticks) and ticks > 0 do
     Enum.reduce(1..ticks, world, fn _, state -> tick(state, opts) end)
   end
 
