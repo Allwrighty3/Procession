@@ -61,6 +61,49 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
     assert LiveSensorimotor.trace(process).attached?
   end
 
+  test "two-phase handshake leaves physical resolution outside the mental owner" do
+    assert {:ok, process} =
+             LiveSensorimotor.start_link(
+               entity_id: "npc_world_handshake",
+               owner_pid: self(),
+               loop_opts: [
+                 field_opts: @field_opts,
+                 body_opts: [initial_coordination: 1.0],
+                 position: {1, 1}
+               ]
+             )
+
+    assert {:ok, emission} =
+             LiveSensorimotor.emit(
+               process,
+               [{:signal, :nearby_resource, 2.0}],
+               1,
+               seed: 4,
+               bounds: {3, 3},
+               output_exploration: 1.0
+             )
+
+    assert LiveSensorimotor.trace(process).pending_output == emission.outcome.pattern
+
+    resolved_position = {1, 1}
+
+    assert {:ok, resolved} =
+             LiveSensorimotor.resolve(
+               process,
+               resolved_position,
+               [
+                 {:position, resolved_position},
+                 {:signal, {:body, :resistance}, 2.0}
+               ],
+               -0.2
+             )
+
+    assert resolved.position == resolved_position
+    assert resolved.pending_output == nil
+    assert resolved.cycles == 1
+    assert resolved.learned_output_edges > 0
+  end
+
   test "world feedback failure preserves the pending consequence for recovery" do
     assert {:ok, process} =
              LiveSensorimotor.start_link(
