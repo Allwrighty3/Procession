@@ -101,7 +101,7 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
     assert resolved.position == resolved_position
     assert resolved.pending_output == nil
     assert resolved.cycles == 1
-    assert resolved.learned_output_edges > 0
+    assert resolved.motor_attempts == 1
   end
 
   test "world feedback failure preserves the pending consequence for recovery" do
