@@ -26,7 +26,11 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
 
   def sense(%__MODULE__{} = state, sensory_features, opts \\ []) when is_list(sensory_features) do
     before = state.sensory
-    encoded_features = Enum.map(sensory_features, &signal_feature/1)
+
+    encoded_features =
+      sensory_features
+      |> Enum.reject(&inhibitory_signal?/1)
+      |> Enum.map(&signal_feature/1)
 
     sensory =
       before
@@ -141,6 +145,11 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     |> Enum.sort_by(fn {id, weight} -> {-weight, id} end)
     |> Enum.take(fanout)
   end
+
+  defp inhibitory_signal?({:signal, _feature, magnitude}) when is_number(magnitude),
+    do: magnitude <= 0.0
+
+  defp inhibitory_signal?(_feature), do: false
 
   defp signal_feature({:signal, feature, magnitude}) when is_number(magnitude), do: feature
   defp signal_feature(feature), do: feature
