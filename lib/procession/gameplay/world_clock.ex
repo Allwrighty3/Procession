@@ -78,10 +78,10 @@ defmodule Procession.WorldClock do
         tick,
         state.resolution_policy_opts
       )
-    catch
-      :exit, reason -> %{status: :error, reason: reason}
     rescue
       error -> %{status: :error, reason: Exception.message(error)}
+    catch
+      :exit, reason -> %{status: :error, reason: reason}
     end
   end
 
