@@ -141,12 +141,22 @@ defmodule Procession.Simulation.LiveCausalWorld do
         world
         |> local_observers(event.entity_id, opts)
         |> Enum.each(fn observer_id ->
-          raw_feature = SocialRelationPlane.physical_observation_feature(event)
+          raw_signal = SocialRelationPlane.physical_observation_signal(event, opts)
+          raw_feature = signal_feature(raw_signal)
 
-          case EntitySupervisor.sensorimotor_observe(observer_id, [raw_feature], opts) do
-            {:ok, _trace} ->
+          case EntitySupervisor.sensorimotor_observe(observer_id, [raw_signal], opts) do
+            {:ok, observer_trace} ->
+              observer_salience = effective_salience(observer_trace, raw_feature)
+              social_opts = Keyword.put(opts, :observer_salience, observer_salience)
+
               with {:ok, signals, _social_trace} <-
-                     LiveSocialPlane.observe(social_pid, observer_id, event, world.tick, opts) do
+                     LiveSocialPlane.observe(
+                       social_pid,
+                       observer_id,
+                       event,
+                       world.tick,
+                       social_opts
+                     ) do
                 EntitySupervisor.sensorimotor_observe(observer_id, signals, opts)
               end
 
@@ -156,6 +166,18 @@ defmodule Procession.Simulation.LiveCausalWorld do
         end)
     end
   end
+
+  defp effective_salience(observer_trace, raw_feature) do
+    observer_trace
+    |> get_in([:salience, :effective_signals])
+    |> case do
+      signals when is_map(signals) -> max(0.0, Map.get(signals, raw_feature, 0.0))
+      _ -> 0.0
+    end
+  end
+
+  defp signal_feature({:signal, feature, _magnitude}), do: feature
+  defp signal_feature(feature), do: feature
 
   defp local_observers(world, actor_id, opts) do
     actor = Map.fetch!(world.entities, actor_id)
