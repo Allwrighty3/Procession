@@ -4,8 +4,9 @@ defmodule Procession.Simulation.DynamicSalience do
 
   Inputs remain ordinary data. A plain feature has unit magnitude; callers may use
   `{:signal, feature, magnitude}` for stronger, weaker, or inhibitory influence.
-  Novelty, habituation, bounded competition, and persistent high-magnitude imprints
-  alter activity without introducing named emotions, needs, or trauma states.
+  Salience first decides which positive signals are admitted to relational learning,
+  then modulates encoded activity through magnitude, novelty, habituation, bounded
+  competition, and persistent high-magnitude imprints.
   """
 
   alias Procession.Simulation.DevelopmentalField
@@ -14,28 +15,57 @@ defmodule Procession.Simulation.DynamicSalience do
 
   def new, do: %__MODULE__{}
 
-  def apply(%__MODULE__{} = salience, field, features, opts \\ []) when is_list(features) do
+  def prepare(%__MODULE__{} = salience, features, opts \\ []) when is_list(features) do
     signals = Enum.map(features, &normalize_signal/1)
     exposure = decay_exposure(salience.exposure, opts)
-    strongest = signals |> Enum.map(fn {_feature, magnitude} -> max(magnitude, 0.0) end) |> Enum.max(fn -> 0.0 end)
+
+    strongest =
+      signals
+      |> Enum.map(fn {_feature, magnitude} -> max(magnitude, 0.0) end)
+      |> Enum.max(fn -> 0.0 end)
+
     context_gain = 1.0 + strongest * Keyword.get(opts, :salience_context_gain, 0.0)
 
-    {activity, exposure, imprints, effective} =
-      Enum.reduce(signals, {field.activity, exposure, salience.imprints, []}, fn {feature, magnitude},
-                                                                               {activity, exposure, imprints, effective} ->
-        nodes = DevelopmentalField.active_micro_nodes(field, feature, opts)
-        seen = Map.get(exposure, feature, 0.0)
+    {effective, exposure} =
+      Enum.map_reduce(signals, exposure, fn {feature, magnitude}, exposure_acc ->
+        seen = Map.get(exposure_acc, feature, 0.0)
         repeated? = MapSet.member?(salience.last_features, feature)
         novelty = 1.0 + Keyword.get(opts, :salience_novelty_gain, 0.35) / (1.0 + seen)
         habituation = 1.0 / (1.0 + seen * Keyword.get(opts, :salience_habituation_rate, 0.08))
         repetition = if repeated?, do: Keyword.get(opts, :salience_repeat_multiplier, 0.85), else: 1.0
         effective_magnitude = magnitude * novelty * habituation * repetition * context_gain
 
-        activity = adjust_nodes(activity, nodes, effective_magnitude - default_injection(magnitude), opts)
-        imprints = update_imprints(imprints, nodes, effective_magnitude, opts)
-        exposure = Map.update(exposure, feature, 1.0, &(&1 + 1.0))
+        {{feature, effective_magnitude}, Map.update(exposure_acc, feature, 1.0, &(&1 + 1.0))}
+      end)
 
-        {activity, exposure, imprints, [{feature, effective_magnitude} | effective]}
+    selected = select_for_learning(effective, opts)
+
+    prepared = %{
+      signals: effective,
+      learning_features: Enum.map(selected, &elem(&1, 0)),
+      input_count: length(signals),
+      admitted_count: length(selected)
+    }
+
+    salience = %{
+      salience
+      | exposure: exposure,
+        last_features: MapSet.new(Enum.map(signals, &elem(&1, 0)))
+    }
+
+    {salience, prepared}
+  end
+
+  def learning_features(%{learning_features: features}), do: features
+
+  def apply(%__MODULE__{} = salience, field, prepared, opts \\ []) when is_map(prepared) do
+    {activity, imprints} =
+      Enum.reduce(prepared.signals, {field.activity, salience.imprints}, fn {feature, magnitude},
+                                                                          {activity, imprints} ->
+        nodes = DevelopmentalField.active_micro_nodes(field, feature, opts)
+        activity = adjust_nodes(activity, nodes, magnitude - default_injection(magnitude), opts)
+        imprints = update_imprints(imprints, nodes, magnitude, opts)
+        {activity, imprints}
       end)
 
     imprints = decay_imprints(imprints, opts)
@@ -44,15 +74,30 @@ defmodule Procession.Simulation.DynamicSalience do
     field = %{field | activity: activity}
 
     metrics = %{
-      input_count: length(signals),
-      effective_signals: Map.new(effective),
+      input_count: prepared.input_count,
+      admitted_count: prepared.admitted_count,
+      effective_signals: Map.new(prepared.signals),
       imprint_count: map_size(imprints),
       competition_scale: competition_scale,
       active_mass: Enum.sum(Map.values(activity))
     }
 
-    {%{salience | exposure: exposure, imprints: imprints,
-        last_features: MapSet.new(Enum.map(signals, &elem(&1, 0))), last_metrics: metrics}, field}
+    {%{salience | imprints: imprints, last_metrics: metrics}, field}
+  end
+
+  defp select_for_learning(signals, opts) do
+    threshold = Keyword.get(opts, :salience_learning_threshold, 0.12)
+
+    selected =
+      signals
+      |> Enum.filter(fn {_feature, magnitude} -> magnitude >= threshold end)
+      |> Enum.sort_by(fn {feature, magnitude} -> {-magnitude, feature} end)
+
+    case Keyword.get(opts, :salience_learning_slots, :infinity) do
+      :infinity -> selected
+      slots when is_integer(slots) and slots >= 0 -> Enum.take(selected, slots)
+      _ -> selected
+    end
   end
 
   defp normalize_signal({:signal, feature, magnitude}) when is_number(magnitude),
@@ -128,7 +173,9 @@ defmodule Procession.Simulation.DynamicSalience do
           scale = capacity / mass
           {Map.new(activity, fn {id, value} -> {id, value * scale} end), scale}
         end
-      _ -> {activity, 1.0}
+
+      _ ->
+        {activity, 1.0}
     end
   end
 
