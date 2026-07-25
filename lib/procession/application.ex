@@ -16,7 +16,7 @@ defmodule Procession.Application do
       {Procession.Simulation.LiveResolutionManager, []},
       {Procession.Simulation.RegionActivationLifecycle, []},
       {Procession.Simulation.AutomaticResolutionPolicy, []},
-      {Procession.WorldClock, []}
+      {Procession.WorldClock, [resolution_policy: true]}
     ]
 
     opts = [strategy: :one_for_one, name: Procession.Supervisor]
