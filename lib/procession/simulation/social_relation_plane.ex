@@ -32,6 +32,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     learning_rate = Keyword.get(opts, :social_learning_rate, 0.22)
     confidence_gain = Keyword.get(opts, :social_confidence_gain, 0.12)
     exposure_gain = Keyword.get(opts, :social_exposure_gain, 1.0)
+    exposure_ceiling = Keyword.get(opts, :social_exposure_ceiling, 100.0)
     persistence_retention = Keyword.get(opts, :social_persistence_retention, 0.985)
     extreme_threshold = Keyword.get(opts, :extreme_social_threshold, 0.82)
     extreme_scale = Keyword.get(opts, :extreme_social_imprint_scale, 0.65)
@@ -46,7 +47,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     relation = %{
       expectation: clamp(expectation, 0.0, 1.0),
       confidence: clamp(previous.confidence + confidence_gain, 0.0, 1.0),
-      exposure: previous.exposure + exposure_gain,
+      exposure: clamp(previous.exposure + exposure_gain, 0.0, exposure_ceiling),
       persistence:
         clamp(
           previous.persistence * persistence_retention + surprise * 0.15 + extreme_gain,
