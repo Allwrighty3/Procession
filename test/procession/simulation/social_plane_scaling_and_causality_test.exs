@@ -51,6 +51,58 @@ defmodule Procession.Simulation.SocialPlaneScalingAndCausalityTest do
     assert relation.persistence <= 4.0
   end
 
+  test "the same event creates different social persistence after different salience histories" do
+    feature = SocialRelationPlane.physical_observation_feature(event())
+    signal = {:signal, feature, 3.0}
+
+    fresh_field =
+      DevelopmentalSensorimotorField.new(@field_opts)
+      |> DevelopmentalSensorimotorField.sense([signal], @field_opts)
+
+    habituated_field =
+      Enum.reduce(1..20, DevelopmentalSensorimotorField.new(@field_opts), fn _, field ->
+        DevelopmentalSensorimotorField.sense(field, [signal], @field_opts)
+      end)
+
+    fresh_salience =
+      fresh_field
+      |> DevelopmentalSensorimotorField.salience_metrics()
+      |> get_in([:effective_signals, feature])
+
+    habituated_salience =
+      habituated_field
+      |> DevelopmentalSensorimotorField.salience_metrics()
+      |> get_in([:effective_signals, feature])
+
+    assert fresh_salience > habituated_salience
+
+    {fresh_plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "fresh_observer",
+        event(),
+        1,
+        observer_salience: fresh_salience
+      )
+
+    {habituated_plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "habituated_observer",
+        event(),
+        1,
+        observer_salience: habituated_salience
+      )
+
+    context = {:movement_attempt, :east}
+    fresh = SocialRelationPlane.relation(fresh_plane, "fresh_observer", "actor", context)
+
+    habituated =
+      SocialRelationPlane.relation(habituated_plane, "habituated_observer", "actor", context)
+
+    assert fresh.persistence > habituated.persistence
+  end
+
   test "social-plane signals become learned support for later opaque motor output" do
     {plane, signals} = SocialRelationPlane.observe(SocialRelationPlane.new(), "observer", event(), 1)
     assert plane.observations == 1
