@@ -58,7 +58,7 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
         event * recency * Keyword.get(opts, :event_weight, 0.15)
 
     cond do
-      truthy?(observation, :player_present) -> 2.0
+      active_player_presence?(observation, tick, opts) -> 2.0
       truthy?(observation, :pinned) -> 1.5
       true -> clamp(base, 0.0, 1.0)
     end
@@ -74,7 +74,7 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
     residence = max(tick - last_transition_tick, 0)
 
     cond do
-      truthy?(observation, :player_present) or truthy?(observation, :pinned) -> :live
+      active_player_presence?(observation, tick, opts) or truthy?(observation, :pinned) -> :live
       current == :live and residence < minimum_live_ticks -> :live
       current in [:coarse, :inert] and residence < minimum_dormant_ticks -> :compressed
       current == :live and score < deactivate_below -> :compressed
@@ -104,7 +104,7 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
     regions = LiveResolutionManager.trace(state.resolution_server)
     ranked = rank_regions(regions, state.observations, tick, effective)
     live_budget = max(Keyword.get(effective, :max_live_regions, 12), 0)
-    selected_live = select_live(ranked, live_budget)
+    selected_live = select_live(ranked, live_budget, tick, effective)
 
     {results, updated} =
       Enum.map_reduce(ranked, state, fn entry, acc ->
@@ -127,11 +127,11 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
     |> Enum.sort_by(fn entry -> {-entry.score, entry.id} end)
   end
 
-  defp select_live(ranked, budget) do
+  defp select_live(ranked, budget, tick, opts) do
     forced =
       ranked
       |> Enum.filter(fn entry ->
-        truthy?(entry.observation, :player_present) or truthy?(entry.observation, :pinned)
+        active_player_presence?(entry.observation, tick, opts) or truthy?(entry.observation, :pinned)
       end)
       |> Enum.map(& &1.id)
 
@@ -179,6 +179,13 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
         action = if entry.current == :live, do: :kept_live, else: :kept_compressed
         {%{region_id: entry.id, action: action, score: entry.score}, state}
     end
+  end
+
+  defp active_player_presence?(observation, tick, opts) do
+    observed_tick = Map.get(observation, :last_observed_tick, tick)
+    age = max(tick - observed_tick, 0)
+    ttl = max(Keyword.get(opts, :player_presence_ttl, 2), 0)
+    truthy?(observation, :player_present) and age <= ttl
   end
 
   defp number(map, key, default) do
