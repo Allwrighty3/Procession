@@ -8,6 +8,10 @@ defmodule Procession.Simulation.LiveSensorimotor do
   restarted by OTP, the loop preserves its relational geometry and reattaches to
   the replacement process. Cycles are rejected while no entity incarnation is
   attached, and the loop terminates if the entity does not return.
+
+  A failed world-feedback callback leaves the emitted motor consequence pending
+  instead of crashing the process. Callers may then close that consequence with
+  `feedback/4`.
   """
 
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
@@ -35,6 +39,10 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   def cycle(server_or_entity_id, features, tick, feedback_fun, opts \\ []) do
     GenServer.call(server_ref(server_or_entity_id), {:cycle, features, tick, feedback_fun, opts})
+  end
+
+  def feedback(server_or_entity_id, features, coherence, opts \\ []) do
+    GenServer.call(server_ref(server_or_entity_id), {:feedback, features, coherence, opts})
   end
 
   def trace(server_or_entity_id) do
@@ -87,22 +95,45 @@ defmodule Procession.Simulation.LiveSensorimotor do
   end
 
   def handle_call({:cycle, features, tick, feedback_fun, opts}, _from, state) do
-    {loop, outcome} =
-      DevelopmentalSensorimotorLoop.cycle(
-        state.loop,
-        features,
-        tick,
-        feedback_fun,
-        opts
-      )
+    try do
+      sensed = DevelopmentalSensorimotorLoop.sense(state.loop, features, opts)
+      {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, tick, opts)
 
-    result = %{
-      entity_id: state.entity_id,
-      outcome: outcome,
-      trace: DevelopmentalSensorimotorLoop.trace(loop)
-    }
+      case invoke_feedback(feedback_fun, outcome, emitted.position) do
+        {:ok, consequence_features, coherence} ->
+          loop =
+            DevelopmentalSensorimotorLoop.feedback(
+              emitted,
+              consequence_features,
+              coherence,
+              opts
+            )
 
-    {:reply, {:ok, result}, %{state | loop: loop}}
+          result = %{
+            entity_id: state.entity_id,
+            outcome: outcome,
+            trace: DevelopmentalSensorimotorLoop.trace(loop)
+          }
+
+          {:reply, {:ok, result}, %{state | loop: loop}}
+
+        {:error, reason} ->
+          {:reply, {:error, {:feedback_failed, reason, outcome}}, %{state | loop: emitted}}
+      end
+    rescue
+      error ->
+        {:reply, {:error, {:invalid_cycle, Exception.message(error)}}, state}
+    end
+  end
+
+  def handle_call({:feedback, features, coherence, opts}, _from, state) do
+    try do
+      loop = DevelopmentalSensorimotorLoop.feedback(state.loop, features, coherence, opts)
+      {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
+    rescue
+      error ->
+        {:reply, {:error, {:invalid_feedback, Exception.message(error)}}, state}
+    end
   end
 
   @impl true
@@ -130,6 +161,22 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
       [] ->
         {:stop, :normal, state}
+    end
+  end
+
+  defp invoke_feedback(feedback_fun, outcome, position) do
+    try do
+      case feedback_fun.(outcome, position) do
+        {features, coherence} when is_list(features) and is_number(coherence) ->
+          {:ok, features, coherence}
+
+        invalid ->
+          {:error, {:invalid_result, invalid}}
+      end
+    rescue
+      error -> {:error, {:exception, Exception.message(error)}}
+    catch
+      kind, reason -> {:error, {kind, reason}}
     end
   end
 
