@@ -88,8 +88,8 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
     support? = Keyword.get(opts, :social_support, true)
     distribution? = Keyword.get(opts, :distribution, true)
 
-    {people, labor} =
-      Map.new_reduce(world.people, 0.0, fn {id, person}, total ->
+    {person_rows, labor} =
+      Enum.map_reduce(world.people, 0.0, fn {id, person}, total ->
         household = Map.fetch!(world.households, person.household_id)
         hunger_pressure = clamp((0.55 - household.food / max(length(household.members), 1)) / 0.55, 0.0, 1.0)
         support = if support?, do: household_support(world, household, id), else: 0.0
@@ -109,6 +109,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
         {{id, updated}, total + productivity}
       end)
 
+    people = Map.new(person_rows)
     produced = labor * Keyword.get(opts, :food_per_labor, 0.12)
     settlement_food = world.settlement.food + produced
     available = if distribution?, do: settlement_food * world.institutions.distribution_trust, else: 0.0
