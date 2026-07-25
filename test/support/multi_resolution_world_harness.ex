@@ -37,8 +37,17 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
       |> Keyword.get(:households, default_households())
       |> Map.new()
 
-    settlement = Map.merge(%{food: 24.0, reserve: 8.0, migration_pressure: 0.0, conflict_pressure: 0.0}, Keyword.get(opts, :settlement, %{}))
-    institutions = Map.merge(%{distribution_trust: 1.0, obligation_strength: 1.0}, Keyword.get(opts, :institutions, %{}))
+    settlement =
+      Map.merge(
+        %{food: 2.0, reserve: 4.0, migration_pressure: 0.0, conflict_pressure: 0.0},
+        Keyword.get(opts, :settlement, %{})
+      )
+
+    institutions =
+      Map.merge(
+        %{distribution_trust: 1.0, obligation_strength: 1.0},
+        Keyword.get(opts, :institutions, %{})
+      )
 
     %__MODULE__{people: people, households: households, settlement: settlement, institutions: institutions}
   end
@@ -87,13 +96,22 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
   def step(%__MODULE__{} = world, opts \\ []) do
     support? = Keyword.get(opts, :social_support, true)
     distribution? = Keyword.get(opts, :distribution, true)
+    households_after_consumption = consume_household_food(world.households, opts)
 
     {person_rows, labor} =
       Enum.map_reduce(world.people, 0.0, fn {id, person}, total ->
-        household = Map.fetch!(world.households, person.household_id)
-        hunger_pressure = clamp((0.55 - household.food / max(length(household.members), 1)) / 0.55, 0.0, 1.0)
+        household = Map.fetch!(households_after_consumption, person.household_id)
+        target_food = length(household.members) * 0.70
+        hunger_pressure = clamp((target_food - household.food) / max(target_food, 0.01), 0.0, 1.0)
         support = if support?, do: household_support(world, household, id), else: 0.0
-        vitality = clamp(person.vitality - 0.012 - person.injury * 0.018 - hunger_pressure * 0.02 + support * 0.01, 0.0, 1.0)
+
+        vitality =
+          clamp(
+            person.vitality - 0.002 - person.injury * 0.006 - hunger_pressure * 0.008 + support * 0.003,
+            0.0,
+            1.0
+          )
+
         mobility = clamp(person.mobility + (1.0 - person.injury) * 0.01 - person.injury * 0.004, 0.0, 1.0)
         injury = clamp(person.injury * 0.992 - support * 0.002, 0.0, 1.0)
         productivity = vitality * mobility * (1.0 - injury)
@@ -110,17 +128,17 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
       end)
 
     people = Map.new(person_rows)
-    produced = labor * Keyword.get(opts, :food_per_labor, 0.12)
+    produced = labor * Keyword.get(opts, :food_per_labor, 0.035)
     settlement_food = world.settlement.food + produced
     available = if distribution?, do: settlement_food * world.institutions.distribution_trust, else: 0.0
 
-    {households, consumed} = distribute_household_food(world.households, available)
+    {households, consumed} = distribute_household_food(households_after_consumption, available)
     settlement_food = max(0.0, settlement_food - consumed)
 
     unmet =
       households
       |> Map.values()
-      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.55 - household.food) end)
+      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.70 - household.food) end)
       |> Enum.sum()
 
     population = max(map_size(people), 1)
@@ -129,7 +147,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
 
     settlement = %{world.settlement |
       food: settlement_food,
-      reserve: max(0.0, world.settlement.reserve + produced * 0.15 - food_pressure * 0.08),
+      reserve: max(0.0, world.settlement.reserve + produced * 0.05 - food_pressure * 0.08),
       migration_pressure: clamp(world.settlement.migration_pressure * 0.97 + food_pressure * 0.08, 0.0, 1.0),
       conflict_pressure: clamp(world.settlement.conflict_pressure * 0.96 + food_pressure * 0.04 + low_trust * 0.03, 0.0, 1.0)
     }
@@ -157,7 +175,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
       mean_vitality: mean(Enum.map(people, & &1.vitality)),
       mean_mobility: mean(Enum.map(people, & &1.mobility)),
       injury_pressure: mean(Enum.map(people, & &1.injury)),
-      food_pressure: mean(Enum.map(households, fn h -> max(0.0, length(h.members) * 0.55 - h.food) end)),
+      food_pressure: mean(Enum.map(households, fn h -> max(0.0, length(h.members) * 0.70 - h.food) end)),
       distribution_trust: world.institutions.distribution_trust,
       obligation_strength: world.institutions.obligation_strength,
       migration_pressure: world.settlement.migration_pressure,
@@ -176,7 +194,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
 
     %{summary |
       tick: summary.tick + 1,
-      mean_vitality: clamp(summary.mean_vitality - 0.008 - injury_drag - food_pressure * 0.012, 0.0, 1.0),
+      mean_vitality: clamp(summary.mean_vitality - 0.002 - injury_drag - food_pressure * 0.006, 0.0, 1.0),
       mean_mobility: clamp(summary.mean_mobility - summary.injury_pressure * 0.004, 0.0, 1.0),
       injury_pressure: clamp(summary.injury_pressure * 0.993, 0.0, 1.0),
       food_pressure: food_pressure,
@@ -218,7 +236,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
         id = "household_#{index}"
         members = people |> Enum.filter(fn {_pid, p} -> p.household_id == id end) |> Enum.map(&elem(&1, 0))
         per_household_pressure = summary.food_pressure / household_count
-        food = max(0.0, length(members) * 0.55 - per_household_pressure)
+        food = max(0.0, length(members) * 0.70 - per_household_pressure)
         {id, %{members: members, food: food}}
       end)
 
@@ -309,11 +327,20 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
     end
   end
 
+  defp consume_household_food(households, opts) do
+    per_person = Keyword.get(opts, :food_consumption_per_person, 0.04)
+
+    Map.new(households, fn {id, household} ->
+      consumed = length(household.members) * per_person
+      {id, %{household | food: max(0.0, household.food - consumed)}}
+    end)
+  end
+
   defp distribute_household_food(households, available) do
     total_need =
       households
       |> Map.values()
-      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.55 - household.food) end)
+      |> Enum.map(fn household -> max(0.0, length(household.members) * 0.70 - household.food) end)
       |> Enum.sum()
 
     if total_need <= 0.0 or available <= 0.0 do
@@ -323,7 +350,7 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
 
       updated =
         Map.new(households, fn {id, household} ->
-          need = max(0.0, length(household.members) * 0.55 - household.food)
+          need = max(0.0, length(household.members) * 0.70 - household.food)
           share = consumed * need / total_need
           {id, %{household | food: household.food + share}}
         end)
@@ -333,12 +360,20 @@ defmodule Procession.TestSupport.MultiResolutionWorldHarness do
   end
 
   defp causal_flags(world) do
-    []
+    inherited =
+      world.event_log
+      |> Enum.flat_map(fn
+        {:refined_from_summary, flags} -> flags
+        _ -> []
+      end)
+
+    inherited
     |> maybe_flag(Enum.any?(world.event_log, &match?({:injury, _, _}, &1)), :injury_history)
     |> maybe_flag(Enum.any?(world.event_log, &match?({:betrayal, _, _, _}, &1)), :betrayal_history)
     |> maybe_flag(Enum.any?(world.event_log, &match?({:bridge_destroyed, _}, &1)), :access_disruption)
     |> maybe_flag(world.institutions.distribution_trust < 0.65, :low_distribution_trust)
     |> maybe_flag(world.settlement.migration_pressure > 0.4, :migration_risk)
+    |> Enum.uniq()
     |> Enum.sort()
   end
 
