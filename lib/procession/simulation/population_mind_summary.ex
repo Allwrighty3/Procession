@@ -34,7 +34,9 @@ defmodule Procession.Simulation.PopulationMindSummary do
     }
   end
 
-  def instantiate(%{version: @version} = summary, seed, ordinal, opts \\ [])
+  def instantiate(summary, seed, ordinal, opts \\ [])
+
+  def instantiate(%{version: @version} = summary, seed, ordinal, opts)
       when is_integer(seed) and is_integer(ordinal) and ordinal > 0 do
     if receives_mind?(summary, seed, ordinal) and summary.cohorts != [] do
       cohort = choose_cohort(summary.cohorts, seed, ordinal)
@@ -137,21 +139,11 @@ defmodule Procession.Simulation.PopulationMindSummary do
                 activity: vary_weights(sensory.activity, seed, ordinal, :activity, scale, 0.0, 10.0),
                 history: []
             },
-            output_edges:
-              vary_weights(field.output_edges, seed, ordinal, :output, scale, 0.0, 3.0),
+            output_edges: vary_weights(field.output_edges, seed, ordinal, :output, scale, 0.0, 3.0),
             previous_activity: %{},
             salience: %{
               field.salience
-              | imprints:
-                  vary_weights(
-                    field.salience.imprints,
-                    seed,
-                    ordinal,
-                    :imprint,
-                    scale,
-                    0.0,
-                    100.0
-                  ),
+              | imprints: vary_weights(field.salience.imprints, seed, ordinal, :imprint, scale, 0.0, 100.0),
                 last_metrics: %{}
             }
         },
