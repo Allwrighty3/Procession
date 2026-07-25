@@ -34,6 +34,8 @@ The layers may share relational mechanisms, but they are not required to use one
 - fine/coarse/refined round trips and non-unique causal reconstruction;
 - summary compression and bounded active-mass checks.
 
+The complete repository suite currently passes with **1,044 tests and 0 failures** under strict compilation with warnings treated as errors.
+
 ## Discovered coarse-state requirement
 
 The first round-trip implementation retained pressure values but discarded the household and settlement food stocks that generated those pressures. It could therefore reproduce a label such as `food_pressure` while evolving from a physically different state.
