@@ -9,7 +9,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -18,86 +18,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
-
-      - name: Apply warning cleanup
-        if: github.event_name == 'pull_request' && github.head_ref == 'feature/official-sensorimotor-loop'
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          replacements = {
-              "lib/procession/simulation/home_foraging_child_scale_experiment.ex": [
-                  (
-                      "  defp mean([], default \\\\ 0.0), do: default\n  defp mean(values, _default), do: Enum.sum(values) / length(values)",
-                      "  defp mean(values, default \\\\ 0.0)\n  defp mean([], default), do: default\n  defp mean(values, _default), do: Enum.sum(values) / length(values)",
-                  )
-              ],
-              "lib/procession/simulation/home_foraging_emergent_motor_control_experiment.ex": [
-                  (
-                      "  defp mean([], default \\\\ 0.0), do: default\n  defp mean(values, _default), do: Enum.sum(values) / length(values)",
-                      "  defp mean(values, default \\\\ 0.0)\n  defp mean([], default), do: default\n  defp mean(values, _default), do: Enum.sum(values) / length(values)",
-                  )
-              ],
-              "lib/procession/simulation/home_foraging_drive_gating_experiment.ex": [
-                  (
-                      "  defp progress?(before, after_, carrying_before, carrying_after) when carrying_before != carrying_after,",
-                      "  defp progress?(_before, _after, carrying_before, carrying_after) when carrying_before != carrying_after,",
-                  ),
-                  (
-                      "    {_last, best, current} = Enum.reduce(rows, {nil, 0, 0}, fn row, {last, best, current} ->",
-                      "    {_last, best, _current} = Enum.reduce(rows, {nil, 0, 0}, fn row, {last, best, current} ->",
-                  ),
-              ],
-              "lib/procession/simulation/home_foraging_memory_performance_experiment.ex": [
-                  (
-                      "  defp select_pattern(condition, field, body, tick, seed, entity, teaching_ticks, opts)",
-                      "  defp select_pattern(condition, field, _body, tick, seed, entity, teaching_ticks, opts)",
-                  )
-              ],
-              "lib/procession/simulation/home_foraging_recursive_memory_integration.ex": [
-                  (
-                      "  defp select_pattern(:memory_plane, field, body, tick, seed, entity) do",
-                      "  defp select_pattern(:memory_plane, field, _body, tick, seed, entity) do",
-                  ),
-                  (
-                      "  defp apply_support(before, natural_body, natural, position, pattern, desired, false),",
-                      "  defp apply_support(_before, natural_body, natural, position, _pattern, _desired, false),",
-                  ),
-              ],
-              "lib/procession/simulation/trajectory_landscape_probe.ex": [
-                  (
-                      "  defp ratio(_value, 0.0), do: 0.0",
-                      "  defp ratio(_value, +0.0), do: 0.0\n  defp ratio(_value, -0.0), do: 0.0",
-                  )
-              ],
-          }
-
-          changed = []
-          for filename, edits in replacements.items():
-              path = Path(filename)
-              text = path.read_text()
-              original = text
-              for old, new in edits:
-                  if old not in text:
-                      raise SystemExit(f"expected text not found in {filename}: {old!r}")
-                  text = text.replace(old, new, 1)
-              if text != original:
-                  path.write_text(text)
-                  changed.append(filename)
-
-          print("updated", len(changed), "files")
-          PY
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/procession/simulation
-          if ! git diff --cached --quiet; then
-            git commit -m "Fix strict compilation warnings"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
 
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
