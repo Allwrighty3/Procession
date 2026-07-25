@@ -76,6 +76,7 @@ defmodule Procession.Simulation.DynamicSalience do
     metrics = %{
       input_count: prepared.input_count,
       admitted_count: prepared.admitted_count,
+      admitted_features: prepared.learning_features,
       effective_signals: Map.new(prepared.signals),
       imprint_count: map_size(imprints),
       competition_scale: competition_scale,
