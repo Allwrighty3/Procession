@@ -71,32 +71,98 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
 
   test "ordinary resistance is not automatically an extreme social event" do
     blocked = event(%{position: {1, 1}, displaced?: false, blocked?: true})
-    {plane, _} = SocialRelationPlane.observe(SocialRelationPlane.new(), "observer", blocked, 1)
+
+    {plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "observer",
+        blocked,
+        1,
+        observer_salience: 0.8
+      )
 
     relation =
       SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     assert relation.persistence < 0.5
+    assert relation.last_salience == 0.8
   end
 
-  test "grounded extreme observation leaves a persistent bounded imprint" do
-    plane = SocialRelationPlane.new()
-
-    extreme =
+  test "the same grounded event leaves different persistence under different observer salience" do
+    grounded =
       event(%{
         transferred: 0.25,
         displaced?: false,
         position: {1, 1},
-        observed_intensity: 1.0
+        observed_intensity: 4.0
+      })
+
+    {low_plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "low_salience_observer",
+        grounded,
+        1,
+        observer_salience: 1.2
+      )
+
+    {high_plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "high_salience_observer",
+        grounded,
+        1,
+        observer_salience: 4.5,
+        extreme_social_salience_threshold: 3.0
+      )
+
+    context = {:resource_contact, :medium}
+    low = SocialRelationPlane.relation(low_plane, "low_salience_observer", "actor", context)
+    high = SocialRelationPlane.relation(high_plane, "high_salience_observer", "actor", context)
+
+    assert high.persistence > low.persistence
+    assert high.persistence > 0.5
+    assert low.persistence < 0.5
+    assert high.last_salience == 4.5
+    assert high.persistence <= 4.0
+  end
+
+  test "event intensity alone cannot force an extreme observer imprint" do
+    grounded = event(%{observed_intensity: 8.0})
+
+    {plane, _} =
+      SocialRelationPlane.observe(
+        SocialRelationPlane.new(),
+        "observer",
+        grounded,
+        1,
+        observer_salience: 0.9
+      )
+
+    relation =
+      SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
+
+    assert relation.last_salience == 0.9
+    assert relation.persistence < 0.5
+  end
+
+  test "observer-derived extreme imprint remains bounded and decays" do
+    grounded =
+      event(%{
+        transferred: 0.25,
+        displaced?: false,
+        position: {1, 1},
+        observed_intensity: 4.0
       })
 
     {plane, _} =
       SocialRelationPlane.observe(
-        plane,
+        SocialRelationPlane.new(),
         "observer",
-        extreme,
+        grounded,
         1,
-        extreme_social_threshold: 0.8
+        observer_salience: 5.0,
+        extreme_social_salience_threshold: 3.0
       )
 
     relation =
@@ -112,6 +178,7 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
 
     assert later.persistence > 0.0
     assert later.persistence < relation.persistence
+    assert later.last_salience < relation.last_salience
   end
 
   test "social signals expose expectation and surprise without named conclusions" do
