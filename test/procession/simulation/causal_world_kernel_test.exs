@@ -106,7 +106,7 @@ defmodule Procession.Simulation.CausalWorldKernelTest do
     initial = world(resources: []) |> CausalWorldKernel.begin_tick()
 
     {updated, resolution} =
-      CausalWorldKernel.resolve(initial, "mara", outcome(direction: :east), {99, 99})
+      CausalWorldKernel.resolve(initial, "mara", outcome(%{direction: :east}), {99, 99})
 
     assert updated.entities["mara"].position == {3, 2}
     assert resolution.event.proposed == {3, 2}
