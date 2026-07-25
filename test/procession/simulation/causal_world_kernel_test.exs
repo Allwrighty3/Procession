@@ -102,6 +102,17 @@ defmodule Procession.Simulation.CausalWorldKernelTest do
     assert resolution.event.blocked?
   end
 
+  test "a desynchronized mental coordinate cannot teleport the physical body" do
+    initial = world(resources: []) |> CausalWorldKernel.begin_tick()
+
+    {updated, resolution} =
+      CausalWorldKernel.resolve(initial, "mara", outcome(direction: :east), {99, 99})
+
+    assert updated.entities["mara"].position == {3, 2}
+    assert resolution.event.proposed == {3, 2}
+    assert resolution.event.mental_position == {99, 99}
+  end
+
   test "world events expose opaque motor patterns rather than named actions" do
     initial = world(resources: []) |> CausalWorldKernel.begin_tick()
     {updated, _resolution} = CausalWorldKernel.resolve(initial, "mara", outcome(), {2, 1})
