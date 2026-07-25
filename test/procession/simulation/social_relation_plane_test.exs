@@ -84,11 +84,12 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     relation =
       SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
-    assert relation.persistence < 0.5
+    assert relation.persistence > 0.0
+    assert relation.extreme_imprint == 0.0
     assert relation.last_salience == 0.8
   end
 
-  test "the same grounded event leaves different persistence under different observer salience" do
+  test "the same grounded event leaves different extreme imprints under different observer salience" do
     grounded =
       event(%{
         transferred: 0.25,
@@ -120,11 +121,11 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     low = SocialRelationPlane.relation(low_plane, "low_salience_observer", "actor", context)
     high = SocialRelationPlane.relation(high_plane, "high_salience_observer", "actor", context)
 
-    assert high.persistence > low.persistence
-    assert high.persistence > 0.5
-    assert low.persistence < 0.5
+    assert high.extreme_imprint > low.extreme_imprint
+    assert high.extreme_imprint > 0.5
+    assert low.extreme_imprint == 0.0
     assert high.last_salience == 4.5
-    assert high.persistence <= 4.0
+    assert high.extreme_imprint <= 6.0
   end
 
   test "event intensity alone cannot force an extreme observer imprint" do
@@ -143,7 +144,8 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
       SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     assert relation.last_salience == 0.9
-    assert relation.persistence < 0.5
+    assert relation.persistence > 0.0
+    assert relation.extreme_imprint == 0.0
   end
 
   test "observer-derived extreme imprint remains bounded and decays" do
@@ -168,16 +170,16 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     relation =
       SocialRelationPlane.relation(plane, "observer", "actor", {:resource_contact, :medium})
 
-    assert relation.persistence > 0.5
-    assert relation.persistence <= 4.0
+    assert relation.extreme_imprint > 0.5
+    assert relation.extreme_imprint <= 6.0
 
     decayed = SocialRelationPlane.advance(plane, 100)
 
     later =
       SocialRelationPlane.relation(decayed, "observer", "actor", {:resource_contact, :medium})
 
-    assert later.persistence > 0.0
-    assert later.persistence < relation.persistence
+    assert later.extreme_imprint > 0.0
+    assert later.extreme_imprint < relation.extreme_imprint
     assert later.last_salience < relation.last_salience
   end
 
