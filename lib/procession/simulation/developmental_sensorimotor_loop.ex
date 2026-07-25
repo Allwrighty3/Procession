@@ -6,13 +6,9 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   actions, infer goals, or let the world write directly into the sensory field.
   The world supplies sensed features and a local signed coherence assessment of
   the resulting transition.
-
-  Construction options are retained by the loop so an entity does not silently
-  change its sensory encoding or plasticity rules when callers omit per-cycle
-  overrides. Dynamic salience is enabled by default for official loops and can be
-  explicitly disabled for controlled comparisons.
   """
 
+  alias Procession.Simulation.DevelopmentalMindSnapshot
   alias Procession.Simulation.DevelopmentalMotorBody
   alias Procession.Simulation.DevelopmentalSensorimotorField
 
@@ -26,11 +22,20 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
             cycles: 0
 
   def new(opts \\ []) do
+    case Keyword.get(opts, :snapshot) do
+      nil -> fresh(opts)
+      snapshot -> DevelopmentalMindSnapshot.restore(snapshot)
+    end
+  end
+
+  def snapshot(%__MODULE__{} = loop, opts \\ []), do: DevelopmentalMindSnapshot.capture(loop, opts)
+
+  defp fresh(opts) do
     field_opts = Keyword.get(opts, :field_opts, [])
 
     config =
       field_opts
-      |> Keyword.merge(Keyword.drop(opts, [:field_opts, :body_opts, :position]))
+      |> Keyword.merge(Keyword.drop(opts, [:field_opts, :body_opts, :position, :snapshot]))
       |> Keyword.put_new(:dynamic_salience, true)
 
     %__MODULE__{
@@ -42,21 +47,12 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   def sense(%__MODULE__{} = loop, features, opts \\ []) when is_list(features) do
-    effective_opts = effective_opts(loop, opts)
-    field = DevelopmentalSensorimotorField.sense(loop.field, features, effective_opts)
-    %{loop | field: field}
+    %{loop | field: DevelopmentalSensorimotorField.sense(loop.field, features, effective_opts(loop, opts))}
   end
 
   def emit(loop, tick, opts \\ [])
-
-  def emit(%__MODULE__{pending_output: pending}, _tick, _opts) when not is_nil(pending) do
-    raise ArgumentError, "cannot emit another motor output before feedback closes the pending output"
-  end
-
-  def emit(%__MODULE__{last_tick: last_tick}, tick, _opts)
-      when is_integer(last_tick) and is_integer(tick) and tick <= last_tick do
-    raise ArgumentError, "motor ticks must increase monotonically"
-  end
+  def emit(%__MODULE__{pending_output: pending}, _tick, _opts) when not is_nil(pending), do: raise(ArgumentError, "cannot emit another motor output before feedback closes the pending output")
+  def emit(%__MODULE__{last_tick: last_tick}, tick, _opts) when is_integer(last_tick) and is_integer(tick) and tick <= last_tick, do: raise(ArgumentError, "motor ticks must increase monotonically")
 
   def emit(%__MODULE__{} = loop, tick, opts) when is_integer(tick) do
     effective_opts = effective_opts(loop, opts)
@@ -64,57 +60,24 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     patterns = DevelopmentalMotorBody.patterns()
     scores = DevelopmentalSensorimotorField.output_scores(loop.field, patterns, effective_opts)
     pattern = select_pattern(patterns, scores, tick, seed, effective_opts)
-
-    {body, outcome} =
-      DevelopmentalMotorBody.attempt(
-        loop.body,
-        pattern,
-        loop.position,
-        tick,
-        effective_opts
-      )
-
+    {body, outcome} = DevelopmentalMotorBody.attempt(loop.body, pattern, loop.position, tick, effective_opts)
     position = DevelopmentalMotorBody.apply_displacement(loop.position, outcome)
-
-    updated = %{
-      loop
-      | body: body,
-        position: position,
-        pending_output: pattern,
-        last_outcome: outcome,
-        last_tick: tick,
-        cycles: loop.cycles + 1
-    }
-
+    updated = %{loop | body: body, position: position, pending_output: pattern, last_outcome: outcome, last_tick: tick, cycles: loop.cycles + 1}
     {updated, Map.put(outcome, :position, position)}
   end
 
   def feedback(loop, features, coherence, opts \\ [])
+  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts), do: raise(ArgumentError, "cannot apply feedback without a pending motor output")
 
-  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts) do
-    raise ArgumentError, "cannot apply feedback without a pending motor output"
-  end
-
-  def feedback(%__MODULE__{} = loop, features, coherence, opts)
-      when is_list(features) and is_number(coherence) do
+  def feedback(%__MODULE__{} = loop, features, coherence, opts) when is_list(features) and is_number(coherence) do
     effective_opts = effective_opts(loop, opts)
-
-    field =
-      DevelopmentalSensorimotorField.record_output(
-        loop.field,
-        loop.pending_output,
-        coherence,
-        effective_opts
-      )
-
+    field = DevelopmentalSensorimotorField.record_output(loop.field, loop.pending_output, coherence, effective_opts)
     field = DevelopmentalSensorimotorField.sense(field, features, effective_opts)
     %{loop | field: field, pending_output: nil}
   end
 
   def cycle(loop, features, tick, feedback_fun, opts \\ [])
-
-  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts)
-      when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
+  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts) when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
     sensed = sense(loop, features, opts)
     {emitted, outcome} = emit(sensed, tick, opts)
     {consequence_features, coherence} = feedback_fun.(outcome, emitted.position)
@@ -138,11 +101,7 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   defp effective_opts(loop, opts), do: Keyword.merge(loop.config, opts)
 
   defp select_pattern(patterns, scores, tick, seed, opts) do
-    exploration =
-      opts
-      |> Keyword.get(:output_exploration, 0.20)
-      |> max(0.0)
-      |> min(1.0)
+    exploration = opts |> Keyword.get(:output_exploration, 0.20) |> max(0.0) |> min(1.0)
 
     patterns
     |> Enum.map(fn pattern ->
