@@ -26,43 +26,8 @@ defmodule Procession.Simulation.LiveResolutionManager do
   def refine(id, seed, opts \\ [], server \\ @name), do: GenServer.call(server, {:refine, id, seed, opts})
   def trace(server \\ @name), do: GenServer.call(server, :trace)
 
-  @impl true
-  def init(state), do: {:ok, state}
-
-  @impl true
-  def handle_call({:put, %MultiResolutionRegion{id: id} = region}, _from, state) do
-    {:reply, {:ok, MultiResolutionRegion.trace(region)}, Map.put(state, id, region)}
-  end
-
-  def handle_call({:fetch, id}, _from, state) do
-    case Map.fetch(state, id) do
-      {:ok, region} -> {:reply, {:ok, region}, state}
-      :error -> {:reply, {:error, :not_found}, state}
-    end
-  end
-
-  def handle_call({:compress, id, opts}, _from, state) do
-    transition(state, id, &compress_with_identities(&1, opts))
-  end
-
-  def handle_call({:make_inert, id}, _from, state) do
-    transition(state, id, &MultiResolutionRegion.make_inert/1)
-  end
-
-  def handle_call({:advance, id, ticks, opts}, _from, state) do
-    transition(state, id, &MultiResolutionRegion.coarse_run(&1, ticks, opts))
-  end
-
-  def handle_call({:refine, id, seed, opts}, _from, state) do
-    transition(state, id, &refine_with_identities(&1, seed, opts))
-  end
-
-  def handle_call(:trace, _from, state) do
-    trace = Map.new(state, fn {id, region} -> {id, MultiResolutionRegion.trace(region)} end)
-    {:reply, trace, state}
-  end
-
-  defp compress_with_identities(region, opts) do
+  @doc "Compresses a live region while retaining bounded socially referenced identities."
+  def compress_region(%MultiResolutionRegion{} = region, opts \\ []) do
     limit = Keyword.get(opts, :summary_identity_limit, 16)
     coarse = MultiResolutionRegion.compress(region, opts)
 
@@ -80,7 +45,8 @@ defmodule Procession.Simulation.LiveResolutionManager do
     %{coarse | summary: summary}
   end
 
-  defp refine_with_identities(region, seed, opts) do
+  @doc "Refines a compressed region and restores bounded identity anchors."
+  def refine_region(%MultiResolutionRegion{} = region, seed, opts \\ []) do
     refined = MultiResolutionRegion.refine(region, seed, opts)
     anchors = Map.get(region.summary, :identity_anchors, [])
     generated = refined.entities |> Map.keys() |> Enum.sort()
@@ -96,6 +62,42 @@ defmodule Procession.Simulation.LiveResolutionManager do
       end)
 
     %{refined | entities: entities}
+  end
+
+  @impl true
+  def init(state), do: {:ok, state}
+
+  @impl true
+  def handle_call({:put, %MultiResolutionRegion{id: id} = region}, _from, state) do
+    {:reply, {:ok, MultiResolutionRegion.trace(region)}, Map.put(state, id, region)}
+  end
+
+  def handle_call({:fetch, id}, _from, state) do
+    case Map.fetch(state, id) do
+      {:ok, region} -> {:reply, {:ok, region}, state}
+      :error -> {:reply, {:error, :not_found}, state}
+    end
+  end
+
+  def handle_call({:compress, id, opts}, _from, state) do
+    transition(state, id, &compress_region(&1, opts))
+  end
+
+  def handle_call({:make_inert, id}, _from, state) do
+    transition(state, id, &MultiResolutionRegion.make_inert/1)
+  end
+
+  def handle_call({:advance, id, ticks, opts}, _from, state) do
+    transition(state, id, &MultiResolutionRegion.coarse_run(&1, ticks, opts))
+  end
+
+  def handle_call({:refine, id, seed, opts}, _from, state) do
+    transition(state, id, &refine_region(&1, seed, opts))
+  end
+
+  def handle_call(:trace, _from, state) do
+    trace = Map.new(state, fn {id, region} -> {id, MultiResolutionRegion.trace(region)} end)
+    {:reply, trace, state}
   end
 
   defp transition(state, id, fun) do
