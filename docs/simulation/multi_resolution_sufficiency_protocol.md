@@ -1,6 +1,6 @@
 # Multi-Resolution Sufficiency Protocol
 
-This protocol defines the current falsification standard for Procession's three-layer world architecture.
+This protocol defines the current falsification standard for Procession's three-layer world architecture. It is intended to be exhaustive according to the project's current understanding, not a permanent claim that no additional failure classes exist.
 
 ## Layers
 
