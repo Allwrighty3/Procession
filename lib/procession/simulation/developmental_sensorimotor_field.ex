@@ -3,27 +3,42 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   Keeps sensory memory formation separate from motor output learning.
 
   Sensory inputs are processed by `DevelopmentalField` and may activate micro-nodes
-  or generated nodes. Motor outputs never enter that sensory encoder. Instead,
-  active sensory/generated nodes learn directed support for named outputs after
-  the world reports whether the output produced a coherent sensory transition.
+  or generated nodes. Optional dynamic salience modulates that activity through
+  signal magnitude, novelty, habituation, competition, inhibition, and persistent
+  extreme-salience imprints. Motor outputs never enter the sensory encoder.
   """
 
   alias Procession.Simulation.DevelopmentalField
   alias Procession.Simulation.DevelopmentalMemoryQuality
+  alias Procession.Simulation.DynamicSalience
 
-  defstruct sensory: nil, output_edges: %{}, previous_activity: %{}
+  defstruct sensory: nil,
+            salience: nil,
+            output_edges: %{},
+            previous_activity: %{}
 
   def new(opts \\ []) do
-    %__MODULE__{sensory: DevelopmentalField.new(opts)}
+    %__MODULE__{
+      sensory: DevelopmentalField.new(opts),
+      salience: DynamicSalience.new()
+    }
   end
 
   def sense(%__MODULE__{} = state, sensory_features, opts \\ []) when is_list(sensory_features) do
     before = state.sensory
+    encoded_features = Enum.map(sensory_features, &signal_feature/1)
 
     sensory =
       before
-      |> DevelopmentalField.step({:features, sensory_features}, opts)
+      |> DevelopmentalField.step({:features, encoded_features}, opts)
       |> then(&DevelopmentalMemoryQuality.gate(before, &1, opts))
+
+    {salience, sensory} =
+      if Keyword.get(opts, :dynamic_salience, false) do
+        DynamicSalience.apply(state.salience || DynamicSalience.new(), sensory, sensory_features, opts)
+      else
+        {state.salience || DynamicSalience.new(), sensory}
+      end
 
     retention = Keyword.get(opts, :output_edge_retention, 0.999)
 
@@ -33,9 +48,14 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
       |> Enum.reject(fn {_edge, weight} -> abs(weight) < 0.0005 end)
       |> Map.new()
 
-    %{state | sensory: sensory, output_edges: output_edges,
+    %{state | sensory: sensory, salience: salience, output_edges: output_edges,
       previous_activity: before.activity}
   end
+
+  def salience_metrics(%__MODULE__{salience: %DynamicSalience{} = salience}),
+    do: salience.last_metrics
+
+  def salience_metrics(%__MODULE__{}), do: %{}
 
   @doc """
   Records an output from the currently active sensory context.
@@ -87,6 +107,7 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     Enum.reduce(state.sensory.activity, 0.0, fn {source, activity}, total ->
       if activity >= threshold do
         node = Map.fetch!(state.sensory.nodes, source)
+
         specificity =
           if node.kind == :generated and specificity_power > 0.0 do
             :math.pow(max(MapSet.size(node.support), 1), -specificity_power)
@@ -121,11 +142,16 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     |> Enum.take(fanout)
   end
 
+  defp signal_feature({:signal, feature, magnitude}) when is_number(magnitude), do: feature
+  defp signal_feature(feature), do: feature
+
   defp source_weight(:rising, activity, previous), do: max(0.0, activity - previous)
+
   defp source_weight(:rising_residual, activity, previous) do
     rise = max(0.0, activity - previous)
     residual = max(0.0, activity - min(previous, activity) * 0.85)
     max(rise, residual)
   end
+
   defp source_weight(_mode, activity, _previous), do: activity
 end
