@@ -7,9 +7,10 @@ defmodule Procession.WorldClock do
   Manually controlled world simulation clock.
 
   The clock coordinates an optional authoritative causal world, the existing
-  live-entity tick path, and optional post-tick region-resolution reconciliation.
-  It schedules time only; it does not decide perception, motor output, physical
-  consequences, entity behavior, or causal relevance.
+  live-entity tick path, optional grounded region-observation publication, and
+  optional post-tick region-resolution reconciliation. It schedules time only;
+  it does not decide perception, motor output, physical consequences, entity
+  behavior, or causal relevance.
   """
 
   defstruct tick_count: 0,
@@ -17,7 +18,9 @@ defmodule Procession.WorldClock do
             interval_ms: nil,
             timer_ref: nil,
             resolution_policy: false,
-            resolution_policy_opts: []
+            resolution_policy_opts: [],
+            region_observations: false,
+            region_observation_opts: []
 
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, @name)
@@ -41,7 +44,9 @@ defmodule Procession.WorldClock do
     {:ok,
      %__MODULE__{
        resolution_policy: Keyword.get(opts, :resolution_policy, false),
-       resolution_policy_opts: Keyword.get(opts, :resolution_policy_opts, [])
+       resolution_policy_opts: Keyword.get(opts, :resolution_policy_opts, []),
+       region_observations: Keyword.get(opts, :region_observations, false),
+       region_observation_opts: Keyword.get(opts, :region_observation_opts, [])
      }}
   end
 
@@ -55,11 +60,13 @@ defmodule Procession.WorldClock do
         {:error, reason} -> %{status: :error, reason: reason}
       end
 
+    observations = refresh_region_observations(state, next_tick)
     resolution_policy = reconcile_resolutions(state, next_tick)
 
     tick_summary =
       entity_summary
       |> Map.put(:causal_world, normalize_causal_world(causal_world))
+      |> Map.put(:region_observations, observations)
       |> Map.put(:resolution_policy, resolution_policy)
       |> Map.put(:clock_tick, next_tick)
 
@@ -70,14 +77,31 @@ defmodule Procession.WorldClock do
     }
   end
 
+  defp refresh_region_observations(%{region_observations: false}, _tick), do: :disabled
+
+  defp refresh_region_observations(state, tick) do
+    safe_call(fn ->
+      Procession.Simulation.RegionObservationPublisher.refresh(
+        tick,
+        state.region_observation_opts
+      )
+    end)
+  end
+
   defp reconcile_resolutions(%{resolution_policy: false}, _tick), do: :disabled
 
   defp reconcile_resolutions(state, tick) do
-    try do
+    safe_call(fn ->
       Procession.Simulation.AutomaticResolutionPolicy.reconcile(
         tick,
         state.resolution_policy_opts
       )
+    end)
+  end
+
+  defp safe_call(fun) do
+    try do
+      fun.()
     rescue
       error -> %{status: :error, reason: Exception.message(error)}
     catch
