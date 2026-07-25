@@ -12,7 +12,6 @@ defmodule Procession.Simulation.LiveCausalWorld do
 
   alias Procession.EntitySupervisor
   alias Procession.Simulation.CausalWorldKernel
-  alias Procession.Simulation.LiveSensorimotor
 
   @name __MODULE__
 
@@ -100,7 +99,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
   defp advance_entity(world, entity_id, opts) do
     with :ok <- validate_entity(entity_id),
          features <- CausalWorldKernel.perceive(world, entity_id),
-         {:ok, emission} <- LiveSensorimotor.emit(entity_id, features, world.tick, opts) do
+         {:ok, emission} <- EntitySupervisor.sensorimotor_emit(entity_id, features, world.tick, opts) do
       {resolved_world, resolution} =
         CausalWorldKernel.resolve(
           world,
@@ -110,7 +109,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
           opts
         )
 
-      case LiveSensorimotor.resolve(
+      case EntitySupervisor.sensorimotor_resolve(
              entity_id,
              resolution.position,
              resolution.feedback_features,
