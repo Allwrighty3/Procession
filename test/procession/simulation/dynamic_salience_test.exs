@@ -3,6 +3,7 @@ defmodule Procession.Simulation.DynamicSalienceTest do
 
   alias Procession.Simulation.DevelopmentalField
   alias Procession.Simulation.DevelopmentalSensorimotorField
+  alias Procession.Simulation.DevelopmentalSensorimotorLoop
 
   @opts [
     dynamic_salience: true,
@@ -30,10 +31,8 @@ defmodule Procession.Simulation.DynamicSalienceTest do
       DevelopmentalSensorimotorField.new(@opts)
       |> DevelopmentalSensorimotorField.sense([{:signal, :sound, 2.5}], @opts)
 
-    ordinary_mass = Enum.sum(Map.values(ordinary.sensory.activity))
-    intense_mass = Enum.sum(Map.values(intense.sensory.activity))
-
-    assert intense_mass > ordinary_mass
+    assert Enum.sum(Map.values(intense.sensory.activity)) >
+             Enum.sum(Map.values(ordinary.sensory.activity))
   end
 
   test "repetition habituates while a novel signal receives more gain" do
@@ -50,7 +49,25 @@ defmodule Procession.Simulation.DynamicSalienceTest do
     assert novel_gain > second_gain
   end
 
-  test "negative magnitude inhibits the same relational region" do
+  test "strong internal pressure generically raises co-occurring signal gain" do
+    without_pressure =
+      DevelopmentalSensorimotorField.new(@opts)
+      |> DevelopmentalSensorimotorField.sense([:food_cue], Keyword.put(@opts, :salience_context_gain, 0.12))
+
+    with_pressure =
+      DevelopmentalSensorimotorField.new(@opts)
+      |> DevelopmentalSensorimotorField.sense(
+        [:food_cue, {:signal, :internal_pressure, 4.0}],
+        Keyword.put(@opts, :salience_context_gain, 0.12)
+      )
+
+    ordinary = get_in(DevelopmentalSensorimotorField.salience_metrics(without_pressure), [:effective_signals, :food_cue])
+    modulated = get_in(DevelopmentalSensorimotorField.salience_metrics(with_pressure), [:effective_signals, :food_cue])
+
+    assert modulated > ordinary
+  end
+
+  test "negative magnitude inhibits the same relational region without reinjecting it" do
     excited =
       DevelopmentalSensorimotorField.new(@opts)
       |> DevelopmentalSensorimotorField.sense([{:signal, :alarm, 2.0}], @opts)
@@ -103,10 +120,16 @@ defmodule Procession.Simulation.DynamicSalienceTest do
       |> DevelopmentalSensorimotorField.sense([], @opts)
 
     quiet_mass = Enum.sum(Map.values(imprinted.sensory.activity))
-
     cued = DevelopmentalSensorimotorField.sense(imprinted, [:impact_cue], @opts)
-    cued_mass = Enum.sum(Map.values(cued.sensory.activity))
 
-    assert cued_mass > quiet_mass
+    assert Enum.sum(Map.values(cued.sensory.activity)) > quiet_mass
+  end
+
+  test "official sensorimotor loops enable dynamic salience by default" do
+    loop = DevelopmentalSensorimotorLoop.new(field_opts: [micro_nodes: 64, input_width: 3])
+    sensed = DevelopmentalSensorimotorLoop.sense(loop, [{:signal, :sudden_pain, 5.0}])
+
+    assert sensed.config[:dynamic_salience]
+    assert sensed |> DevelopmentalSensorimotorLoop.trace() |> get_in([:salience, :imprint_count]) > 0
   end
 end
