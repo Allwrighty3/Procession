@@ -16,7 +16,15 @@ defmodule Procession.Simulation.LiveSensorimotor do
   @reattach_delay_ms 10
 
   def child_spec(opts) do
-    Supervisor.child_spec({__MODULE__, opts}, restart: :transient)
+    entity_id = Keyword.fetch!(opts, :entity_id)
+
+    %{
+      id: {__MODULE__, entity_id},
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :transient,
+      shutdown: 5_000,
+      type: :worker
+    }
   end
 
   def start_link(opts) do
