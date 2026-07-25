@@ -75,18 +75,26 @@ defmodule Procession.EntitySupervisor do
   end
 
   def sensorimotor_cycle(id, features, tick, feedback_fun, opts \\ []) do
-    if sensorimotor_enabled?(id) do
+    with :ok <- require_sensorimotor(id) do
       LiveSensorimotor.cycle(id, features, tick, feedback_fun, opts)
-    else
-      {:error, :sensorimotor_not_enabled}
+    end
+  end
+
+  def sensorimotor_emit(id, features, tick, opts \\ []) do
+    with :ok <- require_sensorimotor(id) do
+      LiveSensorimotor.emit(id, features, tick, opts)
+    end
+  end
+
+  def sensorimotor_resolve(id, position, features, coherence, opts \\ []) do
+    with :ok <- require_sensorimotor(id) do
+      LiveSensorimotor.resolve(id, position, features, coherence, opts)
     end
   end
 
   def sensorimotor_feedback(id, features, coherence, opts \\ []) do
-    if sensorimotor_enabled?(id) do
+    with :ok <- require_sensorimotor(id) do
       LiveSensorimotor.feedback(id, features, coherence, opts)
-    else
-      {:error, :sensorimotor_not_enabled}
     end
   end
 
@@ -185,5 +193,9 @@ defmodule Procession.EntitySupervisor do
       [{pid, _value}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
       [] -> :ok
     end
+  end
+
+  defp require_sensorimotor(id) do
+    if sensorimotor_enabled?(id), do: :ok, else: {:error, :sensorimotor_not_enabled}
   end
 end
