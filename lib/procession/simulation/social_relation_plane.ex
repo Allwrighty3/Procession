@@ -65,7 +65,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
         tick: max(plane.tick, tick)
     }
 
-    {updated, signals(observer_id, actor_id, context, intensity, relation, opts)}
+    {updated, signals(actor_id, context, intensity, relation, opts)}
   end
 
   def advance(%__MODULE__{} = plane, tick, opts \\ []) do
@@ -138,18 +138,24 @@ defmodule Procession.Simulation.SocialRelationPlane do
   def event_intensity(event, opts \\ []) do
     transfer_scale = Keyword.get(opts, :social_transfer_scale, 4.0)
 
-    cond do
-      Map.get(event, :transferred, 0.0) > 0.0 ->
-        clamp(event.transferred * transfer_scale, 0.0, 1.0)
+    case Map.get(event, :observed_intensity) do
+      grounded when is_number(grounded) ->
+        clamp(grounded, 0.0, 1.0)
 
-      Map.get(event, :blocked?, false) ->
-        0.88
+      _ ->
+        cond do
+          Map.get(event, :transferred, 0.0) > 0.0 ->
+            clamp(event.transferred * transfer_scale, 0.0, 0.75)
 
-      Map.get(event, :displaced?, false) ->
-        0.42
+          Map.get(event, :blocked?, false) ->
+            0.55
 
-      true ->
-        0.18
+          Map.get(event, :displaced?, false) ->
+            0.35
+
+          true ->
+            0.15
+        end
     end
   end
 
@@ -157,7 +163,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
     {:observed_physical_event, Map.fetch!(event, :entity_id), event_signature(event)}
   end
 
-  defp signals(observer_id, actor_id, context, intensity, relation, opts) do
+  defp signals(actor_id, context, intensity, relation, opts) do
     surprise_gain = Keyword.get(opts, :social_surprise_gain, 3.0)
     persistence_gain = Keyword.get(opts, :social_persistence_gain, 0.35)
     expectation_gain = Keyword.get(opts, :social_expectation_gain, 0.8)
@@ -168,8 +174,7 @@ defmodule Procession.Simulation.SocialRelationPlane do
       {:signal, {:social_expectation, actor_id, context},
        clamp(relation.expectation * expectation_gain, 0.0, 8.0)},
       {:signal, {:social_surprise, actor_id, context},
-       clamp(relation.last_surprise * surprise_gain + intensity * 0.1, 0.0, 8.0)},
-      {:social_observer, observer_id}
+       clamp(relation.last_surprise * surprise_gain + intensity * 0.1, 0.0, 8.0)}
     ]
   end
 
