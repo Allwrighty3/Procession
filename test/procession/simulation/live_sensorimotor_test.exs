@@ -60,4 +60,58 @@ defmodule Procession.Simulation.LiveSensorimotorTest do
     assert LiveSensorimotor.trace(process).cycles == 2
     assert LiveSensorimotor.trace(process).attached?
   end
+
+  test "world feedback failure preserves the pending consequence for recovery" do
+    assert {:ok, process} =
+             LiveSensorimotor.start_link(
+               entity_id: "npc_feedback_recovery",
+               owner_pid: self(),
+               loop_opts: [
+                 field_opts: @field_opts ++ [output_source_threshold: 0.0],
+                 body_opts: [initial_coordination: 1.0],
+                 position: {1, 1}
+               ]
+             )
+
+    failing_feedback = fn _outcome, _position -> raise "world unavailable" end
+
+    assert {:error, {:feedback_failed, {:exception, "world unavailable"}, outcome}} =
+             LiveSensorimotor.cycle(
+               process,
+               [{:visual_channel, :stimulus_relation, :near}],
+               1,
+               failing_feedback,
+               seed: 3,
+               bounds: {3, 3},
+               output_exploration: 1.0
+             )
+
+    assert Process.alive?(process)
+    assert LiveSensorimotor.trace(process).pending_output == outcome.pattern
+
+    assert {:ok, recovered_trace} =
+             LiveSensorimotor.feedback(
+               process,
+               [{:proprioceptive_channel, :consequence, outcome.consequence}],
+               1.0
+             )
+
+    assert recovered_trace.pending_output == nil
+    assert recovered_trace.learned_output_edges > 0
+
+    assert {:ok, next_cycle} =
+             LiveSensorimotor.cycle(
+               process,
+               [{:visual_channel, :stimulus_relation, :near}],
+               2,
+               fn next_outcome, _position ->
+                 {[{:proprioceptive_channel, :consequence, next_outcome.consequence}], 0.0}
+               end,
+               seed: 3,
+               bounds: {3, 3},
+               output_exploration: 1.0
+             )
+
+    assert next_cycle.trace.cycles == 2
+  end
 end
