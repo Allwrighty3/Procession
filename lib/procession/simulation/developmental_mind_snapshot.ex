@@ -74,7 +74,17 @@ defmodule Procession.Simulation.DevelopmentalMindSnapshot do
     }
   end
 
-  def restore(%{version: @version, loop: %DevelopmentalSensorimotorLoop{} = loop}), do: loop
+  def restore(%{version: @version, loop: %DevelopmentalSensorimotorLoop{} = loop}) do
+    salience = loop.field.salience
+
+    metrics =
+      salience.last_metrics
+      |> Map.put(:imprint_count, map_size(salience.imprints))
+      |> Map.put(:exposure_count, map_size(salience.exposure))
+      |> Map.put_new(:active_mass, Enum.sum(Map.values(loop.field.sensory.activity)))
+
+    %{loop | field: %{loop.field | salience: %{salience | last_metrics: metrics}}}
+  end
 
   def restore(%{version: version}) do
     raise ArgumentError, "unsupported mind snapshot version #{inspect(version)}"
