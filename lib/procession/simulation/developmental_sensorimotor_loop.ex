@@ -9,7 +9,8 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
 
   Construction options are retained by the loop so an entity does not silently
   change its sensory encoding or plasticity rules when callers omit per-cycle
-  overrides.
+  overrides. Dynamic salience is enabled by default for official loops and can be
+  explicitly disabled for controlled comparisons.
   """
 
   alias Procession.Simulation.DevelopmentalMotorBody
@@ -30,6 +31,7 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     config =
       field_opts
       |> Keyword.merge(Keyword.drop(opts, [:field_opts, :body_opts, :position]))
+      |> Keyword.put_new(:dynamic_salience, true)
 
     %__MODULE__{
       field: DevelopmentalSensorimotorField.new(config),
@@ -128,7 +130,8 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
       cycles: loop.cycles,
       active_sensory_nodes: map_size(loop.field.sensory.activity),
       learned_output_edges: map_size(loop.field.output_edges),
-      motor_attempts: loop.body.attempts
+      motor_attempts: loop.body.attempts,
+      salience: DevelopmentalSensorimotorField.salience_metrics(loop.field)
     }
   end
 
