@@ -24,6 +24,7 @@ defmodule Procession.Simulation.LiveCausalWorld do
   end
 
   def tick, do: tick(@name, [])
+  def tick(opts) when is_list(opts), do: tick(@name, opts)
   def tick(server), do: tick(server, [])
   def tick(server, opts), do: GenServer.call(server, {:tick, opts}, :infinity)
 
