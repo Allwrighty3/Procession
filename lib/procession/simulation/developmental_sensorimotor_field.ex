@@ -58,12 +58,20 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
       |> Enum.reject(fn {_edge, weight} -> abs(weight) < 0.0005 end)
       |> Map.new()
 
-    %{state | sensory: sensory, salience: salience, output_edges: output_edges,
-      previous_activity: before.activity}
+    %{
+      state
+      | sensory: sensory,
+        salience: salience,
+        output_edges: output_edges,
+        previous_activity: before.activity
+    }
   end
 
-  def salience_metrics(%__MODULE__{salience: %DynamicSalience{} = salience}),
-    do: salience.last_metrics
+  def salience_metrics(%__MODULE__{salience: %DynamicSalience{} = salience}) do
+    salience.last_metrics
+    |> Map.put(:imprint_count, map_size(salience.imprints))
+    |> Map.put(:exposure_count, map_size(salience.exposure))
+  end
 
   def salience_metrics(%__MODULE__{}), do: %{}
 

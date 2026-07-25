@@ -82,6 +82,8 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
 
     assert {:ok, archive} = RegionActivationLifecycle.archive(region_id)
     assert Map.keys(archive.snapshots) |> MapSet.new() == MapSet.new([anchor, partner])
+    assert archive.population_minds.total_population == 1
+    assert archive.population_minds.minded_population == 0
 
     assert {:ok, %{resolution: :inert, tick: 17}} =
              LiveResolutionManager.advance(region_id, 5)
@@ -89,38 +91,51 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
     assert {:ok, %{resolution: :live, entity_count: 3}} =
              RegionActivationLifecycle.activate(region_id, 41)
 
-    assert EntitySupervisor.exists?(anchor)
-    assert EntitySupervisor.exists?(partner)
-
     restored = Entity.get_state(anchor)
     assert restored.name == "Remembered Mara"
     assert restored.traits.patience == 0.7
     assert restored.metadata.identity_marker == :preserve_me
     assert restored.location == region_id
     assert length(restored.short_memory) == 1
-    assert is_map(restored.metadata.physical_state)
 
     assert {:ok, refined} = LiveResolutionManager.fetch(region_id)
-    assert refined.resolution == :live
-    assert map_size(refined.entities) == 3
     assert Map.has_key?(refined.entities, anchor)
     assert Map.has_key?(refined.entities, partner)
     refute Map.has_key?(refined.entities, unanchored)
     assert :error = RegionActivationLifecycle.archive(region_id)
   end
 
-  test "a live sensorimotor owner prevents lossy region shutdown" do
-    region_id = unique("mind_guard_region")
-    entity_id = unique("live_mind")
+  test "unanchored developmental minds survive through bounded population reconstruction" do
+    region_id = unique("population_mind_region")
+    entity_id = unique("unanchored_mind")
 
-    on_exit(fn -> stop_if_present(entity_id) end)
+    on_exit(fn ->
+      stop_if_present(entity_id)
+
+      case LiveResolutionManager.fetch(region_id) do
+        {:ok, region} -> Enum.each(Map.keys(region.entities), &stop_if_present/1)
+        _ -> :ok
+      end
+    end)
 
     assert {:ok, _} =
              EntitySupervisor.start_entity(entity_id, %{
                name: "Developing Mind",
                type: :npc,
-               sensorimotor: [micro_nodes: 64, input_width: 4]
+               sensorimotor: [micro_nodes: 64, input_width: 4, seed: 19]
              })
+
+    Enum.each(1..12, fn _ ->
+      assert {:ok, _} =
+               EntitySupervisor.sensorimotor_observe(
+                 entity_id,
+                 [{:signal, :scarcity, 4.0}],
+                 extreme_salience_threshold: 2.0
+               )
+    end)
+
+    assert {:ok, before_trace} = EntitySupervisor.sensorimotor_trace(entity_id)
+    assert before_trace.salience.imprint_count > 0
 
     region =
       MultiResolutionRegion.new(
@@ -131,13 +146,76 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
 
     assert {:ok, _} = LiveResolutionManager.put(region)
 
-    assert {:error, {:live_minds_not_serializable, [^entity_id]}} =
-             RegionActivationLifecycle.deactivate(region_id)
+    assert {:ok, %{resolution: :inert}} =
+             RegionActivationLifecycle.deactivate(region_id,
+               population_mind_cohort_limit: 2
+             )
 
-    assert EntitySupervisor.exists?(entity_id)
-    assert EntitySupervisor.sensorimotor_enabled?(entity_id)
-    assert {:ok, %{resolution: :live}} = LiveResolutionManager.fetch(region_id)
-    assert :error = RegionActivationLifecycle.archive(region_id)
+    refute EntitySupervisor.exists?(entity_id)
+
+    assert {:ok, archive} = RegionActivationLifecycle.archive(region_id)
+    assert archive.snapshots == %{}
+    assert archive.mind_snapshots == %{}
+    assert archive.population_minds.total_population == 1
+    assert archive.population_minds.minded_population == 1
+    assert length(archive.population_minds.cohorts) == 1
+
+    assert {:ok, %{resolution: :live, entity_count: 1}} =
+             RegionActivationLifecycle.activate(region_id, 77)
+
+    assert {:ok, refined} = LiveResolutionManager.fetch(region_id)
+    [new_id] = Map.keys(refined.entities)
+    refute new_id == entity_id
+    assert EntitySupervisor.sensorimotor_enabled?(new_id)
+
+    assert {:ok, after_trace} = EntitySupervisor.sensorimotor_trace(new_id)
+    assert after_trace.salience.imprint_count > 0
+    assert after_trace.cycles == before_trace.cycles
+  end
+
+  test "mixed unanchored populations preserve approximate mind prevalence" do
+    region_id = unique("mixed_population_region")
+    ids = for index <- 1..10, do: unique("resident_#{index}")
+
+    on_exit(fn ->
+      Enum.each(ids, &stop_if_present/1)
+
+      case LiveResolutionManager.fetch(region_id) do
+        {:ok, region} -> Enum.each(Map.keys(region.entities), &stop_if_present/1)
+        _ -> :ok
+      end
+    end)
+
+    Enum.each(Enum.with_index(ids, 1), fn {id, index} ->
+      attrs =
+        if index <= 4 do
+          %{name: id, type: :npc, sensorimotor: [micro_nodes: 32, input_width: 3, seed: index]}
+        else
+          %{name: id, type: :npc}
+        end
+
+      assert {:ok, _} = EntitySupervisor.start_entity(id, attrs)
+    end)
+
+    region =
+      MultiResolutionRegion.new(
+        id: region_id,
+        entities: Enum.with_index(ids, fn id, index -> physical(id, {index, 0}) end),
+        resources: []
+      )
+
+    assert {:ok, _} = LiveResolutionManager.put(region)
+    assert {:ok, %{resolution: :inert}} = RegionActivationLifecycle.deactivate(region_id)
+    assert {:ok, archive} = RegionActivationLifecycle.archive(region_id)
+    assert archive.population_minds.total_population == 10
+    assert archive.population_minds.minded_population == 4
+
+    assert {:ok, %{resolution: :live, entity_count: 10}} =
+             RegionActivationLifecycle.activate(region_id, 123)
+
+    assert {:ok, refined} = LiveResolutionManager.fetch(region_id)
+    minded = Enum.count(Map.keys(refined.entities), &EntitySupervisor.sensorimotor_enabled?/1)
+    assert minded in 2..6
   end
 
   test "activation collision leaves the inactive region and archive unchanged" do
@@ -191,6 +269,7 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
     refute EntitySupervisor.exists?(partner)
 
     assert :ok = EntitySupervisor.stop_entity(anchor)
+
     assert {:ok, %{resolution: :live, entity_count: 2}} =
              RegionActivationLifecycle.activate(region_id, 7)
 

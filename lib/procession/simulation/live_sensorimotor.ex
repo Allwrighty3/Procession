@@ -13,8 +13,13 @@ defmodule Procession.Simulation.LiveSensorimotor do
   authority remains outside the mental process. `observe/3` admits grounded
   perception without fabricating a motor output. `cycle/5` remains available for
   callers that already own a complete feedback function.
+
+  `snapshot/2` returns a bounded loss-aware representation suitable for dormant
+  storage. `checkpoint/1` returns the exact live loop only for short-lived rollback
+  transactions and must not be used as persistent inactive-world storage.
   """
 
+  alias Procession.Simulation.DevelopmentalMindSnapshot
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
 
   @reattach_attempts 50
@@ -61,12 +66,15 @@ defmodule Procession.Simulation.LiveSensorimotor do
     GenServer.call(server_ref(server_or_entity_id), {:feedback, features, coherence, opts})
   end
 
-  def trace(server_or_entity_id) do
-    GenServer.call(server_ref(server_or_entity_id), :trace)
+  def trace(server_or_entity_id), do: GenServer.call(server_ref(server_or_entity_id), :trace)
+  def entity_id(server_or_entity_id), do: GenServer.call(server_ref(server_or_entity_id), :entity_id)
+
+  def snapshot(server_or_entity_id, opts \\ []) do
+    GenServer.call(server_ref(server_or_entity_id), {:snapshot, opts}, :infinity)
   end
 
-  def entity_id(server_or_entity_id) do
-    GenServer.call(server_ref(server_or_entity_id), :entity_id)
+  def checkpoint(server_or_entity_id) do
+    GenServer.call(server_ref(server_or_entity_id), :checkpoint, :infinity)
   end
 
   def via_tuple(entity_id) do
@@ -75,9 +83,20 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   @impl true
   def init({entity_id, opts}) do
-    loop_opts = Keyword.get(opts, :loop_opts, [])
     owner_pid = Keyword.fetch!(opts, :owner_pid)
     owner_monitor = Process.monitor(owner_pid)
+
+    loop =
+      cond do
+        match?(%DevelopmentalSensorimotorLoop{}, Keyword.get(opts, :loop)) ->
+          Keyword.fetch!(opts, :loop)
+
+        is_map(Keyword.get(opts, :snapshot)) ->
+          opts |> Keyword.fetch!(:snapshot) |> DevelopmentalMindSnapshot.restore()
+
+        true ->
+          opts |> Keyword.get(:loop_opts, []) |> DevelopmentalSensorimotorLoop.new()
+      end
 
     {:ok,
      %{
@@ -85,16 +104,22 @@ defmodule Procession.Simulation.LiveSensorimotor do
        owner_pid: owner_pid,
        owner_monitor: owner_monitor,
        reattach_attempts: @reattach_attempts,
-       loop: DevelopmentalSensorimotorLoop.new(loop_opts)
+       loop: loop
      }}
   end
 
   @impl true
-  def handle_call(:entity_id, _from, state) do
-    {:reply, state.entity_id, state}
+  def handle_call(:entity_id, _from, state), do: {:reply, state.entity_id, state}
+  def handle_call(:checkpoint, _from, state), do: {:reply, {:ok, state.loop}, state}
+
+  def handle_call({:snapshot, opts}, _from, state) do
+    try do
+      {:reply, {:ok, DevelopmentalMindSnapshot.capture(state.loop, opts)}, state}
+    rescue
+      error -> {:reply, {:error, {:snapshot_failed, Exception.message(error)}}, state}
+    end
   end
 
-  @impl true
   def handle_call(:trace, _from, state) do
     trace =
       state.loop
@@ -116,8 +141,7 @@ defmodule Procession.Simulation.LiveSensorimotor do
       loop = DevelopmentalSensorimotorLoop.sense(state.loop, features, opts)
       {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
     rescue
-      error ->
-        {:reply, {:error, {:invalid_observation, Exception.message(error)}}, state}
+      error -> {:reply, {:error, {:invalid_observation, Exception.message(error)}}, state}
     end
   end
 
@@ -144,8 +168,7 @@ defmodule Procession.Simulation.LiveSensorimotor do
       loop = DevelopmentalSensorimotorLoop.feedback(loop, features, coherence, opts)
       {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
     rescue
-      error ->
-        {:reply, {:error, {:invalid_resolution, Exception.message(error)}}, state}
+      error -> {:reply, {:error, {:invalid_resolution, Exception.message(error)}}, state}
     end
   end
 
@@ -184,8 +207,7 @@ defmodule Procession.Simulation.LiveSensorimotor do
       loop = DevelopmentalSensorimotorLoop.feedback(state.loop, features, coherence, opts)
       {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
     rescue
-      error ->
-        {:reply, {:error, {:invalid_feedback, Exception.message(error)}}, state}
+      error -> {:reply, {:error, {:invalid_feedback, Exception.message(error)}}, state}
     end
   end
 

@@ -4,21 +4,21 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   @moduledoc """
   Transactional process lifecycle for multi-resolution regions.
 
-  Compression is validated before any entity is stopped. Full entity snapshots exist
-  only for the duration of a deactivation transaction so rollback can be exact. Once
-  compression succeeds, only bounded identity-anchor snapshots remain archived;
-  unanchored population detail is reconstructed from the coarse summary.
-
-  Regions containing live sensorimotor owners are rejected because developmental
-  geometry does not yet have a loss-aware snapshot format.
+  Exact entity and mind checkpoints exist only during deactivation rollback. Successful
+  dormant storage retains individual state and mind snapshots only for bounded identity
+  anchors. Unanchored developmental minds are represented by a bounded population
+  summary of causally distinct cohorts.
   """
 
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.LiveResolutionManager
   alias Procession.Simulation.MultiResolutionRegion
+  alias Procession.Simulation.PopulationMindSummary
 
   @name __MODULE__
+  @stop_visibility_attempts 50
+  @stop_visibility_delay_ms 2
 
   def start_link(opts \\ []) do
     state = %{
@@ -67,6 +67,8 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
          %{
            identity_count: map_size(archive.snapshots),
            identities: archive.snapshots |> Map.keys() |> Enum.sort(),
+           anchored_mind_count: map_size(archive.mind_snapshots),
+           population_minds: PopulationMindSummary.trace(archive.population_minds),
            compressed_at_tick: archive.compressed_at_tick
          }}
       end)
@@ -78,26 +80,44 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     with {:ok, region} <- LiveResolutionManager.fetch(region_id, state.resolution_server),
          :ok <- require_live(region),
          :ok <- require_entities_present(region, state.entity_supervisor),
-         :ok <- require_serializable_minds(region, state.entity_supervisor),
          {:ok, candidate} <- build_compressed_candidate(region, opts),
-         {:ok, all_snapshots} <- capture_snapshots(Map.keys(region.entities)),
+         {:ok, entity_snapshots} <- capture_entity_snapshots(Map.keys(region.entities)),
+         {:ok, mind_checkpoints, mind_snapshots} <-
+           capture_minds(Map.keys(region.entities), state.entity_supervisor, opts),
          {:ok, _trace} <- LiveResolutionManager.put(candidate, state.resolution_server) do
       ids = region.entities |> Map.keys() |> Enum.sort()
 
       case stop_all(ids, state.entity_supervisor) do
         {:ok, stopped} ->
-          anchored_ids = Map.get(candidate.summary, :identity_anchors, [])
+          case await_stopped(ids, state.entity_supervisor) do
+            :ok ->
+              anchored_ids = Map.get(candidate.summary, :identity_anchors, [])
+              unanchored_ids = ids -- anchored_ids
 
-          archive = %{
-            snapshots: Map.take(all_snapshots, anchored_ids),
-            compressed_at_tick: region.tick,
-            stopped_entity_ids: stopped
-          }
+              population_snapshots =
+                mind_snapshots
+                |> Map.take(unanchored_ids)
+                |> Map.values()
 
-          {:ok, MultiResolutionRegion.trace(candidate), put_in(state.archives[region_id], archive)}
+              archive = %{
+                snapshots: Map.take(entity_snapshots, anchored_ids),
+                mind_snapshots: Map.take(mind_snapshots, anchored_ids),
+                population_minds:
+                  PopulationMindSummary.capture(population_snapshots, length(unanchored_ids), opts),
+                compressed_at_tick: region.tick,
+                stopped_entity_ids: stopped
+              }
+
+              {:ok, MultiResolutionRegion.trace(candidate), put_in(state.archives[region_id], archive)}
+
+            {:error, still_live} ->
+              rollback_stopped(stopped, entity_snapshots, mind_checkpoints, state.entity_supervisor)
+              LiveResolutionManager.put(region, state.resolution_server)
+              {:error, {:deactivation_visibility_failed, still_live}}
+          end
 
         {:error, reason, stopped} ->
-          rollback_stopped(stopped, all_snapshots, state.entity_supervisor)
+          rollback_stopped(stopped, entity_snapshots, mind_checkpoints, state.entity_supervisor)
           LiveResolutionManager.put(region, state.resolution_server)
           {:error, {:deactivation_failed, reason}}
       end
@@ -110,7 +130,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
          {:ok, archive} <- fetch_archive(state, region_id),
          {:ok, refined} <- refine_candidate(region, seed, opts),
          :ok <- require_no_collisions(refined, state.entity_supervisor),
-         {:ok, started} <- start_all(refined, archive, state.entity_supervisor) do
+         {:ok, started} <- start_all(refined, archive, seed, opts, state.entity_supervisor) do
       case LiveResolutionManager.put(refined, state.resolution_server) do
         {:ok, _trace} ->
           updated = update_in(state.archives, &Map.delete(&1, region_id))
@@ -156,18 +176,6 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     if missing == [], do: :ok, else: {:error, {:entities_not_live, missing}}
   end
 
-  defp require_serializable_minds(region, supervisor) do
-    unsnapshottable =
-      region.entities
-      |> Map.keys()
-      |> Enum.filter(&supervisor.sensorimotor_enabled?/1)
-      |> Enum.sort()
-
-    if unsnapshottable == [],
-      do: :ok,
-      else: {:error, {:live_minds_not_serializable, unsnapshottable}}
-  end
-
   defp build_compressed_candidate(region, opts) do
     try do
       candidate = LiveResolutionManager.compress_region(region, opts)
@@ -183,7 +191,7 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     end
   end
 
-  defp capture_snapshots(ids) do
+  defp capture_entity_snapshots(ids) do
     ids
     |> Enum.sort()
     |> Enum.reduce_while(%{}, fn id, acc ->
@@ -196,6 +204,24 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     |> case do
       {:error, _reason} = error -> error
       snapshots -> {:ok, snapshots}
+    end
+  end
+
+  defp capture_minds(ids, supervisor, opts) do
+    ids
+    |> Enum.sort()
+    |> Enum.filter(&supervisor.sensorimotor_enabled?/1)
+    |> Enum.reduce_while({%{}, %{}}, fn id, {checkpoints, snapshots} ->
+      with {:ok, checkpoint} <- supervisor.sensorimotor_checkpoint(id),
+           {:ok, snapshot} <- supervisor.sensorimotor_snapshot(id, opts) do
+        {:cont, {Map.put(checkpoints, id, checkpoint), Map.put(snapshots, id, snapshot)}}
+      else
+        {:error, reason} -> {:halt, {:error, {:mind_snapshot_failed, id, reason}}}
+      end
+    end)
+    |> case do
+      {:error, _reason} = error -> error
+      {checkpoints, snapshots} -> {:ok, checkpoints, snapshots}
     end
   end
 
@@ -212,10 +238,32 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     end
   end
 
-  defp rollback_stopped(stopped, snapshots, supervisor) do
+  defp await_stopped(ids, supervisor) do
+    Enum.reduce_while(1..@stop_visibility_attempts, ids, fn _, _remaining ->
+      still_live = Enum.filter(ids, &supervisor.exists?/1)
+
+      if still_live == [] do
+        {:halt, :ok}
+      else
+        Process.sleep(@stop_visibility_delay_ms)
+        {:cont, still_live}
+      end
+    end)
+    |> case do
+      :ok -> :ok
+      still_live -> {:error, still_live}
+    end
+  end
+
+  defp rollback_stopped(stopped, snapshots, mind_checkpoints, supervisor) do
     Enum.each(stopped, fn id ->
-      snapshot = Map.fetch!(snapshots, id)
-      supervisor.start_entity(id, entity_attrs(snapshot))
+      attrs =
+        snapshots
+        |> Map.fetch!(id)
+        |> entity_attrs()
+        |> maybe_attach_loop(Map.get(mind_checkpoints, id))
+
+      supervisor.start_entity(id, attrs)
     end)
   end
 
@@ -237,47 +285,57 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     if collisions == [], do: :ok, else: {:error, {:entity_id_collisions, collisions}}
   end
 
-  defp start_all(refined, archive, supervisor) do
+  defp start_all(refined, archive, seed, opts, supervisor) do
     refined.entities
     |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.reduce_while({:ok, []}, fn {id, physical}, {:ok, started} ->
+    |> Enum.reduce_while({:ok, [], 0}, fn {id, physical}, {:ok, started, ordinal} ->
+      anchored? = Map.has_key?(archive.snapshots, id)
+      next_ordinal = if anchored?, do: ordinal, else: ordinal + 1
+
       attrs =
         case Map.fetch(archive.snapshots, id) do
           {:ok, snapshot} ->
             snapshot
             |> entity_attrs()
             |> merge_physical_attrs(physical, refined.id)
+            |> maybe_attach_snapshot(Map.get(archive.mind_snapshots, id))
 
           :error ->
-            reconstructed_attrs(physical, refined.id)
+            mind_snapshot = population_snapshot(archive.population_minds, seed, next_ordinal, opts)
+
+            physical
+            |> reconstructed_attrs(refined.id)
+            |> maybe_attach_snapshot(mind_snapshot)
         end
 
       case supervisor.start_entity(id, attrs) do
-        {:ok, _pid} -> {:cont, {:ok, [id | started]}}
+        {:ok, _pid} -> {:cont, {:ok, [id | started], next_ordinal}}
         {:error, reason} ->
           {:halt, {:error, {:start_failed, {id, reason}, Enum.reverse(started)}}}
       end
     end)
     |> case do
-      {:ok, started} -> {:ok, Enum.reverse(started)}
+      {:ok, started, _ordinal} -> {:ok, Enum.reverse(started)}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp population_snapshot(summary, seed, ordinal, opts) do
+    case PopulationMindSummary.instantiate(summary, seed, ordinal, opts) do
+      {:ok, snapshot} -> snapshot
+      :none -> nil
+      {:error, reason} -> raise ArgumentError, "population mind refinement failed: #{inspect(reason)}"
     end
   end
 
   defp stop_started(ids, supervisor), do: Enum.each(ids, &supervisor.stop_entity/1)
 
-  defp entity_attrs(%Entity{} = snapshot) do
-    snapshot
-    |> Map.from_struct()
-    |> Map.delete(:id)
-  end
+  defp entity_attrs(%Entity{} = snapshot),
+    do: snapshot |> Map.from_struct() |> Map.delete(:id)
 
   defp merge_physical_attrs(attrs, physical, region_id) do
     metadata = attrs |> Map.get(:metadata, %{}) |> Map.put(:physical_state, physical)
-
-    attrs
-    |> Map.put(:location, region_id)
-    |> Map.put(:metadata, metadata)
+    attrs |> Map.put(:location, region_id) |> Map.put(:metadata, metadata)
   end
 
   defp reconstructed_attrs(physical, region_id) do
@@ -290,4 +348,9 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
       metadata: %{physical_state: physical}
     }
   end
+
+  defp maybe_attach_loop(attrs, nil), do: attrs
+  defp maybe_attach_loop(attrs, loop), do: Map.put(attrs, :sensorimotor, [loop: loop])
+  defp maybe_attach_snapshot(attrs, nil), do: attrs
+  defp maybe_attach_snapshot(attrs, snapshot), do: Map.put(attrs, :sensorimotor, [snapshot: snapshot])
 end
