@@ -18,9 +18,10 @@ defmodule Procession.Simulation.PopulationMindSummary do
 
     samples =
       entries
+      |> Enum.with_index()
       |> Enum.map(fn
-        {id, snapshot} -> %{id: id, snapshot: snapshot, vector: vector(snapshot)}
-        snapshot -> %{id: nil, snapshot: snapshot, vector: vector(snapshot)}
+        {{id, snapshot}, index} -> %{id: id, index: index, snapshot: snapshot, vector: vector(snapshot)}
+        {snapshot, index} -> %{id: {:anonymous, index}, index: index, snapshot: snapshot, vector: vector(snapshot)}
       end)
 
     cohorts =
@@ -67,14 +68,16 @@ defmodule Procession.Simulation.PopulationMindSummary do
   end
 
   defp seed_cohorts([], _limit), do: []
+  defp seed_cohorts([sample], _limit), do: [%{exemplar: sample, members: []}]
 
   defp seed_cohorts(samples, limit) do
     first = Enum.max_by(samples, &vector_mass(&1.vector))
+    count = min(limit, length(samples))
 
-    Enum.reduce(2..min(limit, length(samples)), [%{exemplar: first, members: []}], fn _, cohorts ->
+    Enum.reduce(2..count, [%{exemplar: first, members: []}], fn _, cohorts ->
       candidate =
         samples
-        |> Enum.reject(fn sample -> Enum.any?(cohorts, &(&1.exemplar.id == sample.id)) end)
+        |> Enum.reject(fn sample -> Enum.any?(cohorts, &(&1.exemplar.index == sample.index)) end)
         |> Enum.max_by(fn sample ->
           cohorts
           |> Enum.map(&distance(sample.vector, &1.exemplar.vector))
@@ -90,15 +93,13 @@ defmodule Procession.Simulation.PopulationMindSummary do
 
   defp assign_samples(cohorts, samples) do
     Enum.reduce(samples, cohorts, fn sample, current ->
-      {index, _cohort} =
+      {cohort, index} =
         current
         |> Enum.with_index()
-        |> Enum.min_by(fn {cohort, _index} ->
-          distance(sample.vector, cohort.exemplar.vector)
-        end)
-        |> then(fn {cohort, index} -> {index, cohort} end)
+        |> Enum.min_by(fn {candidate, _index} -> distance(sample.vector, candidate.exemplar.vector) end)
 
-      List.update_at(current, index, fn cohort -> %{cohort | members: [sample | cohort.members]} end)
+      _ = cohort
+      List.update_at(current, index, fn candidate -> %{candidate | members: [sample | candidate.members]} end)
     end)
   end
 
@@ -107,12 +108,7 @@ defmodule Procession.Simulation.PopulationMindSummary do
     mean = mean_vector(vectors)
     variance = mean(Enum.map(vectors, &:math.pow(distance(&1, mean), 2)))
 
-    %{
-      exemplar: exemplar.snapshot,
-      count: length(members),
-      mean: mean,
-      variance: variance
-    }
+    %{exemplar: exemplar.snapshot, count: length(members), mean: mean, variance: variance}
   end
 
   defp vector(snapshot) do
@@ -150,7 +146,6 @@ defmodule Procession.Simulation.PopulationMindSummary do
 
   defp mean([]), do: 0.0
   defp mean(values), do: Enum.sum(values) / length(values)
-
   defp sum_abs(map), do: map |> Map.values() |> Enum.map(&abs/1) |> Enum.sum()
 
   defp weighted_pick([cohort | rest], ticket) do
@@ -172,8 +167,7 @@ defmodule Procession.Simulation.PopulationMindSummary do
     sensory = %{
       sensory
       | edges: scale_map(sensory.edges, factor, 0.0, 10.0),
-        activity: scale_map(sensory.activity, factor, 0.0, 10.0),
-        recurrence: sensory.recurrence
+        activity: scale_map(sensory.activity, factor, 0.0, 10.0)
     }
 
     salience = %{
