@@ -60,7 +60,7 @@ defmodule Procession.Simulation.RegionObservationPublisherTest do
     assert :ok = Entity.move_to(player, npc_region)
     moved = RegionObservationPublisher.refresh(11, [], publisher_name)
 
-    refute moved.published[player_region].player_present
+    refute Map.has_key?(moved.published, player_region)
     assert moved.published[npc_region].player_present
     assert moved.published[npc_region].distance == 0.0
   end
