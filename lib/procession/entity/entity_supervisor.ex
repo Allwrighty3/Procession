@@ -27,7 +27,7 @@ defmodule Procession.EntitySupervisor do
 
     case start_entity_process(id, entity_attrs) do
       {:ok, entity_pid} ->
-        case maybe_start_sensorimotor(id, sensorimotor_opts) do
+        case maybe_start_sensorimotor(id, entity_pid, sensorimotor_opts) do
           :ok ->
             {:ok, entity_pid}
 
@@ -58,13 +58,15 @@ defmodule Procession.EntitySupervisor do
   end
 
   def enable_sensorimotor(id, opts \\ []) when is_list(opts) do
-    if exists?(id) do
-      case Registry.lookup(Procession.EntityRegistry, {:sensorimotor, id}) do
-        [{pid, _value}] -> {:error, {:already_started, pid}}
-        [] -> start_sensorimotor(id, opts)
-      end
-    else
-      {:error, :entity_not_found}
+    case lookup_entity(id) do
+      {:ok, entity_pid} ->
+        case Registry.lookup(Procession.EntityRegistry, {:sensorimotor, id}) do
+          [{pid, _value}] -> {:error, {:already_started, pid}}
+          [] -> start_sensorimotor(id, entity_pid, opts)
+        end
+
+      {:error, :not_found} ->
+        {:error, :entity_not_found}
     end
   end
 
@@ -154,17 +156,19 @@ defmodule Procession.EntitySupervisor do
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
-  defp maybe_start_sensorimotor(_id, nil), do: :ok
+  defp maybe_start_sensorimotor(_id, _entity_pid, nil), do: :ok
 
-  defp maybe_start_sensorimotor(id, opts) when is_list(opts) do
-    case start_sensorimotor(id, opts) do
+  defp maybe_start_sensorimotor(id, entity_pid, opts) when is_list(opts) do
+    case start_sensorimotor(id, entity_pid, opts) do
       {:ok, _pid} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp start_sensorimotor(id, opts) do
-    child_spec = {LiveSensorimotor, [entity_id: id, loop_opts: opts]}
+  defp start_sensorimotor(id, entity_pid, opts) do
+    child_spec =
+      {LiveSensorimotor, [entity_id: id, owner_pid: entity_pid, loop_opts: opts]}
+
     DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
