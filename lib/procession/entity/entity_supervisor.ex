@@ -80,6 +80,12 @@ defmodule Procession.EntitySupervisor do
     end
   end
 
+  def sensorimotor_observe(id, features, opts \\ []) do
+    with :ok <- require_sensorimotor(id) do
+      LiveSensorimotor.observe(id, features, opts)
+    end
+  end
+
   def sensorimotor_emit(id, features, tick, opts \\ []) do
     with :ok <- require_sensorimotor(id) do
       LiveSensorimotor.emit(id, features, tick, opts)
