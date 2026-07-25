@@ -82,6 +82,14 @@ defmodule Procession.EntitySupervisor do
     end
   end
 
+  def sensorimotor_feedback(id, features, coherence, opts \\ []) do
+    if sensorimotor_enabled?(id) do
+      LiveSensorimotor.feedback(id, features, coherence, opts)
+    else
+      {:error, :sensorimotor_not_enabled}
+    end
+  end
+
   def sensorimotor_trace(id) do
     if sensorimotor_enabled?(id) do
       {:ok, LiveSensorimotor.trace(id)}
