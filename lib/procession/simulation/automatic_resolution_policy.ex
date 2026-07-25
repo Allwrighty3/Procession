@@ -8,7 +8,7 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
   importance. Callers provide grounded observations such as player presence,
   physical distance, unresolved cross-region dependencies, recent event intensity,
   and observer-derived salience. Hysteresis and minimum residence times prevent
-  resolution thrashing.
+  resolution thrashing. Regions without grounded observations remain unmanaged.
   """
 
   alias Procession.Simulation.LiveResolutionManager
@@ -119,10 +119,15 @@ defmodule Procession.Simulation.AutomaticResolutionPolicy do
   end
 
   defp rank_regions(regions, observations, tick, opts) do
-    regions
-    |> Enum.map(fn {id, trace} ->
-      observation = Map.get(observations, id, %{})
-      %{id: id, current: trace.resolution, observation: observation, score: relevance(observation, tick, opts)}
+    observations
+    |> Enum.flat_map(fn {id, observation} ->
+      case Map.fetch(regions, id) do
+        {:ok, trace} ->
+          [%{id: id, current: trace.resolution, observation: observation, score: relevance(observation, tick, opts)}]
+
+        :error ->
+          []
+      end
     end)
     |> Enum.sort_by(fn entry -> {-entry.score, entry.id} end)
   end
