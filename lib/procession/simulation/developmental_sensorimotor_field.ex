@@ -3,9 +3,10 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   Keeps sensory memory formation separate from motor output learning.
 
   Sensory inputs are processed by `DevelopmentalField` and may activate micro-nodes
-  or generated nodes. Optional dynamic salience modulates that activity through
-  signal magnitude, novelty, habituation, competition, inhibition, and persistent
-  extreme-salience imprints. Motor outputs never enter the sensory encoder.
+  or generated nodes. Optional dynamic salience decides which signals enter
+  relational learning, then modulates encoded activity through magnitude, novelty,
+  habituation, competition, inhibition, and persistent extreme-salience imprints.
+  Motor outputs never enter the sensory encoder.
   """
 
   alias Procession.Simulation.DevelopmentalField
@@ -27,10 +28,15 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
   def sense(%__MODULE__{} = state, sensory_features, opts \\ []) when is_list(sensory_features) do
     before = state.sensory
 
-    encoded_features =
-      sensory_features
-      |> Enum.reject(&inhibitory_signal?/1)
-      |> Enum.map(&signal_feature/1)
+    {salience, prepared, encoded_features} =
+      if Keyword.get(opts, :dynamic_salience, false) do
+        {salience, prepared} =
+          DynamicSalience.prepare(state.salience || DynamicSalience.new(), sensory_features, opts)
+
+        {salience, prepared, DynamicSalience.learning_features(prepared)}
+      else
+        {state.salience || DynamicSalience.new(), nil, Enum.map(sensory_features, &signal_feature/1)}
+      end
 
     sensory =
       before
@@ -38,10 +44,10 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
       |> then(&DevelopmentalMemoryQuality.gate(before, &1, opts))
 
     {salience, sensory} =
-      if Keyword.get(opts, :dynamic_salience, false) do
-        DynamicSalience.apply(state.salience || DynamicSalience.new(), sensory, sensory_features, opts)
+      if prepared do
+        DynamicSalience.apply(salience, sensory, prepared, opts)
       else
-        {state.salience || DynamicSalience.new(), sensory}
+        {salience, sensory}
       end
 
     retention = Keyword.get(opts, :output_edge_retention, 0.999)
@@ -145,11 +151,6 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorField do
     |> Enum.sort_by(fn {id, weight} -> {-weight, id} end)
     |> Enum.take(fanout)
   end
-
-  defp inhibitory_signal?({:signal, _feature, magnitude}) when is_number(magnitude),
-    do: magnitude <= 0.0
-
-  defp inhibitory_signal?(_feature), do: false
 
   defp signal_feature({:signal, feature, magnitude}) when is_number(magnitude), do: feature
   defp signal_feature(feature), do: feature
