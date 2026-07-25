@@ -18,7 +18,7 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
   end
 
   test "deactivation retains only bounded social identities and activation restores them" do
-    region_id = {:activation_region, System.unique_integer([:positive, :monotonic])}
+    region_id = unique("activation_region")
     anchor = unique("anchor")
     partner = unique("partner")
     unanchored = unique("unanchored")
@@ -110,7 +110,7 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
   end
 
   test "a live sensorimotor owner prevents lossy region shutdown" do
-    region_id = {:mind_guard_region, System.unique_integer([:positive, :monotonic])}
+    region_id = unique("mind_guard_region")
     entity_id = unique("live_mind")
 
     on_exit(fn -> stop_if_present(entity_id) end)
@@ -141,7 +141,7 @@ defmodule Procession.Simulation.RegionActivationLifecycleTest do
   end
 
   test "activation collision leaves the inactive region and archive unchanged" do
-    region_id = {:collision_region, System.unique_integer([:positive, :monotonic])}
+    region_id = unique("collision_region")
     anchor = unique("collision_anchor")
     partner = unique("collision_partner")
 
