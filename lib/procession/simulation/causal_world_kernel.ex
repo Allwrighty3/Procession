@@ -11,7 +11,6 @@ defmodule Procession.Simulation.CausalWorldKernel do
   entity's mental state.
   """
 
-  alias Procession.Simulation.DevelopmentalSensorimotorField
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
 
   defstruct tick: 0,
@@ -32,21 +31,21 @@ defmodule Procession.Simulation.CausalWorldKernel do
       |> Map.new(fn attrs ->
         id = Map.fetch!(attrs, :id)
         position = Map.get(attrs, :position, {0, 0})
+
         loop_opts =
           attrs
           |> Map.get(:loop_opts, [])
           |> Keyword.put_new(:position, position)
           |> Keyword.put_new(:bounds, bounds)
 
-        entity = %{
-          id: id,
-          position: position,
-          energy: Map.get(attrs, :energy, 0.75),
-          inventory: Map.get(attrs, :inventory, 0.0),
-          loop: DevelopmentalSensorimotorLoop.new(loop_opts)
-        }
-
-        {id, entity}
+        {id,
+         %{
+           id: id,
+           position: position,
+           energy: Map.get(attrs, :energy, 0.75),
+           inventory: Map.get(attrs, :inventory, 0.0),
+           loop: DevelopmentalSensorimotorLoop.new(loop_opts)
+         }}
       end)
 
     resources =
@@ -80,18 +79,18 @@ defmodule Procession.Simulation.CausalWorldKernel do
       world.entities
       |> Map.keys()
       |> Enum.sort()
-      |> Enum.reduce(%{world | tick: tick}, fn entity_id, state ->
+      |> Enum.reduce(%{world | tick: tick, events: []}, fn entity_id, state ->
         step_entity(state, entity_id, opts)
       end)
 
     %{world | events: Enum.reverse(world.events)}
   end
 
-  def run(%__MODULE__{} = world, ticks, opts \\ []) when is_integer(ticks) and ticks >= 0 do
+  def run(%__MODULE__{} = world, 0, _opts), do: world
+
+  def run(%__MODULE__{} = world, ticks, opts \\ []) when is_integer(ticks) and ticks > 0 do
     Enum.reduce(1..ticks, world, fn _, state -> tick(state, opts) end)
   end
-
-  def run(%__MODULE__{} = world, 0, _opts), do: world
 
   def perceive(%__MODULE__{} = world, entity_id) do
     entity = Map.fetch!(world.entities, entity_id)
@@ -113,8 +112,9 @@ defmodule Procession.Simulation.CausalWorldKernel do
         distance = manhattan(entity.position, resource.position)
 
         if distance <= world.perception_radius do
-          magnitude = resource.signal_strength * (world.perception_radius - distance + 1) /
-            (world.perception_radius + 1)
+          magnitude =
+            resource.signal_strength *
+              (world.perception_radius - distance + 1) / (world.perception_radius + 1)
 
           [{:signal, {:resource_presence, resource.id}, magnitude}]
         else
@@ -123,7 +123,8 @@ defmodule Procession.Simulation.CausalWorldKernel do
       end)
 
     obstacle_signals =
-      adjacent_positions(entity.position)
+      entity.position
+      |> adjacent_positions()
       |> Enum.flat_map(fn {direction, position} ->
         if blocked_position?(world, position) do
           [{:signal, {:resistance, direction}, 1.5}]
@@ -160,53 +161,64 @@ defmodule Procession.Simulation.CausalWorldKernel do
   end
 
   def total_resource(%__MODULE__{} = world) do
-    loose = Enum.sum(Map.values(world.resources), & &1.quantity)
-    held = Enum.sum(Map.values(world.entities), & &1.inventory)
+    loose = world.resources |> Map.values() |> Enum.map(& &1.quantity) |> Enum.sum()
+    held = world.entities |> Map.values() |> Enum.map(& &1.inventory) |> Enum.sum()
     loose + held
   end
 
   defp step_entity(world, entity_id, opts) do
-    entity = Map.fetch!(world.entities, entity_id)
+    original = Map.fetch!(world.entities, entity_id)
     features = perceive(world, entity_id)
     effective_opts = Keyword.put_new(opts, :bounds, world.bounds)
-    sensed = DevelopmentalSensorimotorLoop.sense(entity.loop, features, effective_opts)
+    sensed = DevelopmentalSensorimotorLoop.sense(original.loop, features, effective_opts)
     {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, world.tick, effective_opts)
 
     proposed = emitted.position
-    actual = resolve_position(world, entity_id, entity.position, proposed)
-    blocked? = actual != proposed
+    actual = resolve_position(world, entity_id, original.position, proposed)
+    moved? = actual != original.position
+    blocked? = actual != proposed or outcome.blocked?
     emitted = %{emitted | position: actual}
 
-    {world, entity, contact_features, intake} =
+    {world, contacted, contact_features, intake} =
       world
-      |> put_entity(%{entity | position: actual})
+      |> put_entity(%{original | position: actual})
       |> transfer_contact_resource(entity_id, opts)
 
-    movement_cost = if actual == entity.position, do: 0.0025, else: 0.006
-    energy = entity.energy |> Kernel.-(movement_cost) |> Kernel.+(intake) |> clamp(0.0, 1.0)
-    entity = %{entity | energy: energy, loop: emitted}
+    movement_cost = if moved?, do: 0.006, else: 0.0025
+
+    energy =
+      contacted.energy
+      |> Kernel.-(movement_cost)
+      |> Kernel.+(intake)
+      |> clamp(0.0, 1.0)
 
     consequence_features = [
       {:position, actual},
       {:signal, {:body, :energy_pressure}, 1.0 + (1.0 - energy) * 5.0},
-      {:signal, {:body, :displacement}, if(actual == entity.position, do: 0.25, else: 1.0)},
-      {:signal, {:body, :resistance}, if(blocked? or outcome.blocked?, do: 2.0, else: -0.5)}
+      {:signal, {:body, :displacement}, if(moved?, do: 1.0, else: 0.25)},
+      {:signal, {:body, :resistance}, if(blocked?, do: 2.0, else: -0.5)}
       | contact_features
     ]
 
-    coherence = local_coherence(intake, blocked? or outcome.blocked?)
-    loop = DevelopmentalSensorimotorLoop.feedback(emitted, consequence_features, coherence, effective_opts)
-    entity = %{entity | loop: loop}
+    loop =
+      DevelopmentalSensorimotorLoop.feedback(
+        emitted,
+        consequence_features,
+        local_coherence(intake, blocked?),
+        effective_opts
+      )
+
+    entity = %{contacted | position: actual, energy: energy, loop: loop}
 
     event = %{
       tick: world.tick,
       entity_id: entity_id,
       motor_pattern: outcome.pattern,
-      from: Map.fetch!(world.entities, entity_id).position,
+      from: original.position,
       proposed: proposed,
       position: actual,
-      displaced?: actual != Map.fetch!(world.entities, entity_id).position,
-      blocked?: blocked? or outcome.blocked?,
+      displaced?: moved?,
+      blocked?: blocked?,
       transferred: intake
     }
 
@@ -237,7 +249,8 @@ defmodule Procession.Simulation.CausalWorldKernel do
           |> put_in([Access.key(:resources), resource.id], resource)
           |> put_entity(entity)
 
-        {world, entity, [{:signal, {:contact, :resource, resource.id}, 1.0 + amount * 5.0}], amount}
+        {world, entity, [{:signal, {:contact, :resource, resource.id}, 1.0 + amount * 5.0}],
+         amount}
     end
   end
 
