@@ -6,15 +6,18 @@ defmodule Procession.WorldClock do
   @moduledoc """
   Manually controlled world simulation clock.
 
-  The clock coordinates an optional authoritative causal world and the existing
-  live-entity tick path. It schedules time only; it does not decide perception,
-  motor output, physical consequences, or entity behavior.
+  The clock coordinates an optional authoritative causal world, the existing
+  live-entity tick path, and optional post-tick region-resolution reconciliation.
+  It schedules time only; it does not decide perception, motor output, physical
+  consequences, entity behavior, or causal relevance.
   """
 
   defstruct tick_count: 0,
             last_tick: nil,
             interval_ms: nil,
-            timer_ref: nil
+            timer_ref: nil,
+            resolution_policy: false,
+            resolution_policy_opts: []
 
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, @name)
@@ -34,9 +37,16 @@ defmodule Procession.WorldClock do
   def interval_running?(clock \\ @name), do: GenServer.call(clock, :interval_running?)
 
   @impl true
-  def init(_opts), do: {:ok, %__MODULE__{}}
+  def init(opts) do
+    {:ok,
+     %__MODULE__{
+       resolution_policy: Keyword.get(opts, :resolution_policy, false),
+       resolution_policy_opts: Keyword.get(opts, :resolution_policy_opts, [])
+     }}
+  end
 
   defp run_tick(state) do
+    next_tick = state.tick_count + 1
     causal_world = Procession.Simulation.LiveCausalWorld.tick_if_running()
 
     entity_summary =
@@ -45,16 +55,34 @@ defmodule Procession.WorldClock do
         {:error, reason} -> %{status: :error, reason: reason}
       end
 
+    resolution_policy = reconcile_resolutions(state, next_tick)
+
     tick_summary =
       entity_summary
       |> Map.put(:causal_world, normalize_causal_world(causal_world))
-      |> Map.put(:clock_tick, state.tick_count + 1)
+      |> Map.put(:resolution_policy, resolution_policy)
+      |> Map.put(:clock_tick, next_tick)
 
     %{
       state
-      | tick_count: state.tick_count + 1,
+      | tick_count: next_tick,
         last_tick: tick_summary
     }
+  end
+
+  defp reconcile_resolutions(%{resolution_policy: false}, _tick), do: :disabled
+
+  defp reconcile_resolutions(state, tick) do
+    try do
+      Procession.Simulation.AutomaticResolutionPolicy.reconcile(
+        tick,
+        state.resolution_policy_opts
+      )
+    rescue
+      error -> %{status: :error, reason: Exception.message(error)}
+    catch
+      :exit, reason -> %{status: :error, reason: reason}
+    end
   end
 
   defp normalize_causal_world({:ok, summary}), do: summary
