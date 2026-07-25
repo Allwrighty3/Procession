@@ -24,10 +24,10 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     plane = SocialRelationPlane.new()
     {plane, _signals} = SocialRelationPlane.observe(plane, "observer_a", event(), 1)
 
-    displacement = {:displacement, :east}
-    assert SocialRelationPlane.relation(plane, "observer_a", "actor", displacement)
-    refute SocialRelationPlane.relation(plane, "observer_b", "actor", displacement)
-    refute SocialRelationPlane.relation(plane, "observer_a", "other", displacement)
+    context = {:movement_attempt, :east}
+    assert SocialRelationPlane.relation(plane, "observer_a", "actor", context)
+    refute SocialRelationPlane.relation(plane, "observer_b", "actor", context)
+    refute SocialRelationPlane.relation(plane, "observer_a", "other", context)
     refute SocialRelationPlane.relation(plane, "observer_a", "actor", :stationary_motor_event)
   end
 
@@ -35,17 +35,17 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
     plane = SocialRelationPlane.new()
 
     {plane, _} = SocialRelationPlane.observe(plane, "observer", event(), 1)
-    first = SocialRelationPlane.relation(plane, "observer", "actor", {:displacement, :east})
+    first = SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     {plane, _} = SocialRelationPlane.observe(plane, "observer", event(), 2)
-    second = SocialRelationPlane.relation(plane, "observer", "actor", {:displacement, :east})
+    second = SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     assert second.confidence > first.confidence
     assert second.exposure > first.exposure
     assert second.last_surprise < first.last_surprise
   end
 
-  test "expectation violation produces more surprise than a repeated expected event" do
+  test "expectation violation produces more surprise inside the same attempted context" do
     plane = SocialRelationPlane.new()
 
     plane =
@@ -54,16 +54,19 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
         updated
       end)
 
-    expected = SocialRelationPlane.relation(plane, "observer", "actor", {:displacement, :east})
+    expected =
+      SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     blocked_event =
       event(%{position: {1, 1}, proposed: {2, 1}, displaced?: false, blocked?: true})
 
     {plane, _} = SocialRelationPlane.observe(plane, "observer", blocked_event, 9)
+
     violated =
-      SocialRelationPlane.relation(plane, "observer", "actor", {:resisted_displacement, :none})
+      SocialRelationPlane.relation(plane, "observer", "actor", {:movement_attempt, :east})
 
     assert violated.last_surprise > expected.last_surprise
+    assert violated.exposure == expected.exposure + 1.0
   end
 
   test "extreme observed transfer leaves a persistent bounded imprint" do
@@ -81,14 +84,15 @@ defmodule Procession.Simulation.SocialRelationPlaneTest do
       )
 
     relation =
-      SocialRelationPlane.relation(plane, "observer", "actor", {:resource_transfer, :medium})
+      SocialRelationPlane.relation(plane, "observer", "actor", {:resource_contact, :medium})
 
     assert relation.persistence > 0.5
     assert relation.persistence <= 4.0
 
     decayed = SocialRelationPlane.advance(plane, 100)
+
     later =
-      SocialRelationPlane.relation(decayed, "observer", "actor", {:resource_transfer, :medium})
+      SocialRelationPlane.relation(decayed, "observer", "actor", {:resource_contact, :medium})
 
     assert later.persistence > 0.0
     assert later.persistence < relation.persistence
