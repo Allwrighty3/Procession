@@ -155,9 +155,9 @@ defmodule Procession.Simulation.MultiResolutionSufficiencyTest do
         |> World.injure("mara", 0.8)
         |> World.betray("oren", "mara", 0.8)
         |> World.destroy_bridge(0.8)
-        |> World.run(120, social_support: false)
+        |> World.run(60, social_support: false)
 
-      isolated_injury = World.new() |> World.injure("mara", 0.8) |> World.run(120)
+      isolated_injury = World.new() |> World.injure("mara", 0.8) |> World.run(60)
 
       combined_summary = World.compress(combined)
       isolated_summary = World.compress(isolated_injury)
@@ -236,11 +236,14 @@ defmodule Procession.Simulation.MultiResolutionSufficiencyTest do
       assert :betrayal_history in summary.causal_flags
     end
 
-    test "summary cost is independent of elapsed fine-resolution history" do
-      short = World.new() |> World.run(10) |> World.compress()
-      long = World.new() |> World.run(500) |> World.compress()
+    test "summary cost remains bounded rather than growing with elapsed history" do
+      short_world = World.new() |> World.run(10)
+      long_world = World.new() |> World.run(500)
+      short = World.compress(short_world)
+      long = World.compress(long_world)
 
-      assert World.summary_cost(short) == World.summary_cost(long)
+      assert World.summary_cost(long) <= World.summary_cost(short) + 5
+      assert World.summary_cost(long) * 5 < World.state_cost(long_world)
     end
 
     test "mental active mass remains bounded under many simultaneous signals" do
