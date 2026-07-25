@@ -9,9 +9,9 @@ defmodule Procession.Simulation.LiveSensorimotor do
   the replacement process. Cycles are rejected while no entity incarnation is
   attached, and the loop terminates if the entity does not return.
 
-  A failed world-feedback callback leaves the emitted motor consequence pending
-  instead of crashing the process. Callers may then close that consequence with
-  `feedback/4`.
+  A world may use the two-phase `emit/4` and `resolve/5` handshake so physical
+  authority remains outside the mental process. `cycle/5` remains available for
+  callers that already own a complete feedback function.
   """
 
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
@@ -39,6 +39,17 @@ defmodule Procession.Simulation.LiveSensorimotor do
 
   def cycle(server_or_entity_id, features, tick, feedback_fun, opts \\ []) do
     GenServer.call(server_ref(server_or_entity_id), {:cycle, features, tick, feedback_fun, opts})
+  end
+
+  def emit(server_or_entity_id, features, tick, opts \\ []) do
+    GenServer.call(server_ref(server_or_entity_id), {:emit, features, tick, opts})
+  end
+
+  def resolve(server_or_entity_id, position, features, coherence, opts \\ []) do
+    GenServer.call(
+      server_ref(server_or_entity_id),
+      {:resolve, position, features, coherence, opts}
+    )
   end
 
   def feedback(server_or_entity_id, features, coherence, opts \\ []) do
@@ -90,39 +101,64 @@ defmodule Procession.Simulation.LiveSensorimotor do
   end
 
   @impl true
-  def handle_call({:cycle, _features, _tick, _feedback_fun, _opts}, _from, %{owner_pid: nil} = state) do
+  def handle_call(request, _from, %{owner_pid: nil} = state)
+      when elem(request, 0) in [:cycle, :emit, :resolve, :feedback] do
     {:reply, {:error, :entity_restarting}, state}
   end
 
-  def handle_call({:cycle, features, tick, feedback_fun, opts}, _from, state) do
+  def handle_call({:emit, features, tick, opts}, _from, state) do
+    case emit_loop(state.loop, features, tick, opts) do
+      {:ok, loop, outcome} ->
+        result = %{
+          entity_id: state.entity_id,
+          outcome: outcome,
+          proposed_position: loop.position,
+          trace: DevelopmentalSensorimotorLoop.trace(loop)
+        }
+
+        {:reply, {:ok, result}, %{state | loop: loop}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:resolve, position, features, coherence, opts}, _from, state) do
     try do
-      sensed = DevelopmentalSensorimotorLoop.sense(state.loop, features, opts)
-      {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, tick, opts)
-
-      case invoke_feedback(feedback_fun, outcome, emitted.position) do
-        {:ok, consequence_features, coherence} ->
-          loop =
-            DevelopmentalSensorimotorLoop.feedback(
-              emitted,
-              consequence_features,
-              coherence,
-              opts
-            )
-
-          result = %{
-            entity_id: state.entity_id,
-            outcome: outcome,
-            trace: DevelopmentalSensorimotorLoop.trace(loop)
-          }
-
-          {:reply, {:ok, result}, %{state | loop: loop}}
-
-        {:error, reason} ->
-          {:reply, {:error, {:feedback_failed, reason, outcome}}, %{state | loop: emitted}}
-      end
+      loop = %{state.loop | position: position}
+      loop = DevelopmentalSensorimotorLoop.feedback(loop, features, coherence, opts)
+      {:reply, {:ok, DevelopmentalSensorimotorLoop.trace(loop)}, %{state | loop: loop}}
     rescue
       error ->
-        {:reply, {:error, {:invalid_cycle, Exception.message(error)}}, state}
+        {:reply, {:error, {:invalid_resolution, Exception.message(error)}}, state}
+    end
+  end
+
+  def handle_call({:cycle, features, tick, feedback_fun, opts}, _from, state) do
+    with {:ok, emitted, outcome} <- emit_loop(state.loop, features, tick, opts),
+         {:ok, consequence_features, coherence} <-
+           invoke_feedback(feedback_fun, outcome, emitted.position) do
+      loop =
+        DevelopmentalSensorimotorLoop.feedback(
+          emitted,
+          consequence_features,
+          coherence,
+          opts
+        )
+
+      result = %{
+        entity_id: state.entity_id,
+        outcome: outcome,
+        trace: DevelopmentalSensorimotorLoop.trace(loop)
+      }
+
+      {:reply, {:ok, result}, %{state | loop: loop}}
+    else
+      {:error, {:feedback_failed, reason, emitted, outcome}} ->
+        {:reply, {:error, {:feedback_failed, reason, outcome}}, %{state | loop: emitted}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
@@ -137,7 +173,10 @@ defmodule Procession.Simulation.LiveSensorimotor do
   end
 
   @impl true
-  def handle_info({:DOWN, reference, :process, pid, _reason}, %{owner_monitor: reference, owner_pid: pid} = state) do
+  def handle_info(
+        {:DOWN, reference, :process, pid, _reason},
+        %{owner_monitor: reference, owner_pid: pid} = state
+      ) do
     Process.send_after(self(), :reattach_owner, 0)
 
     {:noreply,
@@ -164,6 +203,16 @@ defmodule Procession.Simulation.LiveSensorimotor do
     end
   end
 
+  defp emit_loop(loop, features, tick, opts) do
+    try do
+      sensed = DevelopmentalSensorimotorLoop.sense(loop, features, opts)
+      {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, tick, opts)
+      {:ok, emitted, outcome}
+    rescue
+      error -> {:error, {:invalid_cycle, Exception.message(error)}}
+    end
+  end
+
   defp invoke_feedback(feedback_fun, outcome, position) do
     try do
       case feedback_fun.(outcome, position) do
@@ -177,6 +226,10 @@ defmodule Procession.Simulation.LiveSensorimotor do
       error -> {:error, {:exception, Exception.message(error)}}
     catch
       kind, reason -> {:error, {kind, reason}}
+    end
+    |> case do
+      {:ok, features, coherence} -> {:ok, features, coherence}
+      {:error, reason} -> {:error, {:feedback_failed, reason, nil, nil}}
     end
   end
 
