@@ -18,7 +18,8 @@ defmodule Procession.Application do
       {Procession.Simulation.CoarseTravel, []},
       {Procession.Simulation.AutomaticResolutionPolicy, []},
       {Procession.Simulation.RegionObservationPublisher, []},
-      {Procession.WorldClock, [resolution_policy: true, region_observations: true]}
+      {Procession.WorldClock,
+       [coarse_travel: true, resolution_policy: true, region_observations: true]}
     ]
 
     opts = [strategy: :one_for_one, name: Procession.Supervisor]
