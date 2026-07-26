@@ -83,23 +83,29 @@ defmodule Procession.Simulation.CoarseTravel do
     end
   end
 
+  def handle_call({:advance, 0}, _from, state) do
+    {:reply, %{ticks: 0, events: [], journeys: trace_journeys(state.journeys)}, state}
+  end
+
   def handle_call({:advance, ticks}, _from, state) do
-    {events, updated} = Enum.reduce(1..ticks, {[], state}, fn _, {events, acc} ->
-      {step_events, next} = advance_once(acc)
-      {events ++ step_events, next}
-    end)
+    {events, updated} =
+      Enum.reduce(1..ticks, {[], state}, fn _, {events, acc} ->
+        {step_events, next} = advance_once(acc)
+        {events ++ step_events, next}
+      end)
 
     {:reply, %{ticks: ticks, events: events, journeys: trace_journeys(updated.journeys)}, updated}
   end
 
   def handle_call({:divert, identity_id, destination, remaining_ticks}, _from, state) do
     case Map.fetch(state.journeys, identity_id) do
-      {:ok, %{status: :in_transit} = journey} ->
+      {:ok, %{status: status} = journey} when status in [:in_transit, :stranded] ->
         updated_journey = %{
           journey
           | to: destination,
             elapsed_ticks: 0,
             total_ticks: remaining_ticks,
+            status: :in_transit,
             last_outcome: :diverted
         }
 
@@ -128,20 +134,28 @@ defmodule Procession.Simulation.CoarseTravel do
   end
 
   def handle_call({:journey, identity_id}, _from, state) do
-    reply = case Map.fetch(state.journeys, identity_id) do
-      {:ok, journey} -> {:ok, journey_trace(journey)}
-      :error -> {:error, :journey_not_found}
-    end
+    reply =
+      case Map.fetch(state.journeys, identity_id) do
+        {:ok, journey} -> {:ok, journey_trace(journey)}
+        :error -> {:error, :journey_not_found}
+      end
 
     {:reply, reply, state}
   end
 
   def handle_call(:trace, _from, state) do
-    {:reply, %{journeys: trace_journeys(state.journeys), routes: state.routes, history: Enum.reverse(state.history)}, state}
+    {:reply,
+     %{
+       journeys: trace_journeys(state.journeys),
+       routes: state.routes,
+       history: Enum.reverse(state.history)
+     }, state}
   end
 
   defp advance_once(state) do
-    active = state.journeys |> Enum.filter(fn {_id, journey} -> journey.status == :in_transit end)
+    active =
+      state.journeys
+      |> Enum.filter(fn {_id, journey} -> journey.status == :in_transit end)
 
     {route_events, state} =
       active
@@ -150,7 +164,9 @@ defmodule Procession.Simulation.CoarseTravel do
         ids = Enum.map(entries, &elem(&1, 0))
 
         case advance_route(transit_id, ids, acc) do
-          {:ok, route_event} -> {[route_event | events], acc}
+          {:ok, route_event} ->
+            {[route_event | events], acc}
+
           {:error, reason} ->
             failed = Enum.reduce(ids, acc, &fail_journey(&2, &1, {:route_advance_failed, reason}))
             {[{:route_failed, transit_id, reason} | events], failed}
@@ -160,7 +176,12 @@ defmodule Procession.Simulation.CoarseTravel do
     Enum.reduce(active, {Enum.reverse(route_events), state}, fn {identity_id, _old}, {events, acc} ->
       case Map.fetch(acc.journeys, identity_id) do
         {:ok, %{status: :in_transit} = journey} ->
-          progressed = %{journey | elapsed_ticks: journey.elapsed_ticks + 1, last_outcome: :progressed}
+          progressed = %{
+            journey
+            | elapsed_ticks: journey.elapsed_ticks + 1,
+              last_outcome: :progressed
+          }
+
           acc = put_in(acc.journeys[identity_id], progressed)
 
           cond do
@@ -191,6 +212,7 @@ defmodule Procession.Simulation.CoarseTravel do
          ) do
       {:ok, _reply} ->
         arrived = %{journey | status: :arrived, last_outcome: :arrived}
+
         state =
           state
           |> put_in([:journeys, identity_id], arrived)
@@ -220,17 +242,28 @@ defmodule Procession.Simulation.CoarseTravel do
             held = number(commitment, :inventory)
             consumed = min(held, demand)
             satisfaction = if demand > 0.0, do: consumed / demand, else: 1.0
-            energy_delta = satisfaction * satisfied_gain - (1.0 - satisfaction) * unmet_penalty - baseline_decay
+
+            energy_delta =
+              satisfaction * satisfied_gain -
+                (1.0 - satisfaction) * unmet_penalty - baseline_decay
 
             commitment
             |> Map.put(:inventory, held - consumed)
             |> Map.update(:consumed, consumed, &(&1 + consumed))
-            |> Map.update(:energy, clamp(energy_delta, 0.0, 1.0), &clamp(&1 + energy_delta, 0.0, 1.0))
+            |> Map.update(
+              :energy,
+              clamp(energy_delta, 0.0, 1.0),
+              &clamp(&1 + energy_delta, 0.0, 1.0)
+            )
           end)
         end)
 
       summary = rebuild_transit_summary(region.summary, updated_commitments)
-      updated_region = %{region | tick: region.tick + 1, summary: Map.put(summary, :tick, region.tick + 1)}
+      updated_region = %{
+        region
+        | tick: region.tick + 1,
+          summary: Map.put(summary, :tick, region.tick + 1)
+      }
 
       case LiveResolutionManager.put(updated_region, state.resolution_server) do
         {:ok, _trace} -> {:ok, {:route_advanced, transit_id, identity_ids}}
@@ -260,7 +293,9 @@ defmodule Procession.Simulation.CoarseTravel do
   defp exhausted?(journey, state) do
     case LiveResolutionManager.fetch(journey.transit_region, state.resolution_server) do
       {:ok, region} ->
-        energy = get_in(region.summary, [:identity_commitments, journey.identity_id, :energy]) || 0.0
+        energy =
+          get_in(region.summary, [:identity_commitments, journey.identity_id, :energy]) || 0.0
+
         energy <= journey.route_profile.failure_energy
 
       _ ->
@@ -292,7 +327,8 @@ defmodule Procession.Simulation.CoarseTravel do
 
   defp validate_departure(identity_id, from, to, duration, state) do
     cond do
-      Map.has_key?(state.journeys, identity_id) and state.journeys[identity_id].status == :in_transit ->
+      Map.has_key?(state.journeys, identity_id) and
+          state.journeys[identity_id].status in [:in_transit, :stranded] ->
         {:error, :identity_already_in_transit}
 
       from == to ->
@@ -310,10 +346,13 @@ defmodule Procession.Simulation.CoarseTravel do
     %{
       demand: max(0.0, Keyword.get(opts, :travel_demand, 0.01) * 1.0),
       pressure: clamp(Keyword.get(opts, :route_pressure, 0.0) * 1.0, 0.0, 4.0),
-      satisfied_energy_gain: max(0.0, Keyword.get(opts, :satisfied_energy_gain, 0.001) * 1.0),
-      unmet_energy_penalty: max(0.0, Keyword.get(opts, :unmet_energy_penalty, 0.02) * 1.0),
+      satisfied_energy_gain:
+        max(0.0, Keyword.get(opts, :satisfied_energy_gain, 0.001) * 1.0),
+      unmet_energy_penalty:
+        max(0.0, Keyword.get(opts, :unmet_energy_penalty, 0.02) * 1.0),
       energy_decay: max(0.0, Keyword.get(opts, :travel_energy_decay, 0.002) * 1.0),
-      failure_energy: clamp(Keyword.get(opts, :failure_energy, 0.01) * 1.0, 0.0, 1.0)
+      failure_energy:
+        clamp(Keyword.get(opts, :failure_energy, 0.01) * 1.0, 0.0, 1.0)
     }
   end
 
@@ -328,11 +367,17 @@ defmodule Procession.Simulation.CoarseTravel do
     end)
   end
 
-  defp journey_trace(journey), do: Map.drop(journey, [:route_profile]) |> Map.put(:route_profile, journey.route_profile)
-  defp trace_journeys(journeys), do: Map.new(journeys, fn {id, journey} -> {id, journey_trace(journey)} end)
+  defp journey_trace(journey),
+    do: Map.drop(journey, [:route_profile]) |> Map.put(:route_profile, journey.route_profile)
+
+  defp trace_journeys(journeys),
+    do: Map.new(journeys, fn {id, journey} -> {id, journey_trace(journey)} end)
 
   defp mean([], _key), do: 0.0
   defp mean(values, key), do: Enum.sum(Enum.map(values, &number(&1, key))) / length(values)
-  defp number(map, key), do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: 0.0)
+
+  defp number(map, key),
+    do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: 0.0)
+
   defp clamp(value, minimum, maximum), do: value |> max(minimum) |> min(maximum)
 end
