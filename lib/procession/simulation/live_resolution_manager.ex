@@ -52,9 +52,7 @@ defmodule Procession.Simulation.LiveResolutionManager do
     commitments =
       Map.new(identities, fn identity_id ->
         entity = Map.fetch!(region.entities, identity_id)
-
-        {identity_id,
-         Map.take(entity, [:position, :energy, :mobility, :inventory, :consumed])}
+        {identity_id, Map.take(entity, [:position, :energy, :mobility, :inventory, :consumed])}
       end)
 
     summary =
@@ -95,9 +93,8 @@ defmodule Procession.Simulation.LiveResolutionManager do
   def init(state), do: {:ok, state}
 
   @impl true
-  def handle_call({:put, %MultiResolutionRegion{} = region}, _from, state) do
-    commit_region(state, region)
-  end
+  def handle_call({:put, %MultiResolutionRegion{} = region}, _from, state),
+    do: commit_region(state, region)
 
   def handle_call({:fetch, id}, _from, state) do
     case Map.fetch(state, id) do
@@ -106,21 +103,17 @@ defmodule Procession.Simulation.LiveResolutionManager do
     end
   end
 
-  def handle_call({:compress, id, opts}, _from, state) do
-    transition(state, id, &compress_region(&1, opts))
-  end
+  def handle_call({:compress, id, opts}, _from, state),
+    do: transition(state, id, &compress_region(&1, opts))
 
-  def handle_call({:make_inert, id}, _from, state) do
-    transition(state, id, &MultiResolutionRegion.make_inert/1)
-  end
+  def handle_call({:make_inert, id}, _from, state),
+    do: transition(state, id, &MultiResolutionRegion.make_inert/1)
 
-  def handle_call({:advance, id, ticks, opts}, _from, state) do
-    transition(state, id, &MultiResolutionRegion.coarse_run(&1, ticks, opts))
-  end
+  def handle_call({:advance, id, ticks, opts}, _from, state),
+    do: transition(state, id, &advance_region(&1, ticks, opts))
 
-  def handle_call({:refine, id, seed, opts}, _from, state) do
-    transition(state, id, &refine_region(&1, seed, opts))
-  end
+  def handle_call({:refine, id, seed, opts}, _from, state),
+    do: transition(state, id, &refine_region(&1, seed, opts))
 
   def handle_call({:transfer_identity, identity_id, from_id, to_id, opts}, _from, state) do
     case transfer_regions(state, identity_id, from_id, to_id, opts) do
@@ -145,28 +138,63 @@ defmodule Procession.Simulation.LiveResolutionManager do
     {:reply, trace, state}
   end
 
-  def handle_call(:dormant_identity_locations, _from, state) do
-    {:reply, build_dormant_identity_locations(state), state}
+  def handle_call(:dormant_identity_locations, _from, state),
+    do: {:reply, build_dormant_identity_locations(state), state}
+
+  defp advance_region(%MultiResolutionRegion{} = region, ticks, opts) do
+    before = region.summary
+    updated = MultiResolutionRegion.coarse_run(region, ticks, opts)
+    after_summary = updated.summary
+    population = Map.get(before, :population, 0)
+
+    commitments =
+      if population > 0 do
+        consumed_per_entity =
+          (Map.get(after_summary, :consumed_stock, 0.0) - Map.get(before, :consumed_stock, 0.0)) /
+            population
+
+        energy_delta =
+          Map.get(after_summary, :mean_energy, 0.0) - Map.get(before, :mean_energy, 0.0)
+
+        before
+        |> Map.get(:identity_commitments, %{})
+        |> Map.new(fn {identity_id, commitment} ->
+          advanced =
+            commitment
+            |> Map.update(:consumed, consumed_per_entity, &(&1 + consumed_per_entity))
+            |> Map.update(:energy, clamp(energy_delta, 0.0, 1.0), &clamp(&1 + energy_delta, 0.0, 1.0))
+
+          {identity_id, advanced}
+        end)
+      else
+        Map.get(before, :identity_commitments, %{})
+      end
+
+    %{updated | summary: Map.put(after_summary, :identity_commitments, commitments)}
   end
 
-  defp transfer_regions(state, identity_id, from_id, to_id, _opts) do
+  defp transfer_regions(state, identity_id, from_id, to_id, opts) do
     with :ok <- require_distinct_regions(from_id, to_id),
          {:ok, source} <- fetch_region(state, from_id),
          {:ok, destination} <- fetch_region(state, to_id),
          :ok <- require_compressed(source),
          :ok <- require_compressed(destination),
          {:ok, commitment} <- fetch_commitment(source, identity_id),
-         :ok <- require_destination_free(destination, identity_id),
-         {:ok, source_summary} <- remove_identity(source.summary, identity_id, commitment),
-         {:ok, destination_summary} <- add_identity(destination.summary, identity_id, commitment) do
-      source = %{source | summary: source_summary}
-      destination = %{destination | summary: destination_summary}
+         :ok <- require_destination_free(destination, identity_id) do
+      moved_relations = identity_relations(Map.get(source.summary, :relation_anchors, []), identity_id)
+      relation_limit = Keyword.get(opts, :summary_relation_limit, 24)
 
-      candidate_state = state |> Map.put(from_id, source) |> Map.put(to_id, destination)
+      with {:ok, source_summary} <- remove_identity(source.summary, identity_id, commitment),
+           {:ok, destination_summary} <-
+             add_identity(destination.summary, identity_id, commitment, moved_relations, relation_limit) do
+        source = %{source | summary: source_summary}
+        destination = %{destination | summary: destination_summary}
+        candidate_state = state |> Map.put(from_id, source) |> Map.put(to_id, destination)
 
-      case duplicate_dormant_anchors(candidate_state) do
-        [] -> {:ok, source, destination}
-        conflicts -> {:error, {:identity_anchor_conflicts, conflicts}}
+        case duplicate_dormant_anchors(candidate_state) do
+          [] -> {:ok, source, destination}
+          conflicts -> {:error, {:identity_anchor_conflicts, conflicts}}
+        end
       end
     end
   end
@@ -177,27 +205,36 @@ defmodule Procession.Simulation.LiveResolutionManager do
     if population <= 0 do
       {:error, :source_population_empty}
     else
-      anchors = List.delete(Map.get(summary, :identity_anchors, []), identity_id)
-      commitments = Map.delete(Map.get(summary, :identity_commitments, %{}), identity_id)
-      relations = reject_identity_relations(Map.get(summary, :relation_anchors, []), identity_id)
-
       {:ok,
        summary
-       |> Map.put(:identity_anchors, anchors)
-       |> Map.put(:identity_commitments, commitments)
-       |> Map.put(:relation_anchors, relations)
+       |> Map.put(:identity_anchors, List.delete(Map.get(summary, :identity_anchors, []), identity_id))
+       |> Map.put(
+         :identity_commitments,
+         Map.delete(Map.get(summary, :identity_commitments, %{}), identity_id)
+       )
+       |> Map.put(
+         :relation_anchors,
+         reject_identity_relations(Map.get(summary, :relation_anchors, []), identity_id)
+       )
        |> adjust_population(-1, commitment)}
     end
   end
 
-  defp add_identity(summary, identity_id, commitment) do
+  defp add_identity(summary, identity_id, commitment, relations, relation_limit) do
     anchors = Map.get(summary, :identity_anchors, [])
     commitments = Map.get(summary, :identity_commitments, %{})
+
+    relation_anchors =
+      (Map.get(summary, :relation_anchors, []) ++ relations)
+      |> Enum.uniq_by(&elem(&1, 0))
+      |> rank_relations()
+      |> Enum.take(relation_limit)
 
     {:ok,
      summary
      |> Map.put(:identity_anchors, anchors ++ [identity_id])
      |> Map.put(:identity_commitments, Map.put(commitments, identity_id, commitment))
+     |> Map.put(:relation_anchors, relation_anchors)
      |> adjust_population(1, commitment)}
   end
 
@@ -213,29 +250,65 @@ defmodule Procession.Simulation.LiveResolutionManager do
     |> Map.put(:population, new_population)
     |> Map.update(:held_stock, delta * held, &max(0.0, &1 + delta * held))
     |> Map.update(:consumed_stock, delta * consumed, &max(0.0, &1 + delta * consumed))
-    |> Map.update(:total_stock, delta * (held + consumed), &max(0.0, &1 + delta * (held + consumed)))
-    |> Map.put(:mean_energy, adjusted_mean(Map.get(summary, :mean_energy, 0.0), old_population, energy, delta))
-    |> Map.put(:mean_mobility, adjusted_mean(Map.get(summary, :mean_mobility, 0.0), old_population, mobility, delta))
-    |> Map.put(:centroid, adjusted_centroid(Map.get(summary, :centroid, {0.0, 0.0}), old_population, Map.get(commitment, :position), delta))
+    |> Map.update(
+      :total_stock,
+      delta * (held + consumed),
+      &max(0.0, &1 + delta * (held + consumed))
+    )
+    |> Map.put(
+      :mean_energy,
+      adjusted_mean(Map.get(summary, :mean_energy, 0.0), old_population, energy, delta)
+    )
+    |> Map.put(
+      :mean_mobility,
+      adjusted_mean(Map.get(summary, :mean_mobility, 0.0), old_population, mobility, delta)
+    )
+    |> Map.put(
+      :centroid,
+      adjusted_centroid(
+        Map.get(summary, :centroid, {0.0, 0.0}),
+        old_population,
+        Map.get(commitment, :position),
+        delta
+      )
+    )
   end
 
-  defp adjusted_mean(_mean, _count, _value, _delta) when false, do: 0.0
   defp adjusted_mean(mean, count, value, 1), do: (mean * count + value) / max(count + 1, 1)
   defp adjusted_mean(_mean, 1, _value, -1), do: 0.0
   defp adjusted_mean(mean, count, value, -1), do: (mean * count - value) / max(count - 1, 1)
 
   defp adjusted_centroid(centroid, _count, nil, _delta), do: centroid
-  defp adjusted_centroid({cx, cy}, count, {x, y}, 1), do: {(cx * count + x) / max(count + 1, 1), (cy * count + y) / max(count + 1, 1)}
-  defp adjusted_centroid(_centroid, 1, _position, -1), do: {0.0, 0.0}
-  defp adjusted_centroid({cx, cy}, count, {x, y}, -1), do: {(cx * count - x) / max(count - 1, 1), (cy * count - y) / max(count - 1, 1)}
 
-  defp reject_identity_relations(relations, identity_id) do
-    Enum.reject(relations, fn
+  defp adjusted_centroid({cx, cy}, count, {x, y}, 1),
+    do: {(cx * count + x) / max(count + 1, 1), (cy * count + y) / max(count + 1, 1)}
+
+  defp adjusted_centroid(_centroid, 1, _position, -1), do: {0.0, 0.0}
+
+  defp adjusted_centroid({cx, cy}, count, {x, y}, -1),
+    do: {(cx * count - x) / max(count - 1, 1), (cy * count - y) / max(count - 1, 1)}
+
+  defp identity_relations(relations, identity_id) do
+    Enum.filter(relations, fn
       {{observer_id, actor_id, _context}, _relation} ->
         observer_id == identity_id or actor_id == identity_id
 
       _ ->
         false
+    end)
+  end
+
+  defp reject_identity_relations(relations, identity_id),
+    do: relations -- identity_relations(relations, identity_id)
+
+  defp rank_relations(relations) do
+    Enum.sort_by(relations, fn {key, relation} ->
+      strength =
+        Map.get(relation, :extreme_imprint, 0.0) +
+          Map.get(relation, :persistence, 0.0) +
+          Map.get(relation, :confidence, 0.0)
+
+      {-strength, key}
     end)
   end
 
@@ -347,4 +420,6 @@ defmodule Procession.Simulation.LiveResolutionManager do
       _ -> default
     end
   end
+
+  defp clamp(value, minimum, maximum), do: value |> max(minimum) |> min(maximum)
 end
