@@ -150,7 +150,7 @@ defmodule Procession.Simulation.RouteEvidenceTest do
     assert RouteEvidence.route(world.source, world.destination, 2, world.evidence).sources == []
   end
 
-  test "blocked passage preserves the dormant identity in transit" do
+  test "causal obstruction increases physical cost but does not declare the route blocked" do
     world = setup_world()
 
     assert {:ok, departure} =
@@ -159,30 +159,67 @@ defmodule Procession.Simulation.RouteEvidenceTest do
                world.source,
                world.destination,
                4,
-               [],
+               [travel_energy_decay: 0.0],
                world.travel
              )
+
+    assert {:ok, before_region} =
+             LiveResolutionManager.fetch(departure.transit_region, world.manager)
+
+    before = before_region.summary.identity_commitments[world.mover]
 
     assert {:ok, _} =
              RouteEvidence.publish(
                world.source,
                world.destination,
                :washed_out_bridge,
-               %{blocked: true},
+               %{
+                 obstruction: %{
+                   cause: :flood_undermined_bridge,
+                   severity: 0.9,
+                   extent: 0.8,
+                   clearance: 0.2
+                 }
+               },
                1,
                3,
                world.evidence
              )
 
     result = RouteEvidence.advance_travel(1, world.travel, world.evidence)
-    assert {:blocked, world.mover, [:washed_out_bridge]} in result.evidence_events
+
+    assert {:route_effects, world.mover, details} =
+             Enum.find(result.evidence_events, &match?({:route_effects, _, _}, &1))
+
+    assert %{cause: :flood_undermined_bridge, net: net} = hd(details.obstructions)
+    assert net > 0.0
 
     assert {:ok, journey} = CoarseTravel.journey(world.mover, world.travel)
-    assert journey.status == :stranded
-    assert journey.elapsed_ticks == 0
+    assert journey.status == :in_transit
+    assert journey.elapsed_ticks == 1
 
-    assert LiveResolutionManager.dormant_identity_locations(world.manager)[world.mover] ==
-             departure.transit_region
+    assert {:ok, after_region} =
+             LiveResolutionManager.fetch(departure.transit_region, world.manager)
+
+    after_commitment = after_region.summary.identity_commitments[world.mover]
+    assert after_commitment.energy < before.energy
+    assert after_commitment.consumed > before.consumed
+  end
+
+  test "blocked conclusions are rejected in favor of causal obstruction evidence" do
+    world = setup_world()
+
+    assert catch_exit(
+             RouteEvidence.publish(
+               world.source,
+               world.destination,
+               :closed_road,
+               %{blocked: true},
+               1,
+               2,
+               world.evidence
+             )
+           )
   end
 
   test "authoritative diversion evidence changes destination without teleportation" do
@@ -202,7 +239,7 @@ defmodule Procession.Simulation.RouteEvidenceTest do
              RouteEvidence.publish(
                world.source,
                world.destination,
-               :closed_pass,
+               :alternate_route_observed,
                %{divert_to: world.alternate, divert_ticks: 3},
                1,
                1,
