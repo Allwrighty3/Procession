@@ -5,8 +5,8 @@ defmodule Procession.Simulation.RouteEvidence do
   Owns bounded, expiring evidence about conditions on coarse travel routes.
 
   Evidence changes low-level physical travel conditions. It does not select narrative
-  outcomes or inspect traveler goals. Explicit block and diversion records must come from
-  an authoritative producer that observed the corresponding route condition.
+  outcomes or inspect traveler goals. Obstructions must describe a cause and physical
+  magnitude; they never set a deterministic blocked journey status.
   """
 
   alias Procession.Simulation.CoarseTravel
@@ -96,13 +96,7 @@ defmodule Procession.Simulation.RouteEvidence do
         {records, acc} = current_records(acc, {journey.from, journey.to}, tick)
         effects = aggregate(records, tick)
 
-        case apply_effects(
-               identity_id,
-               journey,
-               effects,
-               travel_server,
-               acc.resolution_server
-             ) do
+        case apply_effects(identity_id, journey, effects, travel_server, acc.resolution_server) do
           [] -> {events, acc}
           applied -> {events ++ applied, acc}
         end
@@ -115,23 +109,15 @@ defmodule Procession.Simulation.RouteEvidence do
   end
 
   defp apply_effects(identity_id, journey, effects, travel_server, resolution_server) do
-    cond do
-      effects.blocked ->
-        case CoarseTravel.stop(identity_id, {:route_blocked, effects.sources}, travel_server) do
-          {:ok, _} -> [{:blocked, identity_id, effects.sources}]
-          {:error, _} -> []
-        end
+    if is_nil(effects.divert_to) do
+      apply_physical_effects(identity_id, journey, effects, resolution_server)
+    else
+      duration = max(1, effects.divert_ticks || journey.total_ticks - journey.elapsed_ticks)
 
-      not is_nil(effects.divert_to) ->
-        duration = max(1, effects.divert_ticks || journey.total_ticks - journey.elapsed_ticks)
-
-        case CoarseTravel.divert(identity_id, effects.divert_to, duration, travel_server) do
-          {:ok, _} -> [{:diverted, identity_id, effects.divert_to, duration}]
-          {:error, _} -> []
-        end
-
-      true ->
-        apply_physical_effects(identity_id, journey, effects, resolution_server)
+      case CoarseTravel.divert(identity_id, effects.divert_to, duration, travel_server) do
+        {:ok, _} -> [{:diverted, identity_id, effects.divert_to, duration}]
+        {:error, _} -> []
+      end
     end
   end
 
@@ -175,6 +161,7 @@ defmodule Procession.Simulation.RouteEvidence do
             {:route_effects, identity_id,
              %{
                sources: effects.sources,
+               obstructions: effects.obstructions,
                supplied: supplied,
                consumed: consumed,
                energy_delta: energy_delta
@@ -213,26 +200,67 @@ defmodule Procession.Simulation.RouteEvidence do
     records
     |> Enum.reduce(empty_effects(), fn record, acc ->
       effects = record.effects
+      obstruction = obstruction_effects(Map.get(effects, :obstruction))
       one_shot_supply = if record.observed_at == tick, do: number(effects, :supply), else: 0.0
 
       %{
         acc
-        | pressure: clamp(acc.pressure + number(effects, :pressure), 0.0, 4.0),
-          demand: max(0.0, acc.demand + number(effects, :demand)),
-          energy: clamp(acc.energy + number(effects, :energy), -1.0, 1.0),
+        | pressure:
+            clamp(
+              acc.pressure + number(effects, :pressure) + obstruction.pressure,
+              0.0,
+              4.0
+            ),
+          demand: max(0.0, acc.demand + number(effects, :demand) + obstruction.demand),
+          energy:
+            clamp(acc.energy + number(effects, :energy) + obstruction.energy, -1.0, 1.0),
           satisfied_energy:
             max(0.0, acc.satisfied_energy + number(effects, :satisfied_energy)),
-          unmet_energy: max(0.0, acc.unmet_energy + number(effects, :unmet_energy)),
+          unmet_energy:
+            max(
+              0.0,
+              acc.unmet_energy + number(effects, :unmet_energy) + obstruction.unmet_energy
+            ),
           supply: max(0.0, acc.supply + one_shot_supply),
-          blocked: acc.blocked or Map.get(effects, :blocked, false) == true,
           divert_to: Map.get(effects, :divert_to, acc.divert_to),
           divert_ticks: Map.get(effects, :divert_ticks, acc.divert_ticks),
           sources: [record.id | acc.sources],
-          physical?: acc.physical? or physical_effect?(effects, one_shot_supply)
+          obstructions: obstruction_list(acc.obstructions, obstruction),
+          physical?: acc.physical? or physical_effect?(effects, one_shot_supply, obstruction)
       }
     end)
     |> Map.update!(:sources, &Enum.reverse/1)
+    |> Map.update!(:obstructions, &Enum.reverse/1)
   end
+
+  defp obstruction_effects(nil), do: empty_obstruction()
+
+  defp obstruction_effects(obstruction) when is_map(obstruction) do
+    cause = Map.fetch!(obstruction, :cause)
+    severity = clamp(number(obstruction, :severity), 0.0, 1.0)
+    extent = clamp(number(obstruction, :extent), 0.0, 1.0)
+    clearance = clamp(number(obstruction, :clearance), 0.0, 1.0)
+    net = severity * extent * (1.0 - clearance)
+
+    %{
+      cause: cause,
+      net: net,
+      pressure: net * 2.0,
+      demand: net * 0.02,
+      energy: -net * 0.01,
+      unmet_energy: net * 0.04
+    }
+  end
+
+  defp obstruction_effects(_),
+    do: raise(ArgumentError, "route obstruction must be a map with a cause")
+
+  defp empty_obstruction do
+    %{cause: nil, net: 0.0, pressure: 0.0, demand: 0.0, energy: 0.0, unmet_energy: 0.0}
+  end
+
+  defp obstruction_list(list, %{cause: nil}), do: list
+  defp obstruction_list(list, obstruction), do: [Map.take(obstruction, [:cause, :net]) | list]
 
   defp empty_effects do
     %{
@@ -242,20 +270,32 @@ defmodule Procession.Simulation.RouteEvidence do
       satisfied_energy: 0.0,
       unmet_energy: 0.0,
       supply: 0.0,
-      blocked: false,
       divert_to: nil,
       divert_ticks: nil,
       sources: [],
+      obstructions: [],
       physical?: false
     }
   end
 
   defp normalize_record(id, effects, tick, ttl) when is_map(effects) do
+    validate_effects!(effects)
     %{id: id, effects: effects, observed_at: tick, expires_at: tick + ttl - 1}
   end
 
   defp normalize_record(_id, _effects, _tick, _ttl),
     do: raise(ArgumentError, "route effects must be a map")
+
+  defp validate_effects!(%{blocked: _}),
+    do: raise(ArgumentError, "blocked is a conclusion; publish a causal obstruction instead")
+
+  defp validate_effects!(%{obstruction: obstruction}) when is_map(obstruction) do
+    if Map.has_key?(obstruction, :cause),
+      do: :ok,
+      else: raise(ArgumentError, "route obstruction requires a cause")
+  end
+
+  defp validate_effects!(_effects), do: :ok
 
   defp trim_records(records, limit) do
     records
@@ -287,8 +327,8 @@ defmodule Procession.Simulation.RouteEvidence do
     |> Map.update(:external_inflow, supplied, &(&1 + supplied))
   end
 
-  defp physical_effect?(effects, one_shot_supply) do
-    one_shot_supply != 0.0 or
+  defp physical_effect?(effects, one_shot_supply, obstruction) do
+    one_shot_supply != 0.0 or obstruction.net != 0.0 or
       Enum.any?(
         [:pressure, :demand, :energy, :satisfied_energy, :unmet_energy],
         fn key -> number(effects, key) != 0.0 end
