@@ -14,6 +14,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.AutomaticResolutionPolicy
+  alias Procession.Simulation.LiveResolutionManager
   alias Procession.Simulation.LiveSocialPlane
 
   @name __MODULE__
@@ -26,6 +27,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       policy_server: Keyword.get(opts, :policy_server, AutomaticResolutionPolicy),
       entity_supervisor: Keyword.get(opts, :entity_supervisor, EntitySupervisor),
       social_server: Keyword.get(opts, :social_server, LiveSocialPlane),
+      resolution_server: Keyword.get(opts, :resolution_server, LiveResolutionManager),
       config: Keyword.get(opts, :config, [])
     }
 
@@ -101,8 +103,12 @@ defmodule Procession.Simulation.RegionObservationPublisher do
     events = retain_recent(state.events, tick, event_ttl)
     submitted_dependencies = retain_recent(state.dependencies, tick, dependency_ttl)
     entity_samples = sample_entities(state.entity_supervisor)
-    entities_by_id = Map.new(entity_samples, &{&1.id, &1})
-    social_dependencies = derive_social_dependencies(state.social_server, entities_by_id, tick, opts)
+    live_locations = Map.new(entity_samples, &{&1.id, &1.location})
+    dormant_locations = dormant_locations(state.resolution_server)
+
+    social_dependencies =
+      derive_social_dependencies(state.social_server, live_locations, dormant_locations, tick, opts)
+
     dependencies = merge_dependencies(submitted_dependencies, social_dependencies)
     players = Enum.filter(entity_samples, &(&1.type == :player and not is_nil(&1.location)))
     grouped = Enum.group_by(entity_samples, & &1.location)
@@ -128,6 +134,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
             resident_count: length(residents),
             sampled_minds: Enum.count(residents, & &1.mind_sampled?),
             social_dependencies: social_dependency_count(region_id, social_dependencies),
+            dormant_anchors: dormant_anchor_count(region_id, dormant_locations),
             event_tick: event.tick
           }
         }
@@ -182,7 +189,19 @@ defmodule Procession.Simulation.RegionObservationPublisher do
     end
   end
 
-  defp derive_social_dependencies(server, entities_by_id, tick, opts) do
+  defp dormant_locations(server) do
+    if process_running?(server) do
+      try do
+        LiveResolutionManager.dormant_identity_locations(server)
+      catch
+        :exit, _reason -> %{}
+      end
+    else
+      %{}
+    end
+  end
+
+  defp derive_social_dependencies(server, live_locations, dormant_locations, tick, opts) do
     if process_running?(server) do
       try do
         server
@@ -190,8 +209,8 @@ defmodule Procession.Simulation.RegionObservationPublisher do
         |> Map.get(:relations, %{})
         |> Enum.reduce(%{}, fn
           {{observer_id, actor_id, _context}, relation}, acc ->
-            with %{location: from} when not is_nil(from) <- Map.get(entities_by_id, observer_id),
-                 %{location: to} when not is_nil(to) <- Map.get(entities_by_id, actor_id),
+            with from when not is_nil(from) <- identity_location(observer_id, live_locations, dormant_locations),
+                 to when not is_nil(to) <- identity_location(actor_id, live_locations, dormant_locations),
                  true <- from != to,
                  pressure when pressure > 0.0 <- social_dependency_pressure(relation, opts) do
               Map.update(acc, {from, to}, %{pressure: pressure, tick: tick}, fn previous ->
@@ -209,6 +228,13 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       end
     else
       %{}
+    end
+  end
+
+  defp identity_location(id, live_locations, dormant_locations) do
+    case Map.get(live_locations, id) do
+      nil -> Map.get(dormant_locations, id)
+      location -> location
     end
   end
 
@@ -298,6 +324,10 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       {{_from, ^region_id}, _dependency} -> true
       _ -> false
     end)
+  end
+
+  defp dormant_anchor_count(region_id, dormant_locations) do
+    Enum.count(dormant_locations, fn {_identity_id, location} -> location == region_id end)
   end
 
   defp retain_recent(entries, tick, ttl) do
