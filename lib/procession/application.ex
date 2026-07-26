@@ -15,6 +15,7 @@ defmodule Procession.Application do
       {Procession.EntitySupervisor, []},
       {Procession.Simulation.LiveResolutionManager, []},
       {Procession.Simulation.RegionActivationLifecycle, []},
+      {Procession.Simulation.CoarseTravel, []},
       {Procession.Simulation.AutomaticResolutionPolicy, []},
       {Procession.Simulation.RegionObservationPublisher, []},
       {Procession.WorldClock, [resolution_policy: true, region_observations: true]}
