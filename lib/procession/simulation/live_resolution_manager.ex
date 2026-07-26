@@ -72,8 +72,8 @@ defmodule Procession.Simulation.LiveResolutionManager do
   def init(state), do: {:ok, state}
 
   @impl true
-  def handle_call({:put, %MultiResolutionRegion{id: id} = region}, _from, state) do
-    {:reply, {:ok, MultiResolutionRegion.trace(region)}, Map.put(state, id, region)}
+  def handle_call({:put, %MultiResolutionRegion{} = region}, _from, state) do
+    commit_region(state, region)
   end
 
   def handle_call({:fetch, id}, _from, state) do
@@ -105,19 +105,7 @@ defmodule Procession.Simulation.LiveResolutionManager do
   end
 
   def handle_call(:dormant_identity_locations, _from, state) do
-    locations =
-      state
-      |> Enum.filter(fn {_region_id, region} -> region.resolution in [:coarse, :inert] end)
-      |> Enum.sort_by(&elem(&1, 0))
-      |> Enum.reduce(%{}, fn {region_id, region}, acc ->
-        region.summary
-        |> Map.get(:identity_anchors, [])
-        |> Enum.reduce(acc, fn identity_id, locations ->
-          Map.put_new(locations, identity_id, region_id)
-        end)
-      end)
-
-    {:reply, locations, state}
+    {:reply, build_dormant_identity_locations(state), state}
   end
 
   defp transition(state, id, fun) do
@@ -125,7 +113,7 @@ defmodule Procession.Simulation.LiveResolutionManager do
       {:ok, region} ->
         try do
           updated = fun.(region)
-          {:reply, {:ok, MultiResolutionRegion.trace(updated)}, Map.put(state, id, updated)}
+          commit_region(state, updated)
         rescue
           error in ArgumentError -> {:reply, {:error, Exception.message(error)}, state}
         end
@@ -134,4 +122,43 @@ defmodule Procession.Simulation.LiveResolutionManager do
         {:reply, {:error, :not_found}, state}
     end
   end
+
+  defp commit_region(state, %MultiResolutionRegion{id: id} = region) do
+    case identity_anchor_conflicts(state, region) do
+      [] ->
+        {:reply, {:ok, MultiResolutionRegion.trace(region)}, Map.put(state, id, region)}
+
+      conflicts ->
+        {:reply, {:error, {:identity_anchor_conflicts, conflicts}}, state}
+    end
+  end
+
+  defp identity_anchor_conflicts(state, %MultiResolutionRegion{id: id} = region) do
+    candidate = dormant_anchors(region)
+
+    state
+    |> Map.delete(id)
+    |> build_dormant_identity_locations()
+    |> Enum.flat_map(fn {identity_id, region_id} ->
+      if identity_id in candidate, do: [{identity_id, region_id}], else: []
+    end)
+    |> Enum.sort()
+  end
+
+  defp build_dormant_identity_locations(state) do
+    state
+    |> Enum.filter(fn {_region_id, region} -> region.resolution in [:coarse, :inert] end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.reduce(%{}, fn {region_id, region}, acc ->
+      Enum.reduce(dormant_anchors(region), acc, fn identity_id, locations ->
+        Map.put(locations, identity_id, region_id)
+      end)
+    end)
+  end
+
+  defp dormant_anchors(%MultiResolutionRegion{resolution: resolution, summary: summary})
+       when resolution in [:coarse, :inert] and is_map(summary),
+       do: Map.get(summary, :identity_anchors, [])
+
+  defp dormant_anchors(_region), do: []
 end
