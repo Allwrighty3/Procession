@@ -6,8 +6,9 @@ defmodule Procession.Simulation.CoarseTravel do
 
   Travel reuses the guarded region lifecycle. Departure migrates an anchored identity into
   a reusable compressed route region, each travel tick updates that identity's coarse
-  physical commitment, and arrival migrates it into the compressed destination. No source,
-  route, or destination region must be activated.
+  physical commitment, and arrival migrates it into the compressed destination. Elapsed
+  time and achieved progress are tracked separately so resistance can slow movement without
+  stopping time or creating a categorical blocked state.
   """
 
   alias Procession.Simulation.LiveResolutionManager
@@ -38,6 +39,9 @@ defmodule Procession.Simulation.CoarseTravel do
 
   def advance(ticks \\ 1, server \\ @name) when is_integer(ticks) and ticks >= 0,
     do: GenServer.call(server, {:advance, ticks}, :infinity)
+
+  def set_progress_factor(identity_id, factor, server \\ @name) when is_number(factor),
+    do: GenServer.call(server, {:set_progress_factor, identity_id, factor * 1.0})
 
   def divert(identity_id, to_region, remaining_ticks, server \\ @name)
       when is_integer(remaining_ticks) and remaining_ticks > 0,
@@ -71,6 +75,9 @@ defmodule Procession.Simulation.CoarseTravel do
         transit_region: transit_id,
         elapsed_ticks: 0,
         total_ticks: duration,
+        progress: 0.0,
+        required_progress: duration * 1.0,
+        next_progress_factor: 1.0,
         status: :in_transit,
         route_profile: route_profile(opts),
         last_outcome: :departed
@@ -97,6 +104,22 @@ defmodule Procession.Simulation.CoarseTravel do
     {:reply, %{ticks: ticks, events: events, journeys: trace_journeys(updated.journeys)}, updated}
   end
 
+  def handle_call({:set_progress_factor, identity_id, factor}, _from, state) do
+    case Map.fetch(state.journeys, identity_id) do
+      {:ok, %{status: :in_transit} = journey} ->
+        bounded = clamp(factor, 0.0, 1.0)
+        current = Map.get(journey, :next_progress_factor, 1.0)
+        updated_journey = Map.put(journey, :next_progress_factor, min(current, bounded))
+        {:reply, {:ok, journey_trace(updated_journey)}, put_in(state.journeys[identity_id], updated_journey)}
+
+      {:ok, _journey} ->
+        {:reply, {:error, :journey_not_active}, state}
+
+      :error ->
+        {:reply, {:error, :journey_not_found}, state}
+    end
+  end
+
   def handle_call({:divert, identity_id, destination, remaining_ticks}, _from, state) do
     case Map.fetch(state.journeys, identity_id) do
       {:ok, %{status: status} = journey} when status in [:in_transit, :stranded] ->
@@ -105,6 +128,9 @@ defmodule Procession.Simulation.CoarseTravel do
           | to: destination,
             elapsed_ticks: 0,
             total_ticks: remaining_ticks,
+            progress: 0.0,
+            required_progress: remaining_ticks * 1.0,
+            next_progress_factor: 1.0,
             status: :in_transit,
             last_outcome: :diverted
         }
@@ -176,9 +202,16 @@ defmodule Procession.Simulation.CoarseTravel do
     Enum.reduce(active, {Enum.reverse(route_events), state}, fn {identity_id, _old}, {events, acc} ->
       case Map.fetch(acc.journeys, identity_id) do
         {:ok, %{status: :in_transit} = journey} ->
+          progress_factor = clamp(Map.get(journey, :next_progress_factor, 1.0), 0.0, 1.0)
+          progress = Map.get(journey, :progress, journey.elapsed_ticks * 1.0) + progress_factor
+          required_progress = Map.get(journey, :required_progress, journey.total_ticks * 1.0)
+
           progressed = %{
             journey
             | elapsed_ticks: journey.elapsed_ticks + 1,
+              progress: progress,
+              required_progress: required_progress,
+              next_progress_factor: 1.0,
               last_outcome: :progressed
           }
 
@@ -189,7 +222,7 @@ defmodule Procession.Simulation.CoarseTravel do
               failed = fail_journey(acc, identity_id, :exhausted)
               {[{:stranded, identity_id, :exhausted} | events], failed}
 
-            progressed.elapsed_ticks >= progressed.total_ticks ->
+            progressed.progress >= progressed.required_progress ->
               arrive(identity_id, progressed, events, acc)
 
             true ->
