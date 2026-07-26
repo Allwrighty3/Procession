@@ -27,7 +27,12 @@ defmodule Procession.Simulation.RouteEvidence do
 
   def publish(from, to, evidence_id, effects, tick, ttl \\ 5, server \\ @name)
       when is_integer(tick) and is_integer(ttl) and ttl > 0 do
-    GenServer.call(server, {:publish, from, to, evidence_id, effects, tick, ttl})
+    try do
+      validate_effects!(effects)
+      GenServer.call(server, {:publish, from, to, evidence_id, effects, tick, ttl})
+    rescue
+      error in ArgumentError -> {:error, Exception.message(error)}
+    end
   end
 
   def clear(from, to, evidence_id, server \\ @name),
@@ -279,7 +284,6 @@ defmodule Procession.Simulation.RouteEvidence do
   end
 
   defp normalize_record(id, effects, tick, ttl) when is_map(effects) do
-    validate_effects!(effects)
     %{id: id, effects: effects, observed_at: tick, expires_at: tick + ttl - 1}
   end
 
@@ -295,7 +299,8 @@ defmodule Procession.Simulation.RouteEvidence do
       else: raise(ArgumentError, "route obstruction requires a cause")
   end
 
-  defp validate_effects!(_effects), do: :ok
+  defp validate_effects!(effects) when is_map(effects), do: :ok
+  defp validate_effects!(_effects), do: raise(ArgumentError, "route effects must be a map")
 
   defp trim_records(records, limit) do
     records
