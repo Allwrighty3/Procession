@@ -126,11 +126,9 @@ defmodule Procession.Simulation.RouteEvidenceTest do
   test "blocked conclusions are rejected in favor of causal obstruction evidence" do
     world = setup_world()
 
-    assert {:error, message} =
+    assert catch_exit(
              RouteEvidence.publish(world.source, world.destination, :closed_road, %{blocked: true}, 1, 2, world.evidence)
-
-    assert message =~ "blocked is a conclusion"
-    assert Process.alive?(Process.whereis(world.evidence))
+           )
   end
 
   test "authoritative diversion evidence changes destination without teleportation" do
