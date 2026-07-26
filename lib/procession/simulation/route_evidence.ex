@@ -74,7 +74,7 @@ defmodule Procession.Simulation.RouteEvidence do
 
   def handle_call({:route, from, to, tick}, _from, state) do
     {records, updated} = current_records(state, {from, to}, tick)
-    {:reply, aggregate(records), updated}
+    {:reply, aggregate(records, tick), updated}
   end
 
   def handle_call({:advance_travel, tick, travel_server}, _from, state) do
@@ -94,7 +94,7 @@ defmodule Procession.Simulation.RouteEvidence do
     {evidence_events, state} =
       Enum.reduce(active, {[], state}, fn {identity_id, journey}, {events, acc} ->
         {records, acc} = current_records(acc, {journey.from, journey.to}, tick)
-        effects = aggregate(records)
+        effects = aggregate(records, tick)
 
         case apply_effects(
                identity_id,
@@ -201,13 +201,19 @@ defmodule Procession.Simulation.RouteEvidence do
         do: update_in(state.evidence, &Map.delete(&1, route_key)),
         else: put_in(state.evidence[route_key], records)
 
-    {Map.values(records), updated}
+    ordered =
+      records
+      |> Map.values()
+      |> Enum.sort_by(fn record -> {record.observed_at, inspect(record.id)} end)
+
+    {ordered, updated}
   end
 
-  defp aggregate(records) do
+  defp aggregate(records, tick) do
     records
     |> Enum.reduce(empty_effects(), fn record, acc ->
       effects = record.effects
+      one_shot_supply = if record.observed_at == tick, do: number(effects, :supply), else: 0.0
 
       %{
         acc
@@ -217,12 +223,12 @@ defmodule Procession.Simulation.RouteEvidence do
           satisfied_energy:
             max(0.0, acc.satisfied_energy + number(effects, :satisfied_energy)),
           unmet_energy: max(0.0, acc.unmet_energy + number(effects, :unmet_energy)),
-          supply: max(0.0, acc.supply + number(effects, :supply)),
+          supply: max(0.0, acc.supply + one_shot_supply),
           blocked: acc.blocked or Map.get(effects, :blocked, false) == true,
           divert_to: Map.get(effects, :divert_to, acc.divert_to),
           divert_ticks: Map.get(effects, :divert_ticks, acc.divert_ticks),
           sources: [record.id | acc.sources],
-          physical?: acc.physical? or physical_effect?(effects)
+          physical?: acc.physical? or physical_effect?(effects, one_shot_supply)
       }
     end)
     |> Map.update!(:sources, &Enum.reverse/1)
@@ -281,11 +287,12 @@ defmodule Procession.Simulation.RouteEvidence do
     |> Map.update(:external_inflow, supplied, &(&1 + supplied))
   end
 
-  defp physical_effect?(effects) do
-    Enum.any?(
-      [:pressure, :demand, :energy, :satisfied_energy, :unmet_energy, :supply],
-      fn key -> number(effects, key) != 0.0 end
-    )
+  defp physical_effect?(effects, one_shot_supply) do
+    one_shot_supply != 0.0 or
+      Enum.any?(
+        [:pressure, :demand, :energy, :satisfied_energy, :unmet_energy],
+        fn key -> number(effects, key) != 0.0 end
+      )
   end
 
   defp mean([], _key), do: 0.0
