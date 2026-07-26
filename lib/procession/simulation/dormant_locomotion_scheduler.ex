@@ -17,6 +17,8 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
   alias Procession.Simulation.RegionActivationLifecycle
 
   def decide(identity_id, perceived_exits, tick, opts \\ [])
+
+  def decide(identity_id, perceived_exits, tick, opts)
       when is_list(perceived_exits) and is_integer(tick) do
     travel = Keyword.get(opts, :travel_server, CoarseTravel)
     lifecycle = Keyword.get(opts, :lifecycle_server, RegionActivationLifecycle)
@@ -61,7 +63,8 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
 
   defp commitment(region_id, identity_id, server) do
     with {:ok, region} <- LiveResolutionManager.fetch(region_id, server),
-         {:ok, commitment} <- Map.fetch(Map.get(region.summary, :identity_commitments, %{}), identity_id) do
+         {:ok, commitment} <-
+           Map.fetch(Map.get(region.summary, :identity_commitments, %{}), identity_id) do
       {:ok, commitment}
     else
       :error -> {:error, :identity_commitment_not_found}
@@ -117,7 +120,10 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
   end
 
   defp consequence_features(%{action: :continue, observed_direction: direction}),
-    do: [{:signal, {:boundary_response, :movement}, 1.0}, {:signal, {:observed_direction, direction}, 1.0}]
+    do: [
+      {:signal, {:boundary_response, :movement}, 1.0},
+      {:signal, {:observed_direction, direction}, 1.0}
+    ]
 
   defp consequence_features(%{action: :remain}),
     do: [{:signal, {:boundary_response, :no_region_transition}, 1.0}]
