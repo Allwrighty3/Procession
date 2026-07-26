@@ -42,18 +42,27 @@ defmodule Procession.Simulation.DormantMindArchive do
   end
 
   defp replace_state(state, region_id, identity_id, expected, replacement) do
-    with {:ok, archive} <- Map.fetch(state.archives, region_id),
-         {:ok, current} <- Map.fetch(archive.mind_snapshots, identity_id),
-         true <- current == expected do
-      updated_archive = %{archive | mind_snapshots: Map.put(archive.mind_snapshots, identity_id, replacement)}
-      {:ok, put_in(state.archives[region_id], updated_archive)}
-    else
+    case Map.fetch(state.archives, region_id) do
+      {:ok, archive} -> replace_in_archive(state, archive, region_id, identity_id, expected, replacement)
       :error -> {{:error, :dormant_mind_not_found}, state}
-      false -> {{:error, :stale_dormant_mind_snapshot}, state}
     end
-    |> normalize_result()
   end
 
-  defp normalize_result({:ok, state}), do: {:ok, state}
-  defp normalize_result({result, state}), do: {result, state}
+  defp replace_in_archive(state, archive, region_id, identity_id, expected, replacement) do
+    case Map.fetch(archive.mind_snapshots, identity_id) do
+      {:ok, ^expected} ->
+        updated_archive = %{
+          archive
+          | mind_snapshots: Map.put(archive.mind_snapshots, identity_id, replacement)
+        }
+
+        {:ok, put_in(state.archives[region_id], updated_archive)}
+
+      {:ok, _current} ->
+        {{:error, :stale_dormant_mind_snapshot}, state}
+
+      :error ->
+        {{:error, :dormant_mind_not_found}, state}
+    end
+  end
 end
