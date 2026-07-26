@@ -94,6 +94,7 @@ defmodule Procession.Simulation.CoarseTravelTest do
 
     Enum.each([source_region, destination_region, alternate_region], fn region ->
       assert {:ok, _trace} = LiveResolutionManager.put(region, manager)
+
       assert {:ok, %{resolution: :inert}} =
                RegionActivationLifecycle.deactivate(region.id, [], lifecycle)
     end)
@@ -113,7 +114,7 @@ defmodule Procession.Simulation.CoarseTravelTest do
     }
   end
 
-  test "dormant identity travels over time, consumes carried stock, and arrives intact" do
+  test "crossing a region boundary does not end the travel episode" do
     world = setup_world()
 
     assert {:ok, departure} =
@@ -127,14 +128,13 @@ defmodule Procession.Simulation.CoarseTravelTest do
              )
 
     assert departure.status == :in_transit
-    assert LiveResolutionManager.dormant_identity_locations(world.manager)[world.mover] ==
-             departure.transit_region
 
     assert %{events: events} = CoarseTravel.advance(2, world.travel)
-    refute Enum.any?(events, &match?({:arrived, _, _}, &1))
+    refute Enum.any?(events, &match?({:entered_region, _, _}, &1))
 
     assert {:ok, in_transit} = CoarseTravel.journey(world.mover, world.travel)
     assert in_transit.elapsed_ticks == 2
+    assert in_transit.episode_elapsed_ticks == 2
     assert in_transit.status == :in_transit
 
     assert {:ok, transit} = LiveResolutionManager.fetch(in_transit.transit_region, world.manager)
@@ -145,24 +145,43 @@ defmodule Procession.Simulation.CoarseTravelTest do
     assert_in_delta commitment.inventory + commitment.consumed, 0.12, 1.0e-9
 
     assert %{events: final_events} = CoarseTravel.advance(1, world.travel)
-    assert {:arrived, world.mover, world.destination} in final_events
+    assert {:entered_region, world.mover, world.destination} in final_events
 
-    assert {:ok, arrived} = CoarseTravel.journey(world.mover, world.travel)
-    assert arrived.status == :arrived
-    assert LiveResolutionManager.dormant_identity_locations(world.manager)[world.mover] ==
-             world.destination
+    assert {:ok, waiting} = CoarseTravel.journey(world.mover, world.travel)
+    assert waiting.status == :awaiting_direction
+    assert waiting.current_region == world.destination
+    assert waiting.segments_crossed == 1
+    assert waiting.episode_elapsed_ticks == 3
 
-    assert {:ok, %{resolution: :live}} =
-             RegionActivationLifecycle.activate(world.destination, 77, [], world.lifecycle)
+    assert {:ok, continued} =
+             CoarseTravel.continue(
+               world.mover,
+               world.alternate,
+               2,
+               [],
+               world.travel
+             )
 
-    restored = Entity.get_state(world.mover)
-    assert restored.location == world.destination
-    assert restored.name == world.mover
-    assert restored.metadata.physical_state.inventory < 0.12
-    assert restored.metadata.physical_state.consumed > 0.0
+    assert continued.status == :in_transit
+    assert continued.from == world.destination
+    assert continued.to == world.alternate
+    assert continued.elapsed_ticks == 0
+    assert continued.episode_elapsed_ticks == 3
+
+    assert %{events: next_events} = CoarseTravel.advance(2, world.travel)
+    assert {:entered_region, world.mover, world.alternate} in next_events
+
+    assert {:ok, still_open} = CoarseTravel.journey(world.mover, world.travel)
+    assert still_open.status == :awaiting_direction
+    assert still_open.segments_crossed == 2
+    assert still_open.episode_elapsed_ticks == 5
+
+    assert {:ok, ended} = CoarseTravel.stop(world.mover, :chose_to_remain, world.travel)
+    assert ended.status == :ended
+    assert ended.last_outcome == :chose_to_remain
   end
 
-  test "active journey can divert without teleporting before its new duration completes" do
+  test "active segment can divert without ending or teleporting the episode" do
     world = setup_world()
 
     assert {:ok, _} =
@@ -179,14 +198,18 @@ defmodule Procession.Simulation.CoarseTravelTest do
     assert {:ok, diverted} = CoarseTravel.divert(world.mover, world.alternate, 2, world.travel)
     assert diverted.to == world.alternate
     assert diverted.elapsed_ticks == 0
+    assert diverted.episode_elapsed_ticks == 2
 
     assert %{events: first} = CoarseTravel.advance(1, world.travel)
-    refute Enum.any?(first, &match?({:arrived, _, _}, &1))
+    refute Enum.any?(first, &match?({:entered_region, _, _}, &1))
 
     assert %{events: second} = CoarseTravel.advance(1, world.travel)
-    assert {:arrived, world.mover, world.alternate} in second
-    assert LiveResolutionManager.dormant_identity_locations(world.manager)[world.mover] ==
-             world.alternate
+    assert {:entered_region, world.mover, world.alternate} in second
+
+    assert {:ok, waiting} = CoarseTravel.journey(world.mover, world.travel)
+    assert waiting.status == :awaiting_direction
+    assert waiting.current_region == world.alternate
+    assert waiting.episode_elapsed_ticks == 4
   end
 
   test "unmet travel demand can strand a dormant identity in transit" do
@@ -213,11 +236,9 @@ defmodule Procession.Simulation.CoarseTravelTest do
 
     assert {:ok, stranded} = CoarseTravel.journey(world.mover, world.travel)
     assert stranded.status == :stranded
-    assert LiveResolutionManager.dormant_identity_locations(world.manager)[world.mover] ==
-             stranded.transit_region
 
     assert %{events: later} = CoarseTravel.advance(5, world.travel)
-    refute Enum.any?(later, &match?({:arrived, _, _}, &1))
+    refute Enum.any?(later, &match?({:entered_region, _, _}, &1))
 
     assert {:ok, recovered} =
              CoarseTravel.divert(world.mover, world.alternate, 2, world.travel)
@@ -226,7 +247,7 @@ defmodule Procession.Simulation.CoarseTravelTest do
     assert recovered.to == world.alternate
   end
 
-  test "world clock advances coarse travel before publishing its tick summary" do
+  test "world clock advances coarse locomotion before publishing its tick summary" do
     world = setup_world()
     clock = String.to_atom(unique("travel_clock"))
 
@@ -249,9 +270,9 @@ defmodule Procession.Simulation.CoarseTravelTest do
 
     assert {:ok, first_tick} = WorldClock.tick(clock)
     assert first_tick.coarse_travel.ticks == 1
-    refute Enum.any?(first_tick.coarse_travel.events, &match?({:arrived, _, _}, &1))
+    refute Enum.any?(first_tick.coarse_travel.events, &match?({:entered_region, _, _}, &1))
 
     assert {:ok, second_tick} = WorldClock.tick(clock)
-    assert {:arrived, world.mover, world.destination} in second_tick.coarse_travel.events
+    assert {:entered_region, world.mover, world.destination} in second_tick.coarse_travel.events
   end
 end

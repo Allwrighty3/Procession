@@ -7,6 +7,8 @@ defmodule Procession.Simulation.RouteEvidence do
   Stored conditions describe observer-independent causes and physical dimensions. Whether a
   traveler experiences those conditions as difficult, obstructive, dangerous, or irrelevant is
   derived from the traveler's current bodily commitment; those interpretations are never stored.
+  Experienced resistance may reduce the traveler's next progress result, but it never sets a
+  categorical route status.
   """
 
   alias Procession.Simulation.CoarseTravel
@@ -120,7 +122,7 @@ defmodule Procession.Simulation.RouteEvidence do
 
   defp apply_effects(identity_id, journey, effects, travel_server, resolution_server) do
     if is_nil(effects.divert_to) do
-      apply_physical_effects(identity_id, journey, effects, resolution_server)
+      apply_physical_effects(identity_id, journey, effects, travel_server, resolution_server)
     else
       duration = max(1, effects.divert_ticks || journey.total_ticks - journey.elapsed_ticks)
 
@@ -131,9 +133,10 @@ defmodule Procession.Simulation.RouteEvidence do
     end
   end
 
-  defp apply_physical_effects(_identity_id, _journey, %{physical?: false}, _server), do: []
+  defp apply_physical_effects(_identity_id, _journey, %{physical?: false}, _travel, _server),
+    do: []
 
-  defp apply_physical_effects(identity_id, journey, effects, server) do
+  defp apply_physical_effects(identity_id, journey, effects, travel_server, server) do
     with {:ok, region} <- LiveResolutionManager.fetch(journey.transit_region, server),
          {:ok, commitment} <- fetch_commitment(region, identity_id) do
       experienced = experience_conditions(effects.conditions, commitment)
@@ -170,11 +173,16 @@ defmodule Procession.Simulation.RouteEvidence do
 
       case LiveResolutionManager.put(updated_region, server) do
         {:ok, _} ->
+          progress_factor = clamp(1.0 - experienced.resistance * 0.85, 0.05, 1.0)
+          _ = CoarseTravel.set_progress_factor(identity_id, progress_factor, travel_server)
+
           [
             {:route_effects, identity_id,
              %{
                sources: effects.sources,
                experienced_conditions: experienced.details,
+               experienced_resistance: experienced.resistance,
+               progress_factor: progress_factor,
                supplied: supplied,
                consumed: consumed,
                energy_delta: energy_delta
@@ -228,8 +236,7 @@ defmodule Procession.Simulation.RouteEvidence do
           divert_ticks: Map.get(effects, :divert_ticks, acc.divert_ticks),
           sources: [record.id | acc.sources],
           conditions: acc.conditions ++ Map.get(effects, :conditions, []),
-          physical?:
-            acc.physical? or physical_effect?(effects, one_shot_supply)
+          physical?: acc.physical? or physical_effect?(effects, one_shot_supply)
       }
     end)
     |> Map.update!(:sources, &Enum.reverse/1)
@@ -240,22 +247,26 @@ defmodule Procession.Simulation.RouteEvidence do
     energy = clamp(number(commitment, :energy), 0.0, 1.0)
     capability = clamp(mobility * 0.7 + energy * 0.3, 0.0, 1.0)
 
-    Enum.reduce(conditions, %{demand: 0.0, energy: 0.0, unmet_energy: 0.0, details: []}, fn condition,
-                                                                                              acc ->
-      physical_load =
-        condition
-        |> condition_load()
-        |> Kernel.*(0.35 + 0.65 * (1.0 - capability))
+    Enum.reduce(
+      conditions,
+      %{demand: 0.0, energy: 0.0, unmet_energy: 0.0, resistance: 0.0, details: []},
+      fn condition, acc ->
+        physical_load =
+          condition
+          |> condition_load()
+          |> Kernel.*(0.35 + 0.65 * (1.0 - capability))
 
-      %{
-        demand: acc.demand + physical_load * 0.02,
-        energy: acc.energy - physical_load * 0.01,
-        unmet_energy: acc.unmet_energy + physical_load * 0.04,
-        details: [
-          %{cause: condition.cause, experienced_resistance: physical_load} | acc.details
-        ]
-      }
-    end)
+        %{
+          demand: acc.demand + physical_load * 0.02,
+          energy: acc.energy - physical_load * 0.01,
+          unmet_energy: acc.unmet_energy + physical_load * 0.04,
+          resistance: clamp(acc.resistance + physical_load, 0.0, 1.0),
+          details: [
+            %{cause: condition.cause, experienced_resistance: physical_load} | acc.details
+          ]
+        }
+      end
+    )
     |> Map.update!(:details, &Enum.reverse/1)
   end
 
