@@ -7,6 +7,7 @@ defmodule Procession.Simulation.CoarseTravelTest do
   alias Procession.Simulation.LiveResolutionManager
   alias Procession.Simulation.MultiResolutionRegion
   alias Procession.Simulation.RegionActivationLifecycle
+  alias Procession.WorldClock
 
   defp unique(prefix), do: "#{prefix}_#{System.unique_integer([:positive, :monotonic])}"
 
@@ -217,5 +218,40 @@ defmodule Procession.Simulation.CoarseTravelTest do
 
     assert %{events: later} = CoarseTravel.advance(5, world.travel)
     refute Enum.any?(later, &match?({:arrived, _, _}, &1))
+
+    assert {:ok, recovered} =
+             CoarseTravel.divert(world.mover, world.alternate, 2, world.travel)
+
+    assert recovered.status == :in_transit
+    assert recovered.to == world.alternate
+  end
+
+  test "world clock advances coarse travel before publishing its tick summary" do
+    world = setup_world()
+    clock = String.to_atom(unique("travel_clock"))
+
+    assert {:ok, _pid} =
+             WorldClock.start_link(
+               name: clock,
+               coarse_travel: true,
+               coarse_travel_server: world.travel
+             )
+
+    assert {:ok, _} =
+             CoarseTravel.depart(
+               world.mover,
+               world.source,
+               world.destination,
+               2,
+               [],
+               world.travel
+             )
+
+    assert {:ok, first_tick} = WorldClock.tick(clock)
+    assert first_tick.coarse_travel.ticks == 1
+    refute Enum.any?(first_tick.coarse_travel.events, &match?({:arrived, _, _}, &1))
+
+    assert {:ok, second_tick} = WorldClock.tick(clock)
+    assert {:arrived, world.mover, world.destination} in second_tick.coarse_travel.events
   end
 end
