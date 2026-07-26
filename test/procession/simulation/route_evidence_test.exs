@@ -66,10 +66,7 @@ defmodule Procession.Simulation.RouteEvidenceTest do
 
   test "expiring route pressure and resource evidence alter only grounded ticks" do
     world = setup_world()
-
-    assert {:ok, departure} =
-             CoarseTravel.depart(world.mover, world.source, world.destination, 5, [travel_demand: 0.01, travel_energy_decay: 0.0], world.travel)
-
+    assert {:ok, departure} = CoarseTravel.depart(world.mover, world.source, world.destination, 5, [travel_demand: 0.01, travel_energy_decay: 0.0], world.travel)
     assert {:ok, _} = RouteEvidence.publish(world.source, world.destination, :storm, %{pressure: 2.0, unmet_energy: 0.1}, 1, 1, world.evidence)
     assert {:ok, _} = RouteEvidence.publish(world.source, world.destination, :forage, %{supply: 0.05}, 1, 1, world.evidence)
 
@@ -87,10 +84,7 @@ defmodule Procession.Simulation.RouteEvidenceTest do
 
   test "causal obstruction increases physical cost but does not declare the route blocked" do
     world = setup_world()
-
-    assert {:ok, departure} =
-             CoarseTravel.depart(world.mover, world.source, world.destination, 4, [travel_energy_decay: 0.0], world.travel)
-
+    assert {:ok, departure} = CoarseTravel.depart(world.mover, world.source, world.destination, 4, [travel_energy_decay: 0.0], world.travel)
     assert {:ok, before_region} = LiveResolutionManager.fetch(departure.transit_region, world.manager)
     before = before_region.summary.identity_commitments[world.mover]
 
@@ -107,10 +101,7 @@ defmodule Procession.Simulation.RouteEvidenceTest do
 
     result = RouteEvidence.advance_travel(1, world.travel, world.evidence)
     mover = world.mover
-
-    assert {:route_effects, ^mover, details} =
-             Enum.find(result.evidence_events, &match?({:route_effects, _, _}, &1))
-
+    assert {:route_effects, ^mover, details} = Enum.find(result.evidence_events, &match?({:route_effects, _, _}, &1))
     assert %{cause: :flood_undermined_bridge, net: net} = hd(details.obstructions)
     assert net > 0.0
     assert {:ok, journey} = CoarseTravel.journey(world.mover, world.travel)
@@ -125,15 +116,13 @@ defmodule Procession.Simulation.RouteEvidenceTest do
 
   test "blocked conclusions are rejected in favor of causal obstruction evidence" do
     world = setup_world()
-
-    assert catch_exit(
-             RouteEvidence.publish(world.source, world.destination, :closed_road, %{blocked: true}, 1, 2, world.evidence)
-           )
+    assert {:error, message} = RouteEvidence.publish(world.source, world.destination, :closed_road, %{blocked: true}, 1, 2, world.evidence)
+    assert message =~ "blocked is a conclusion"
+    assert Process.alive?(Process.whereis(world.evidence))
   end
 
   test "authoritative diversion evidence changes destination without teleportation" do
     world = setup_world()
-
     assert {:ok, _} = CoarseTravel.depart(world.mover, world.source, world.destination, 6, [], world.travel)
 
     assert {:ok, _} =
