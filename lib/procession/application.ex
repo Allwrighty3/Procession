@@ -16,10 +16,16 @@ defmodule Procession.Application do
       {Procession.Simulation.LiveResolutionManager, []},
       {Procession.Simulation.RegionActivationLifecycle, []},
       {Procession.Simulation.CoarseTravel, []},
+      {Procession.Simulation.RouteEvidence, []},
       {Procession.Simulation.AutomaticResolutionPolicy, []},
       {Procession.Simulation.RegionObservationPublisher, []},
       {Procession.WorldClock,
-       [coarse_travel: true, resolution_policy: true, region_observations: true]}
+       [
+         coarse_travel: true,
+         route_evidence: true,
+         resolution_policy: true,
+         region_observations: true
+       ]}
     ]
 
     opts = [strategy: :one_for_one, name: Procession.Supervisor]
