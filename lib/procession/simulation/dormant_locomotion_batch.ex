@@ -17,6 +17,8 @@ defmodule Procession.Simulation.DormantLocomotionBatch do
 
   @spec run(non_neg_integer(), exit_provider(), keyword()) :: map()
   def run(tick, exit_provider, opts \\ [])
+
+  def run(tick, exit_provider, opts)
       when is_integer(tick) and tick >= 0 and is_function(exit_provider, 2) do
     travel_server = Keyword.get(opts, :travel_server, CoarseTravel)
     decision_module = Keyword.get(opts, :decision_module, DormantLocomotionScheduler)
@@ -63,12 +65,7 @@ defmodule Procession.Simulation.DormantLocomotionBatch do
 
   @spec waiting_identities(map()) :: [term()]
   def waiting_identities(%{journeys: journeys}) when is_map(journeys) do
-    journeys
-    |> Enum.flat_map(fn
-      {identity_id, %{status: :awaiting_direction}} -> [identity_id]
-      {_identity_id, _journey} -> []
-    end)
-    |> Enum.sort()
+    waiting_identities(journeys)
   end
 
   def waiting_identities(journeys) when is_map(journeys) do
