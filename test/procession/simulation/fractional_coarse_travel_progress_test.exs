@@ -29,6 +29,7 @@ defmodule Procession.Simulation.FractionalCoarseTravelProgressTest do
     evidence = String.to_atom(unique("progress_evidence"))
     source = unique("source")
     destination = unique("destination")
+    partner = unique("partner")
 
     assert {:ok, _} = LiveResolutionManager.start_link(name: manager)
 
@@ -47,18 +48,31 @@ defmodule Procession.Simulation.FractionalCoarseTravelProgressTest do
 
     assert {:ok, _} = RouteEvidence.start_link(name: evidence, resolution_server: manager)
 
-    Enum.each(travelers, fn {id, _mobility, _energy} ->
+    Enum.each([{partner, 0.5, 0.5} | travelers], fn {id, _mobility, _energy} ->
       assert {:ok, _} = EntitySupervisor.start_entity(id, %{name: id, type: :npc})
     end)
 
-    entities =
+    traveler_entities =
       travelers
       |> Enum.with_index()
       |> Enum.map(fn {{id, mobility, energy}, index} ->
         physical(id, {index, 0}, mobility, energy)
       end)
 
-    source_region = MultiResolutionRegion.new(id: source, entities: entities)
+    entities = [physical(partner, {-1, 0}, 0.5, 0.5) | traveler_entities]
+
+    social_relations =
+      Map.new(travelers, fn {id, _mobility, _energy} ->
+        {{id, partner, :presence}, %{confidence: 0.9, persistence: 1.0}}
+      end)
+
+    source_region =
+      MultiResolutionRegion.new(
+        id: source,
+        entities: entities,
+        social_relations: social_relations
+      )
+
     destination_region = MultiResolutionRegion.new(id: destination, entities: [])
 
     Enum.each([source_region, destination_region], fn region ->
@@ -74,7 +88,8 @@ defmodule Procession.Simulation.FractionalCoarseTravelProgressTest do
         try do
           state = Entity.get_state(id)
 
-          if Enum.any?(travelers, fn {traveler_id, _, _} -> traveler_id == id end) or
+          if id == partner or
+               Enum.any?(travelers, fn {traveler_id, _, _} -> traveler_id == id end) or
                state.location in [source, destination] do
             EntitySupervisor.stop_entity(id)
           end
