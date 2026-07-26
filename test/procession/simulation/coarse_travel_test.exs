@@ -25,6 +25,22 @@ defmodule Procession.Simulation.CoarseTravelTest do
     if EntitySupervisor.exists?(id), do: EntitySupervisor.stop_entity(id)
   end
 
+  defp stop_entities_in(regions, ids) do
+    EntitySupervisor.list_entities()
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.each(fn id ->
+      try do
+        entity = Entity.get_state(id)
+
+        if id in ids or entity.location in regions do
+          stop_if_present(id)
+        end
+      catch
+        :exit, _reason -> :ok
+      end
+    end)
+  end
+
   defp setup_world() do
     manager = String.to_atom(unique("travel_manager"))
     lifecycle = String.to_atom(unique("travel_lifecycle"))
@@ -82,14 +98,7 @@ defmodule Procession.Simulation.CoarseTravelTest do
     end)
 
     on_exit(fn ->
-      Enum.each([mover, partner, resident], &stop_if_present/1)
-
-      Enum.each([source, destination, alternate], fn region_id ->
-        case LiveResolutionManager.fetch(region_id, manager) do
-          {:ok, region} -> Enum.each(Map.keys(region.entities), &stop_if_present/1)
-          _ -> :ok
-        end
-      end)
+      stop_entities_in([source, destination, alternate], [mover, partner, resident])
     end)
 
     %{
