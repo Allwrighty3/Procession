@@ -17,9 +17,18 @@ defmodule Procession.Simulation.DormantSchedulerScaleExperiment do
 
   @spec run(keyword()) :: map()
   def run(opts \\ []) do
-    populations = normalize_positive_list(Keyword.get(opts, :populations, @default_populations))
-    budgets = normalize_non_negative_list(Keyword.get(opts, :budgets, @default_budgets))
-    cadences = normalize_positive_list(Keyword.get(opts, :cadences, @default_cadences))
+    populations =
+      normalize_positive_list(
+        Keyword.get(opts, :populations, @default_populations),
+        @default_populations
+      )
+
+    budgets =
+      normalize_non_negative_list(Keyword.get(opts, :budgets, @default_budgets), @default_budgets)
+
+    cadences =
+      normalize_positive_list(Keyword.get(opts, :cadences, @default_cadences), @default_cadences)
+
     ticks = normalize_positive(Keyword.get(opts, :ticks, @default_ticks), @default_ticks)
 
     scenarios =
@@ -64,7 +73,16 @@ defmodule Procession.Simulation.DormantSchedulerScaleExperiment do
 
     values = Map.values(counts)
     selected_population = Enum.count(values, &(&1 > 0))
-    min_selected = if selected_population == 0, do: 0, else: values |> Enum.reject(&(&1 == 0)) |> Enum.min()
+
+    min_selected =
+      if selected_population == 0 do
+        0
+      else
+        values
+        |> Enum.reject(&(&1 == 0))
+        |> Enum.min()
+      end
+
     max_selected = if values == [], do: 0, else: Enum.max(values)
     capacity = eligible_cycles * min(budget, population)
 
@@ -88,37 +106,38 @@ defmodule Procession.Simulation.DormantSchedulerScaleExperiment do
     }
   end
 
-  defp identity(index), do: "dormant_#{String.pad_leading(Integer.to_string(index), 8, "0")}" 
+  defp identity(index),
+    do: "dormant_#{String.pad_leading(Integer.to_string(index), 8, "0")}" 
 
   defp ratio(_numerator, 0), do: 0.0
   defp ratio(numerator, denominator), do: numerator / denominator
 
-  defp normalize_positive(value, fallback) when is_integer(value) and value > 0, do: value
+  defp normalize_positive(value, _fallback) when is_integer(value) and value > 0, do: value
   defp normalize_positive(_value, fallback), do: fallback
 
-  defp normalize_positive_list(values) when is_list(values) do
+  defp normalize_positive_list(values, fallback) when is_list(values) do
     values
     |> Enum.filter(&(is_integer(&1) and &1 > 0))
     |> Enum.uniq()
     |> Enum.sort()
     |> case do
-      [] -> @default_populations
+      [] -> fallback
       normalized -> normalized
     end
   end
 
-  defp normalize_positive_list(_values), do: @default_populations
+  defp normalize_positive_list(_values, fallback), do: fallback
 
-  defp normalize_non_negative_list(values) when is_list(values) do
+  defp normalize_non_negative_list(values, fallback) when is_list(values) do
     values
     |> Enum.filter(&(is_integer(&1) and &1 >= 0))
     |> Enum.uniq()
     |> Enum.sort()
     |> case do
-      [] -> @default_budgets
+      [] -> fallback
       normalized -> normalized
     end
   end
 
-  defp normalize_non_negative_list(_values), do: @default_budgets
+  defp normalize_non_negative_list(_values, fallback), do: fallback
 end
