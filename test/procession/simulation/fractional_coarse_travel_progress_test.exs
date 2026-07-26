@@ -109,40 +109,43 @@ defmodule Procession.Simulation.FractionalCoarseTravelProgressTest do
     }
   end
 
-  test "elapsed time advances while one-tick resistance reduces only achieved progress" do
+  test "elapsed time advances while one-tick resistance reduces segment movement" do
     mover = unique("mover")
     world = setup_world([{mover, 0.8, 0.8}])
 
     assert {:ok, departure} =
              CoarseTravel.depart(mover, world.source, world.destination, 2, [], world.travel)
 
-    assert departure.progress == 0.0
-    assert departure.required_progress == 2.0
+    assert departure.segment_progress == 0.0
+    assert departure.segment_extent == 2.0
 
     assert {:ok, _} = CoarseTravel.set_progress_factor(mover, 0.25, world.travel)
     CoarseTravel.advance(1, world.travel)
 
     assert {:ok, first} = CoarseTravel.journey(mover, world.travel)
     assert first.elapsed_ticks == 1
-    assert_in_delta first.progress, 0.25, 1.0e-9
+    assert first.episode_elapsed_ticks == 1
+    assert_in_delta first.segment_progress, 0.25, 1.0e-9
     assert first.status == :in_transit
 
     CoarseTravel.advance(1, world.travel)
 
     assert {:ok, second} = CoarseTravel.journey(mover, world.travel)
     assert second.elapsed_ticks == 2
-    assert_in_delta second.progress, 1.25, 1.0e-9
+    assert second.episode_elapsed_ticks == 2
+    assert_in_delta second.segment_progress, 1.25, 1.0e-9
     assert second.status == :in_transit
 
     CoarseTravel.advance(1, world.travel)
 
-    assert {:ok, arrived} = CoarseTravel.journey(mover, world.travel)
-    assert arrived.elapsed_ticks == 3
-    assert arrived.progress >= arrived.required_progress
-    assert arrived.status == :arrived
+    assert {:ok, entered} = CoarseTravel.journey(mover, world.travel)
+    assert entered.elapsed_ticks == 3
+    assert entered.episode_elapsed_ticks == 3
+    assert entered.segment_progress >= entered.segment_extent
+    assert entered.status == :awaiting_direction
   end
 
-  test "the same physical condition yields traveler-relative progress without changing stored evidence" do
+  test "the same physical condition yields traveler-relative movement without changing stored evidence" do
     capable = unique("capable")
     depleted = unique("depleted")
     world = setup_world([{capable, 0.95, 0.95}, {depleted, 0.15, 0.15}])
@@ -181,8 +184,8 @@ defmodule Procession.Simulation.FractionalCoarseTravelProgressTest do
 
     assert capable_journey.elapsed_ticks == 1
     assert depleted_journey.elapsed_ticks == 1
-    assert capable_journey.progress < 1.0
-    assert depleted_journey.progress < capable_journey.progress
+    assert capable_journey.segment_progress < 1.0
+    assert depleted_journey.segment_progress < capable_journey.segment_progress
     assert capable_journey.status == :in_transit
     assert depleted_journey.status == :in_transit
 
