@@ -63,7 +63,12 @@ defmodule Procession.Simulation.RouteEvidence do
 
   def handle_call({:clear, from, to, evidence_id}, _from, state) do
     route_key = {from, to}
-    updated = update_in(state.evidence[route_key], fn records -> Map.delete(records || %{}, evidence_id) end)
+
+    updated =
+      update_in(state.evidence[route_key], fn records ->
+        Map.delete(records || %{}, evidence_id)
+      end)
+
     {:reply, :ok, updated}
   end
 
@@ -91,7 +96,13 @@ defmodule Procession.Simulation.RouteEvidence do
         {records, acc} = current_records(acc, {journey.from, journey.to}, tick)
         effects = aggregate(records)
 
-        case apply_effects(identity_id, journey, effects, travel_server, acc.resolution_server) do
+        case apply_effects(
+               identity_id,
+               journey,
+               effects,
+               travel_server,
+               acc.resolution_server
+             ) do
           [] -> {events, acc}
           applied -> {events ++ applied, acc}
         end
@@ -144,15 +155,31 @@ defmodule Procession.Simulation.RouteEvidence do
         commitment
         |> Map.put(:inventory, held - consumed)
         |> Map.update(:consumed, consumed, &(&1 + consumed))
-        |> Map.update(:energy, clamp(energy_delta, 0.0, 1.0), &clamp(&1 + energy_delta, 0.0, 1.0))
+        |> Map.update(
+          :energy,
+          clamp(energy_delta, 0.0, 1.0),
+          &clamp(&1 + energy_delta, 0.0, 1.0)
+        )
 
-      commitments = put_in(region.summary.identity_commitments[identity_id], updated_commitment)
+      commitments =
+        region.summary
+        |> Map.get(:identity_commitments, %{})
+        |> Map.put(identity_id, updated_commitment)
+
       summary = rebuild_summary(region.summary, commitments, supplied)
       updated_region = %{region | summary: summary}
 
       case LiveResolutionManager.put(updated_region, server) do
         {:ok, _} ->
-          [{:route_effects, identity_id, %{sources: effects.sources, supplied: supplied, consumed: consumed, energy_delta: energy_delta}}]
+          [
+            {:route_effects, identity_id,
+             %{
+               sources: effects.sources,
+               supplied: supplied,
+               consumed: consumed,
+               energy_delta: energy_delta
+             }}
+          ]
 
         {:error, _} ->
           []
@@ -178,7 +205,8 @@ defmodule Procession.Simulation.RouteEvidence do
   end
 
   defp aggregate(records) do
-    Enum.reduce(records, empty_effects(), fn record, acc ->
+    records
+    |> Enum.reduce(empty_effects(), fn record, acc ->
       effects = record.effects
 
       %{
@@ -186,7 +214,8 @@ defmodule Procession.Simulation.RouteEvidence do
         | pressure: clamp(acc.pressure + number(effects, :pressure), 0.0, 4.0),
           demand: max(0.0, acc.demand + number(effects, :demand)),
           energy: clamp(acc.energy + number(effects, :energy), -1.0, 1.0),
-          satisfied_energy: max(0.0, acc.satisfied_energy + number(effects, :satisfied_energy)),
+          satisfied_energy:
+            max(0.0, acc.satisfied_energy + number(effects, :satisfied_energy)),
           unmet_energy: max(0.0, acc.unmet_energy + number(effects, :unmet_energy)),
           supply: max(0.0, acc.supply + number(effects, :supply)),
           blocked: acc.blocked or Map.get(effects, :blocked, false) == true,
@@ -219,7 +248,8 @@ defmodule Procession.Simulation.RouteEvidence do
     %{id: id, effects: effects, observed_at: tick, expires_at: tick + ttl - 1}
   end
 
-  defp normalize_record(_id, _effects, _tick, _ttl), do: raise(ArgumentError, "route effects must be a map")
+  defp normalize_record(_id, _effects, _tick, _ttl),
+    do: raise(ArgumentError, "route effects must be a map")
 
   defp trim_records(records, limit) do
     records
@@ -252,13 +282,17 @@ defmodule Procession.Simulation.RouteEvidence do
   end
 
   defp physical_effect?(effects) do
-    Enum.any?([:pressure, :demand, :energy, :satisfied_energy, :unmet_energy, :supply], fn key ->
-      number(effects, key) != 0.0
-    end)
+    Enum.any?(
+      [:pressure, :demand, :energy, :satisfied_energy, :unmet_energy, :supply],
+      fn key -> number(effects, key) != 0.0 end
+    )
   end
 
   defp mean([], _key), do: 0.0
   defp mean(values, key), do: Enum.sum(Enum.map(values, &number(&1, key))) / length(values)
-  defp number(map, key), do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: 0.0)
+
+  defp number(map, key),
+    do: if(is_number(Map.get(map, key)), do: Map.get(map, key) * 1.0, else: 0.0)
+
   defp clamp(value, minimum, maximum), do: value |> max(minimum) |> min(maximum)
 end
