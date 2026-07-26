@@ -4,14 +4,15 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
 
   No dormant mind process is kept alive. The scheduler restores one loss-aware snapshot,
   senses current bodily state and perceived exits, emits one opaque motor consequence,
-  translates it at the world boundary, closes feedback neutrally, persists the updated
-  snapshot, and releases the restored loop before returning.
+  translates it at the world boundary, commits the updated mind with that consequence,
+  and releases the restored loop before returning.
   """
 
   alias Procession.Simulation.CoarseLocomotionDecision
   alias Procession.Simulation.CoarseTravel
   alias Procession.Simulation.DevelopmentalMindSnapshot
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
+  alias Procession.Simulation.DormantDecisionCommit
   alias Procession.Simulation.DormantMindArchive
   alias Procession.Simulation.LiveResolutionManager
   alias Procession.Simulation.RegionActivationLifecycle
@@ -23,6 +24,7 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
     travel = Keyword.get(opts, :travel_server, CoarseTravel)
     lifecycle = Keyword.get(opts, :lifecycle_server, RegionActivationLifecycle)
     resolution = Keyword.get(opts, :resolution_server, LiveResolutionManager)
+    commit_module = Keyword.get(opts, :commit_module, DormantDecisionCommit)
 
     with {:ok, episode} <- CoarseTravel.journey(identity_id, travel),
          :ok <- require_waiting(episode),
@@ -31,16 +33,17 @@ defmodule Procession.Simulation.DormantLocomotionScheduler do
          {:ok, commitment} <- commitment(region_id, identity_id, resolution),
          {:ok, decision, updated_snapshot, motor_outcome} <-
            run_cycle(snapshot, commitment, perceived_exits, tick, opts),
-         {:ok, execution} <- CoarseLocomotionDecision.execute(identity_id, decision, travel),
-         {:ok, destination_region} <- dormant_location(identity_id, resolution),
-         :ok <-
-           DormantMindArchive.replace(
-             destination_region,
+         {:ok, execution} <-
+           commit_module.commit(
              identity_id,
+             region_id,
+             decision,
              snapshot,
              updated_snapshot,
-             lifecycle
-           ) do
+             lifecycle_server: lifecycle,
+             travel_server: travel
+           ),
+         {:ok, destination_region} <- dormant_location(identity_id, resolution) do
       {:ok,
        %{
          identity_id: identity_id,
