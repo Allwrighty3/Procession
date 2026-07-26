@@ -10,7 +10,8 @@ defmodule Procession.Simulation.DormantLocomotionSchedulerTest do
   alias Procession.Simulation.MultiResolutionRegion
   alias Procession.Simulation.RegionActivationLifecycle
 
-  defp unique(prefix), do: String.to_atom("#{prefix}_#{System.unique_integer([:positive, :monotonic])}")
+  defp unique(prefix),
+    do: String.to_atom("#{prefix}_#{System.unique_integer([:positive, :monotonic])}")
 
   defp setup_dormant_waiting_identity() do
     manager = unique("dormant_decision_manager")
@@ -36,6 +37,7 @@ defmodule Procession.Simulation.DormantLocomotionSchedulerTest do
 
     region =
       MultiResolutionRegion.new(id: region_id, entities: [])
+      |> MultiResolutionRegion.compress()
       |> MultiResolutionRegion.make_inert()
 
     summary =
@@ -90,7 +92,14 @@ defmodule Procession.Simulation.DormantLocomotionSchedulerTest do
       put_in(state.journeys[identity], journey)
     end)
 
-    %{manager: manager, lifecycle: lifecycle, travel: travel, identity: identity, region: region_id, snapshot: snapshot}
+    %{
+      manager: manager,
+      lifecycle: lifecycle,
+      travel: travel,
+      identity: identity,
+      region: region_id,
+      snapshot: snapshot
+    }
   end
 
   test "restores one dormant mind, emits once, and persists it without spawning a live mind" do
@@ -111,13 +120,19 @@ defmodule Procession.Simulation.DormantLocomotionSchedulerTest do
     assert result.live_mind_process_started? == false
     assert result.snapshot_region == world.region
 
-    assert {:ok, updated} = DormantMindArchive.fetch(world.region, world.identity, world.lifecycle)
+    assert {:ok, updated} =
+             DormantMindArchive.fetch(world.region, world.identity, world.lifecycle)
+
     refute updated == world.snapshot
 
     restored = DevelopmentalMindSnapshot.restore(updated)
     assert restored.cycles == 1
     assert restored.pending_output == nil
-    assert Process.whereis(Procession.Simulation.LiveSensorimotor.via_tuple(world.identity)) == nil
+
+    assert Registry.lookup(
+             Procession.EntityRegistry,
+             {:sensorimotor, world.identity}
+           ) == []
   end
 
   test "archive replacement rejects a stale dormant mind snapshot" do
