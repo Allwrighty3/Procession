@@ -8,10 +8,11 @@ defmodule Procession.WorldClock do
 
   The clock coordinates an optional authoritative causal world, the existing
   live-entity tick path, optional coarse travel with grounded route evidence,
-  optional grounded region-observation publication, and optional post-tick
-  region-resolution reconciliation. It schedules time only; it does not decide
-  perception, motor output, physical consequences, entity behavior, travel intent,
-  route conditions, or causal relevance.
+  bounded dormant locomotion decisions on an explicit cadence, optional grounded
+  region-observation publication, and optional post-tick region-resolution
+  reconciliation. It schedules time only; it does not decide perception, motor
+  output, physical consequences, entity behavior, travel intent, route conditions,
+  or causal relevance.
   """
 
   defstruct tick_count: 0,
@@ -22,6 +23,11 @@ defmodule Procession.WorldClock do
             coarse_travel_server: Procession.Simulation.CoarseTravel,
             route_evidence: false,
             route_evidence_server: Procession.Simulation.RouteEvidence,
+            dormant_locomotion: false,
+            dormant_locomotion_module: Procession.Simulation.DormantLocomotionBatch,
+            dormant_locomotion_cadence: 1,
+            dormant_locomotion_opts: [],
+            dormant_exit_provider: nil,
             resolution_policy: false,
             resolution_policy_opts: [],
             region_observations: false,
@@ -54,6 +60,13 @@ defmodule Procession.WorldClock do
        route_evidence: Keyword.get(opts, :route_evidence, false),
        route_evidence_server:
          Keyword.get(opts, :route_evidence_server, Procession.Simulation.RouteEvidence),
+       dormant_locomotion: Keyword.get(opts, :dormant_locomotion, false),
+       dormant_locomotion_module:
+         Keyword.get(opts, :dormant_locomotion_module, Procession.Simulation.DormantLocomotionBatch),
+       dormant_locomotion_cadence:
+         normalize_cadence(Keyword.get(opts, :dormant_locomotion_cadence, 1)),
+       dormant_locomotion_opts: Keyword.get(opts, :dormant_locomotion_opts, []),
+       dormant_exit_provider: Keyword.get(opts, :dormant_exit_provider),
        resolution_policy: Keyword.get(opts, :resolution_policy, false),
        resolution_policy_opts: Keyword.get(opts, :resolution_policy_opts, []),
        region_observations: Keyword.get(opts, :region_observations, false),
@@ -72,6 +85,7 @@ defmodule Procession.WorldClock do
       end
 
     coarse_travel = advance_coarse_travel(state, next_tick)
+    dormant_locomotion = run_dormant_locomotion(state, next_tick)
     observations = refresh_region_observations(state, next_tick)
     resolution_policy = reconcile_resolutions(state, next_tick)
 
@@ -79,6 +93,7 @@ defmodule Procession.WorldClock do
       entity_summary
       |> Map.put(:causal_world, normalize_causal_world(causal_world))
       |> Map.put(:coarse_travel, coarse_travel)
+      |> Map.put(:dormant_locomotion, dormant_locomotion)
       |> Map.put(:region_observations, observations)
       |> Map.put(:resolution_policy, resolution_policy)
       |> Map.put(:clock_tick, next_tick)
@@ -104,6 +119,32 @@ defmodule Procession.WorldClock do
 
   defp advance_coarse_travel(state, _tick) do
     safe_call(fn -> Procession.Simulation.CoarseTravel.advance(1, state.coarse_travel_server) end)
+  end
+
+  defp run_dormant_locomotion(%{dormant_locomotion: false}, _tick), do: :disabled
+
+  defp run_dormant_locomotion(state, tick) do
+    cadence = state.dormant_locomotion_cadence
+
+    if rem(tick, cadence) == 0 do
+      case state.dormant_exit_provider do
+        provider when is_function(provider, 2) ->
+          opts =
+            state.dormant_locomotion_opts
+            |> Keyword.put_new(:travel_server, state.coarse_travel_server)
+
+          safe_call(fn -> state.dormant_locomotion_module.run(tick, provider, opts) end)
+
+        _ ->
+          %{status: :error, reason: :dormant_exit_provider_required}
+      end
+    else
+      %{
+        status: :deferred,
+        cadence: cadence,
+        next_eligible_tick: tick + (cadence - rem(tick, cadence))
+      }
+    end
   end
 
   defp refresh_region_observations(%{region_observations: false}, _tick), do: :disabled
@@ -137,6 +178,9 @@ defmodule Procession.WorldClock do
       :exit, reason -> %{status: :error, reason: reason}
     end
   end
+
+  defp normalize_cadence(value) when is_integer(value) and value > 0, do: value
+  defp normalize_cadence(_value), do: 1
 
   defp normalize_causal_world({:ok, summary}), do: summary
   defp normalize_causal_world({:error, reason}), do: %{status: :error, reason: reason}
