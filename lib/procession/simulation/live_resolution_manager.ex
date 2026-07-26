@@ -26,6 +26,10 @@ defmodule Procession.Simulation.LiveResolutionManager do
   def refine(id, seed, opts \\ [], server \\ @name), do: GenServer.call(server, {:refine, id, seed, opts})
   def trace(server \\ @name), do: GenServer.call(server, :trace)
 
+  @doc "Returns bounded identity-to-region commitments for compressed regions."
+  def dormant_identity_locations(server \\ @name),
+    do: GenServer.call(server, :dormant_identity_locations)
+
   @doc "Compresses a live region while retaining bounded socially referenced identities."
   def compress_region(%MultiResolutionRegion{} = region, opts \\ []) do
     limit = Keyword.get(opts, :summary_identity_limit, 16)
@@ -98,6 +102,22 @@ defmodule Procession.Simulation.LiveResolutionManager do
   def handle_call(:trace, _from, state) do
     trace = Map.new(state, fn {id, region} -> {id, MultiResolutionRegion.trace(region)} end)
     {:reply, trace, state}
+  end
+
+  def handle_call(:dormant_identity_locations, _from, state) do
+    locations =
+      state
+      |> Enum.filter(fn {_region_id, region} -> region.resolution in [:coarse, :inert] end)
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.reduce(%{}, fn {region_id, region}, acc ->
+        region.summary
+        |> Map.get(:identity_anchors, [])
+        |> Enum.reduce(acc, fn identity_id, locations ->
+          Map.put_new(locations, identity_id, region_id)
+        end)
+      end)
+
+    {:reply, locations, state}
   end
 
   defp transition(state, id, fun) do
