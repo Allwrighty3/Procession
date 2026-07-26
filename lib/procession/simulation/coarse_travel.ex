@@ -2,13 +2,11 @@ defmodule Procession.Simulation.CoarseTravel do
   use GenServer
 
   @moduledoc """
-  Advances dormant anchored identities through bounded in-transit regions.
+  Advances dormant anchored identities through coarse locomotion.
 
-  Travel reuses the guarded region lifecycle. Departure migrates an anchored identity into
-  a reusable compressed route region, each travel tick updates that identity's coarse
-  physical commitment, and arrival migrates it into the compressed destination. Elapsed
-  time and achieved progress are tracked separately so resistance can slow movement without
-  stopping time or creating a categorical blocked state.
+  A travel episode is not a bounded task. It may cross any number of route segments and
+  regions, change heading, pause, or end through an explicit behavioral decision. Time,
+  achieved segment movement, and episode continuation are separate concerns.
   """
 
   alias Procession.Simulation.LiveResolutionManager
@@ -29,11 +27,19 @@ defmodule Procession.Simulation.CoarseTravel do
     GenServer.start_link(__MODULE__, state, name: Keyword.get(opts, :name, @name))
   end
 
-  def depart(identity_id, from_region, to_region, duration_ticks, opts \\ [], server \\ @name),
+  def depart(identity_id, from_region, to_region, segment_extent, opts \\ [], server \\ @name),
     do:
       GenServer.call(
         server,
-        {:depart, identity_id, from_region, to_region, duration_ticks, opts},
+        {:depart, identity_id, from_region, to_region, segment_extent, opts},
+        :infinity
+      )
+
+  def continue(identity_id, to_region, segment_extent, opts \\ [], server \\ @name),
+    do:
+      GenServer.call(
+        server,
+        {:continue, identity_id, to_region, segment_extent, opts},
         :infinity
       )
 
@@ -43,9 +49,9 @@ defmodule Procession.Simulation.CoarseTravel do
   def set_progress_factor(identity_id, factor, server \\ @name) when is_number(factor),
     do: GenServer.call(server, {:set_progress_factor, identity_id, factor * 1.0})
 
-  def divert(identity_id, to_region, remaining_ticks, server \\ @name)
-      when is_integer(remaining_ticks) and remaining_ticks > 0,
-      do: GenServer.call(server, {:divert, identity_id, to_region, remaining_ticks})
+  def divert(identity_id, to_region, segment_extent, server \\ @name)
+      when is_integer(segment_extent) and segment_extent > 0,
+      do: GenServer.call(server, {:divert, identity_id, to_region, segment_extent})
 
   def stop(identity_id, reason \\ :stopped, server \\ @name),
     do: GenServer.call(server, {:stop, identity_id, reason})
@@ -57,8 +63,8 @@ defmodule Procession.Simulation.CoarseTravel do
   def init(state), do: {:ok, state}
 
   @impl true
-  def handle_call({:depart, identity_id, from, to, duration, opts}, _from, state) do
-    with :ok <- validate_departure(identity_id, from, to, duration, state),
+  def handle_call({:depart, identity_id, from, to, extent, opts}, _from, state) do
+    with :ok <- validate_departure(identity_id, from, to, extent, state),
          {:ok, transit_id, state} <- ensure_route(from, to, opts, state),
          {:ok, _reply} <-
            RegionActivationLifecycle.migrate(
@@ -70,14 +76,17 @@ defmodule Procession.Simulation.CoarseTravel do
            ) do
       journey = %{
         identity_id: identity_id,
+        origin: from,
         from: from,
         to: to,
+        current_region: nil,
         transit_region: transit_id,
         elapsed_ticks: 0,
-        total_ticks: duration,
-        progress: 0.0,
-        required_progress: duration * 1.0,
+        segment_elapsed_ticks: 0,
+        segment_progress: 0.0,
+        segment_extent: extent * 1.0,
         next_progress_factor: 1.0,
+        segments_crossed: 0,
         status: :in_transit,
         route_profile: route_profile(opts),
         last_outcome: :departed
@@ -87,6 +96,48 @@ defmodule Procession.Simulation.CoarseTravel do
       {:reply, {:ok, journey_trace(journey)}, updated}
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:continue, identity_id, to, extent, opts}, _from, state) do
+    case Map.fetch(state.journeys, identity_id) do
+      {:ok, %{status: :awaiting_direction, current_region: from} = journey}
+      when not is_nil(from) ->
+        with :ok <- validate_segment(from, to, extent),
+             {:ok, transit_id, state} <- ensure_route(from, to, opts, state),
+             {:ok, _reply} <-
+               RegionActivationLifecycle.migrate(
+                 identity_id,
+                 from,
+                 transit_id,
+                 opts,
+                 state.lifecycle_server
+               ) do
+          continued = %{
+            journey
+            | from: from,
+              to: to,
+              current_region: nil,
+              transit_region: transit_id,
+              segment_elapsed_ticks: 0,
+              segment_progress: 0.0,
+              segment_extent: extent * 1.0,
+              next_progress_factor: 1.0,
+              status: :in_transit,
+              route_profile: route_profile(opts),
+              last_outcome: :continued
+          }
+
+          {:reply, {:ok, journey_trace(continued)}, put_in(state.journeys[identity_id], continued)}
+        else
+          {:error, reason} -> {:reply, {:error, reason}, state}
+        end
+
+      {:ok, _journey} ->
+        {:reply, {:error, :journey_not_waiting_for_direction}, state}
+
+      :error ->
+        {:reply, {:error, :journey_not_found}, state}
     end
   end
 
@@ -110,7 +161,9 @@ defmodule Procession.Simulation.CoarseTravel do
         bounded = clamp(factor, 0.0, 1.0)
         current = Map.get(journey, :next_progress_factor, 1.0)
         updated_journey = Map.put(journey, :next_progress_factor, min(current, bounded))
-        {:reply, {:ok, journey_trace(updated_journey)}, put_in(state.journeys[identity_id], updated_journey)}
+
+        {:reply, {:ok, journey_trace(updated_journey)},
+         put_in(state.journeys[identity_id], updated_journey)}
 
       {:ok, _journey} ->
         {:reply, {:error, :journey_not_active}, state}
@@ -120,22 +173,21 @@ defmodule Procession.Simulation.CoarseTravel do
     end
   end
 
-  def handle_call({:divert, identity_id, destination, remaining_ticks}, _from, state) do
+  def handle_call({:divert, identity_id, destination, extent}, _from, state) do
     case Map.fetch(state.journeys, identity_id) do
       {:ok, %{status: status} = journey} when status in [:in_transit, :stranded] ->
-        updated_journey = %{
+        diverted = %{
           journey
           | to: destination,
-            elapsed_ticks: 0,
-            total_ticks: remaining_ticks,
-            progress: 0.0,
-            required_progress: remaining_ticks * 1.0,
+            segment_elapsed_ticks: 0,
+            segment_progress: 0.0,
+            segment_extent: extent * 1.0,
             next_progress_factor: 1.0,
             status: :in_transit,
             last_outcome: :diverted
         }
 
-        {:reply, {:ok, journey_trace(updated_journey)}, put_in(state.journeys[identity_id], updated_journey)}
+        {:reply, {:ok, journey_trace(diverted)}, put_in(state.journeys[identity_id], diverted)}
 
       {:ok, _journey} ->
         {:reply, {:error, :journey_not_active}, state}
@@ -147,9 +199,16 @@ defmodule Procession.Simulation.CoarseTravel do
 
   def handle_call({:stop, identity_id, reason}, _from, state) do
     case Map.fetch(state.journeys, identity_id) do
-      {:ok, %{status: :in_transit} = journey} ->
-        stopped = %{journey | status: :stranded, last_outcome: reason}
-        {:reply, {:ok, journey_trace(stopped)}, put_in(state.journeys[identity_id], stopped)}
+      {:ok, %{status: status} = journey}
+      when status in [:in_transit, :awaiting_direction, :stranded] ->
+        ended = %{journey | status: :ended, last_outcome: reason}
+
+        updated =
+          state
+          |> put_in([:journeys, identity_id], ended)
+          |> update_in([:history], &[journey_trace(ended) | &1])
+
+        {:reply, {:ok, journey_trace(ended)}, updated}
 
       {:ok, _journey} ->
         {:reply, {:error, :journey_not_active}, state}
@@ -199,18 +258,17 @@ defmodule Procession.Simulation.CoarseTravel do
         end
       end)
 
-    Enum.reduce(active, {Enum.reverse(route_events), state}, fn {identity_id, _old}, {events, acc} ->
+    Enum.reduce(active, {Enum.reverse(route_events), state}, fn {identity_id, _old},
+                                                               {events, acc} ->
       case Map.fetch(acc.journeys, identity_id) do
         {:ok, %{status: :in_transit} = journey} ->
-          progress_factor = clamp(Map.get(journey, :next_progress_factor, 1.0), 0.0, 1.0)
-          progress = Map.get(journey, :progress, journey.elapsed_ticks * 1.0) + progress_factor
-          required_progress = Map.get(journey, :required_progress, journey.total_ticks * 1.0)
+          factor = clamp(Map.get(journey, :next_progress_factor, 1.0), 0.0, 1.0)
 
           progressed = %{
             journey
             | elapsed_ticks: journey.elapsed_ticks + 1,
-              progress: progress,
-              required_progress: required_progress,
+              segment_elapsed_ticks: journey.segment_elapsed_ticks + 1,
+              segment_progress: journey.segment_progress + factor,
               next_progress_factor: 1.0,
               last_outcome: :progressed
           }
@@ -222,11 +280,11 @@ defmodule Procession.Simulation.CoarseTravel do
               failed = fail_journey(acc, identity_id, :exhausted)
               {[{:stranded, identity_id, :exhausted} | events], failed}
 
-            progressed.progress >= progressed.required_progress ->
-              arrive(identity_id, progressed, events, acc)
+            progressed.segment_progress >= progressed.segment_extent ->
+              enter_region(identity_id, progressed, events, acc)
 
             true ->
-              {[{:progressed, identity_id, progressed.elapsed_ticks} | events], acc}
+              {[{:progressed, identity_id, progressed.segment_progress} | events], acc}
           end
 
         _ ->
@@ -235,7 +293,7 @@ defmodule Procession.Simulation.CoarseTravel do
     end)
   end
 
-  defp arrive(identity_id, journey, events, state) do
+  defp enter_region(identity_id, journey, events, state) do
     case RegionActivationLifecycle.migrate(
            identity_id,
            journey.transit_region,
@@ -244,18 +302,22 @@ defmodule Procession.Simulation.CoarseTravel do
            state.lifecycle_server
          ) do
       {:ok, _reply} ->
-        arrived = %{journey | status: :arrived, last_outcome: :arrived}
+        entered = %{
+          journey
+          | status: :awaiting_direction,
+            current_region: journey.to,
+            segment_progress: journey.segment_extent,
+            next_progress_factor: 1.0,
+            segments_crossed: journey.segments_crossed + 1,
+            last_outcome: {:entered_region, journey.to}
+        }
 
-        state =
-          state
-          |> put_in([:journeys, identity_id], arrived)
-          |> update_in([:history], &[journey_trace(arrived) | &1])
-
-        {[{:arrived, identity_id, journey.to} | events], state}
+        state = put_in(state.journeys[identity_id], entered)
+        {[{:entered_region, identity_id, journey.to} | events], state}
 
       {:error, reason} ->
-        failed = fail_journey(state, identity_id, {:arrival_failed, reason})
-        {[{:stranded, identity_id, {:arrival_failed, reason}} | events], failed}
+        failed = fail_journey(state, identity_id, {:region_entry_failed, reason})
+        {[{:stranded, identity_id, {:region_entry_failed, reason}} | events], failed}
     end
   end
 
@@ -292,6 +354,7 @@ defmodule Procession.Simulation.CoarseTravel do
         end)
 
       summary = rebuild_transit_summary(region.summary, updated_commitments)
+
       updated_region = %{
         region
         | tick: region.tick + 1,
@@ -358,20 +421,22 @@ defmodule Procession.Simulation.CoarseTravel do
     end
   end
 
-  defp validate_departure(identity_id, from, to, duration, state) do
+  defp validate_departure(identity_id, from, to, extent, state) do
     cond do
       Map.has_key?(state.journeys, identity_id) and
-          state.journeys[identity_id].status in [:in_transit, :stranded] ->
-        {:error, :identity_already_in_transit}
-
-      from == to ->
-        {:error, :same_region_travel}
-
-      not is_integer(duration) or duration <= 0 ->
-        {:error, :invalid_travel_duration}
+          state.journeys[identity_id].status not in [:ended] ->
+        {:error, :identity_already_in_travel_episode}
 
       true ->
-        :ok
+        validate_segment(from, to, extent)
+    end
+  end
+
+  defp validate_segment(from, to, extent) do
+    cond do
+      from == to -> {:error, :same_region_travel}
+      not is_integer(extent) or extent <= 0 -> {:error, :invalid_segment_extent}
+      true -> :ok
     end
   end
 
@@ -400,8 +465,7 @@ defmodule Procession.Simulation.CoarseTravel do
     end)
   end
 
-  defp journey_trace(journey),
-    do: Map.drop(journey, [:route_profile]) |> Map.put(:route_profile, journey.route_profile)
+  defp journey_trace(journey), do: journey
 
   defp trace_journeys(journeys),
     do: Map.new(journeys, fn {id, journey} -> {id, journey_trace(journey)} end)
