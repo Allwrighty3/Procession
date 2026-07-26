@@ -81,10 +81,12 @@ defmodule Procession.Simulation.CoarseTravel do
         to: to,
         current_region: nil,
         transit_region: transit_id,
+        episode_elapsed_ticks: 0,
         elapsed_ticks: 0,
         segment_elapsed_ticks: 0,
         segment_progress: 0.0,
         segment_extent: extent * 1.0,
+        total_ticks: extent,
         next_progress_factor: 1.0,
         segments_crossed: 0,
         status: :in_transit,
@@ -119,9 +121,11 @@ defmodule Procession.Simulation.CoarseTravel do
               to: to,
               current_region: nil,
               transit_region: transit_id,
+              elapsed_ticks: 0,
               segment_elapsed_ticks: 0,
               segment_progress: 0.0,
               segment_extent: extent * 1.0,
+              total_ticks: extent,
               next_progress_factor: 1.0,
               status: :in_transit,
               route_profile: route_profile(opts),
@@ -179,9 +183,11 @@ defmodule Procession.Simulation.CoarseTravel do
         diverted = %{
           journey
           | to: destination,
+            elapsed_ticks: 0,
             segment_elapsed_ticks: 0,
             segment_progress: 0.0,
             segment_extent: extent * 1.0,
+            total_ticks: extent,
             next_progress_factor: 1.0,
             status: :in_transit,
             last_outcome: :diverted
@@ -266,7 +272,8 @@ defmodule Procession.Simulation.CoarseTravel do
 
           progressed = %{
             journey
-            | elapsed_ticks: journey.elapsed_ticks + 1,
+            | episode_elapsed_ticks: journey.episode_elapsed_ticks + 1,
+              elapsed_ticks: journey.elapsed_ticks + 1,
               segment_elapsed_ticks: journey.segment_elapsed_ticks + 1,
               segment_progress: journey.segment_progress + factor,
               next_progress_factor: 1.0,
