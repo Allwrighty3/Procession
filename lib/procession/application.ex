@@ -15,6 +15,7 @@ defmodule Procession.Application do
       {Procession.EntitySupervisor, []},
       {Procession.Simulation.LiveResolutionManager, []},
       {Procession.Simulation.RegionActivationLifecycle, []},
+      {Procession.Simulation.RouteEvidence, []},
       {Procession.Simulation.CoarseTravel, []},
       {Procession.Simulation.AutomaticResolutionPolicy, []},
       {Procession.Simulation.RegionObservationPublisher, []},
