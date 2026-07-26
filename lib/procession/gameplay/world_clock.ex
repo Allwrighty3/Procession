@@ -7,16 +7,18 @@ defmodule Procession.WorldClock do
   Manually controlled world simulation clock.
 
   The clock coordinates an optional authoritative causal world, the existing
-  live-entity tick path, optional grounded region-observation publication, and
-  optional post-tick region-resolution reconciliation. It schedules time only;
-  it does not decide perception, motor output, physical consequences, entity
-  behavior, or causal relevance.
+  live-entity tick path, optional coarse travel, optional grounded region-observation
+  publication, and optional post-tick region-resolution reconciliation. It schedules
+  time only; it does not decide perception, motor output, physical consequences,
+  entity behavior, travel intent, or causal relevance.
   """
 
   defstruct tick_count: 0,
             last_tick: nil,
             interval_ms: nil,
             timer_ref: nil,
+            coarse_travel: false,
+            coarse_travel_server: Procession.Simulation.CoarseTravel,
             resolution_policy: false,
             resolution_policy_opts: [],
             region_observations: false,
@@ -43,6 +45,9 @@ defmodule Procession.WorldClock do
   def init(opts) do
     {:ok,
      %__MODULE__{
+       coarse_travel: Keyword.get(opts, :coarse_travel, false),
+       coarse_travel_server:
+         Keyword.get(opts, :coarse_travel_server, Procession.Simulation.CoarseTravel),
        resolution_policy: Keyword.get(opts, :resolution_policy, false),
        resolution_policy_opts: Keyword.get(opts, :resolution_policy_opts, []),
        region_observations: Keyword.get(opts, :region_observations, false),
@@ -60,12 +65,14 @@ defmodule Procession.WorldClock do
         {:error, reason} -> %{status: :error, reason: reason}
       end
 
+    coarse_travel = advance_coarse_travel(state)
     observations = refresh_region_observations(state, next_tick)
     resolution_policy = reconcile_resolutions(state, next_tick)
 
     tick_summary =
       entity_summary
       |> Map.put(:causal_world, normalize_causal_world(causal_world))
+      |> Map.put(:coarse_travel, coarse_travel)
       |> Map.put(:region_observations, observations)
       |> Map.put(:resolution_policy, resolution_policy)
       |> Map.put(:clock_tick, next_tick)
@@ -75,6 +82,12 @@ defmodule Procession.WorldClock do
       | tick_count: next_tick,
         last_tick: tick_summary
     }
+  end
+
+  defp advance_coarse_travel(%{coarse_travel: false}), do: :disabled
+
+  defp advance_coarse_travel(state) do
+    safe_call(fn -> Procession.Simulation.CoarseTravel.advance(1, state.coarse_travel_server) end)
   end
 
   defp refresh_region_observations(%{region_observations: false}, _tick), do: :disabled
