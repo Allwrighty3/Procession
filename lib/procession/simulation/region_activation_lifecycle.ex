@@ -40,6 +40,17 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
     do: GenServer.call(server, {:migrate, identity_id, from_region_id, to_region_id, opts}, :infinity)
 
   def archive(region_id, server \\ @name), do: GenServer.call(server, {:archive, region_id})
+
+  def dormant_mind(region_id, identity_id, server \\ @name),
+    do: GenServer.call(server, {:dormant_mind, region_id, identity_id})
+
+  def replace_dormant_mind(region_id, identity_id, expected, replacement, server \\ @name),
+    do:
+      GenServer.call(
+        server,
+        {:replace_dormant_mind, region_id, identity_id, expected, replacement}
+      )
+
   def trace(server \\ @name), do: GenServer.call(server, :trace)
 
   @impl true
@@ -70,6 +81,21 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   def handle_call({:archive, region_id}, _from, state),
     do: {:reply, Map.fetch(state.archives, region_id), state}
 
+  def handle_call({:dormant_mind, region_id, identity_id}, _from, state) do
+    {:reply, fetch_dormant_mind(state, region_id, identity_id), state}
+  end
+
+  def handle_call(
+        {:replace_dormant_mind, region_id, identity_id, expected, replacement},
+        _from,
+        state
+      ) do
+    case replace_dormant_mind_snapshot(state, region_id, identity_id, expected, replacement) do
+      {:ok, updated} -> {:reply, :ok, updated}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
   def handle_call(:trace, _from, state) do
     trace =
       Map.new(state.archives, fn {region_id, archive} ->
@@ -85,6 +111,34 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
     {:reply, trace, state}
   end
+
+  defp fetch_dormant_mind(state, region_id, identity_id) do
+    with {:ok, archive} <- Map.fetch(state.archives, region_id),
+         {:ok, snapshot} <- Map.fetch(archive.mind_snapshots, identity_id) do
+      {:ok, snapshot}
+    else
+      :error -> {:error, :dormant_mind_not_found}
+    end
+  end
+
+  defp replace_dormant_mind_snapshot(state, region_id, identity_id, expected, replacement) do
+    with {:ok, archive} <- Map.fetch(state.archives, region_id),
+         {:ok, current} <- Map.fetch(archive.mind_snapshots, identity_id),
+         :ok <- require_expected_mind(current, expected) do
+      updated_archive = %{
+        archive
+        | mind_snapshots: Map.put(archive.mind_snapshots, identity_id, replacement)
+      }
+
+      {:ok, put_in(state.archives[region_id], updated_archive)}
+    else
+      :error -> {:error, :dormant_mind_not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp require_expected_mind(expected, expected), do: :ok
+  defp require_expected_mind(_current, _expected), do: {:error, :stale_dormant_mind_snapshot}
 
   defp deactivate_region(region_id, opts, state) do
     with {:ok, region} <- LiveResolutionManager.fetch(region_id, state.resolution_server),
