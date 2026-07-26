@@ -14,6 +14,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
   alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.AutomaticResolutionPolicy
+  alias Procession.Simulation.LiveSocialPlane
 
   @name __MODULE__
 
@@ -24,6 +25,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       region_positions: %{},
       policy_server: Keyword.get(opts, :policy_server, AutomaticResolutionPolicy),
       entity_supervisor: Keyword.get(opts, :entity_supervisor, EntitySupervisor),
+      social_server: Keyword.get(opts, :social_server, LiveSocialPlane),
       config: Keyword.get(opts, :config, [])
     }
 
@@ -97,8 +99,11 @@ defmodule Procession.Simulation.RegionObservationPublisher do
     event_ttl = max(Keyword.get(opts, :regional_event_ttl, 80), 0)
     dependency_ttl = max(Keyword.get(opts, :regional_dependency_ttl, 240), 0)
     events = retain_recent(state.events, tick, event_ttl)
-    dependencies = retain_recent(state.dependencies, tick, dependency_ttl)
+    submitted_dependencies = retain_recent(state.dependencies, tick, dependency_ttl)
     entity_samples = sample_entities(state.entity_supervisor)
+    entities_by_id = Map.new(entity_samples, &{&1.id, &1})
+    social_dependencies = derive_social_dependencies(state.social_server, entities_by_id, tick, opts)
+    dependencies = merge_dependencies(submitted_dependencies, social_dependencies)
     players = Enum.filter(entity_samples, &(&1.type == :player and not is_nil(&1.location)))
     grouped = Enum.group_by(entity_samples, & &1.location)
     regions = known_regions(grouped, events, dependencies)
@@ -122,6 +127,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
           evidence: %{
             resident_count: length(residents),
             sampled_minds: Enum.count(residents, & &1.mind_sampled?),
+            social_dependencies: social_dependency_count(region_id, social_dependencies),
             event_tick: event.tick
           }
         }
@@ -129,7 +135,7 @@ defmodule Procession.Simulation.RegionObservationPublisher do
         {region_id, observation}
       end)
 
-    {observations, %{state | events: events, dependencies: dependencies}}
+    {observations, %{state | events: events, dependencies: submitted_dependencies}}
   end
 
   defp sample_entities(supervisor) do
@@ -175,6 +181,62 @@ defmodule Procession.Simulation.RegionObservationPublisher do
         nil
     end
   end
+
+  defp derive_social_dependencies(server, entities_by_id, tick, opts) do
+    if process_running?(server) do
+      try do
+        server
+        |> LiveSocialPlane.state()
+        |> Map.get(:relations, %{})
+        |> Enum.reduce(%{}, fn
+          {{observer_id, actor_id, _context}, relation}, acc ->
+            with %{location: from} when not is_nil(from) <- Map.get(entities_by_id, observer_id),
+                 %{location: to} when not is_nil(to) <- Map.get(entities_by_id, actor_id),
+                 true <- from != to,
+                 pressure when pressure > 0.0 <- social_dependency_pressure(relation, opts) do
+              Map.update(acc, {from, to}, %{pressure: pressure, tick: tick}, fn previous ->
+                %{previous | pressure: max(previous.pressure, pressure), tick: tick}
+              end)
+            else
+              _ -> acc
+            end
+
+          _, acc ->
+            acc
+        end)
+      catch
+        :exit, _reason -> %{}
+      end
+    else
+      %{}
+    end
+  end
+
+  defp social_dependency_pressure(relation, opts) do
+    confidence = number(relation, :confidence, 0.0)
+    persistence = number(relation, :persistence, 0.0)
+    extreme = number(relation, :extreme_imprint, 0.0)
+    salience = number(relation, :last_salience, 0.0)
+
+    pressure =
+      confidence * 0.25 +
+        min(persistence / 4.0, 0.30) +
+        min(extreme / 6.0, 0.35) +
+        min(salience / 10.0, 0.10)
+
+    threshold = Keyword.get(opts, :regional_social_dependency_threshold, 0.10)
+    if pressure >= threshold, do: clamp(pressure, 0.0, 1.0), else: 0.0
+  end
+
+  defp merge_dependencies(submitted, derived) do
+    Map.merge(submitted, derived, fn _key, left, right ->
+      if left.pressure >= right.pressure, do: left, else: right
+    end)
+  end
+
+  defp process_running?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp process_running?(name) when is_atom(name), do: not is_nil(Process.whereis(name))
+  defp process_running?(_server), do: false
 
   defp aggregate_salience(residents) do
     values = residents |> Enum.map(& &1.salience) |> Enum.reject(&is_nil/1)
@@ -227,6 +289,14 @@ defmodule Procession.Simulation.RegionObservationPublisher do
       {{^region_id, _to}, dependency}, total -> max(total, dependency.pressure)
       {{_from, ^region_id}, dependency}, total -> max(total, dependency.pressure)
       _, total -> total
+    end)
+  end
+
+  defp social_dependency_count(region_id, dependencies) do
+    Enum.count(dependencies, fn
+      {{^region_id, _to}, _dependency} -> true
+      {{_from, ^region_id}, _dependency} -> true
+      _ -> false
     end)
   end
 

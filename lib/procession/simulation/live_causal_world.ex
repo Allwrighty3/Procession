@@ -10,9 +10,11 @@ defmodule Procession.Simulation.LiveCausalWorld do
   feedback, and optional local observation through a separately owned social plane.
   """
 
+  alias Procession.Entity
   alias Procession.EntitySupervisor
   alias Procession.Simulation.CausalWorldKernel
   alias Procession.Simulation.LiveSocialPlane
+  alias Procession.Simulation.RegionObservationPublisher
   alias Procession.Simulation.SocialRelationPlane
 
   @name __MODULE__
@@ -113,6 +115,8 @@ defmodule Procession.Simulation.LiveCausalWorld do
           opts
         )
 
+      publish_physical_event(entity_id, resolution.event, world.tick, opts)
+
       case EntitySupervisor.sensorimotor_resolve(
              entity_id,
              resolution.position,
@@ -131,6 +135,27 @@ defmodule Procession.Simulation.LiveCausalWorld do
       {:error, reason} -> {:error, {entity_id, reason}, world}
     end
   end
+
+  defp publish_physical_event(entity_id, event, tick, opts) do
+    publisher = Keyword.get(opts, :region_observation_publisher, RegionObservationPublisher)
+
+    if publisher_running?(publisher) do
+      try do
+        case Entity.get_state(entity_id).location do
+          nil -> :ok
+          region_id ->
+            intensity = SocialRelationPlane.event_intensity(event, opts)
+            RegionObservationPublisher.publish_event(region_id, intensity, tick, publisher)
+        end
+      catch
+        :exit, _reason -> :ok
+      end
+    end
+  end
+
+  defp publisher_running?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp publisher_running?(name) when is_atom(name), do: not is_nil(Process.whereis(name))
+  defp publisher_running?(_publisher), do: false
 
   defp observe_social_event(world, event, opts) do
     case Process.whereis(LiveSocialPlane) do
