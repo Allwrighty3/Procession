@@ -36,6 +36,9 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
   def activate(region_id, seed, opts \\ [], server \\ @name),
     do: GenServer.call(server, {:activate, region_id, seed, opts}, :infinity)
 
+  def migrate(identity_id, from_region_id, to_region_id, opts \\ [], server \\ @name),
+    do: GenServer.call(server, {:migrate, identity_id, from_region_id, to_region_id, opts}, :infinity)
+
   def archive(region_id, server \\ @name), do: GenServer.call(server, {:archive, region_id})
   def trace(server \\ @name), do: GenServer.call(server, :trace)
 
@@ -52,6 +55,13 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
 
   def handle_call({:activate, region_id, seed, opts}, _from, state) do
     case activate_region(region_id, seed, opts, state) do
+      {:ok, reply, updated} -> {:reply, {:ok, reply}, updated}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:migrate, identity_id, from_id, to_id, opts}, _from, state) do
+    case migrate_identity(identity_id, from_id, to_id, opts, state) do
       {:ok, reply, updated} -> {:reply, {:ok, reply}, updated}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
@@ -149,6 +159,62 @@ defmodule Procession.Simulation.RegionActivationLifecycle do
         {:error, reason}
     end
   end
+
+  defp migrate_identity(identity_id, from_id, to_id, opts, state) do
+    with {:ok, source_archive} <- fetch_archive(state, from_id),
+         {:ok, destination_archive} <- fetch_archive(state, to_id),
+         {:ok, snapshot} <- fetch_anchored_snapshot(source_archive, identity_id),
+         :ok <- require_archive_destination_free(destination_archive, identity_id),
+         {:ok, manager_reply} <-
+           LiveResolutionManager.transfer_identity(
+             identity_id,
+             from_id,
+             to_id,
+             opts,
+             state.resolution_server
+           ) do
+      mind_snapshot = Map.get(source_archive.mind_snapshots, identity_id)
+      moved_snapshot = %{snapshot | location: to_id}
+
+      source_archive = %{
+        source_archive
+        | snapshots: Map.delete(source_archive.snapshots, identity_id),
+          mind_snapshots: Map.delete(source_archive.mind_snapshots, identity_id),
+          stopped_entity_ids: List.delete(source_archive.stopped_entity_ids, identity_id)
+      }
+
+      destination_archive = %{
+        destination_archive
+        | snapshots: Map.put(destination_archive.snapshots, identity_id, moved_snapshot),
+          mind_snapshots: maybe_put(destination_archive.mind_snapshots, identity_id, mind_snapshot),
+          stopped_entity_ids:
+            Enum.uniq(destination_archive.stopped_entity_ids ++ [identity_id]) |> Enum.sort()
+      }
+
+      updated =
+        state
+        |> put_in([:archives, from_id], source_archive)
+        |> put_in([:archives, to_id], destination_archive)
+
+      {:ok, manager_reply, updated}
+    end
+  end
+
+  defp fetch_anchored_snapshot(archive, identity_id) do
+    case Map.fetch(archive.snapshots, identity_id) do
+      {:ok, snapshot} -> {:ok, snapshot}
+      :error -> {:error, :identity_archive_not_found}
+    end
+  end
+
+  defp require_archive_destination_free(archive, identity_id) do
+    if Map.has_key?(archive.snapshots, identity_id),
+      do: {:error, :identity_already_archived_in_destination},
+      else: :ok
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp fetch_archive(state, region_id) do
     case Map.fetch(state.archives, region_id) do
