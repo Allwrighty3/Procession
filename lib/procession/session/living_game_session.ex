@@ -1,10 +1,6 @@
 defmodule Procession.LivingGameSession do
   @moduledoc """
-  Session-compatible owner that joins the starter-area gameplay shell to one stateful
-  `Procession.Simulation.LivingBriarRuntime`.
-
-  It accepts the same GenServer calls used by `Procession.GameSession`, delegates ordinary
-  gameplay to an inner session, and advances Living Briar exactly once for every session tick.
+  Session-compatible owner joining the starter gameplay shell to one stateful Living Briar world.
   """
 
   use GenServer
@@ -30,7 +26,10 @@ defmodule Procession.LivingGameSession do
     runtime_opts = Keyword.take(opts, [:seed, :budget, :cadence])
 
     with {:ok, startup} <- GameSession.start_demo(prompt),
-         {:ok, runtime} <- LivingBriarRuntime.start_link(runtime_opts) do
+         {:ok, runtime} <- LivingBriarRuntime.start_link(runtime_opts),
+         {:ok, player_id} <- GameSession.player(startup.session),
+         {:ok, location_id} <- GameSession.player_location(startup.session),
+         {:ok, _presence} <- LivingBriarRuntime.set_player_location(runtime, player_id, location_id) do
       {:ok, %__MODULE__{session: startup.session, runtime: runtime, startup: startup}}
     else
       {:error, reason} -> {:stop, reason}
@@ -43,8 +42,7 @@ defmodule Procession.LivingGameSession do
   def handle_call(:tick, _from, state) do
     with {:ok, tick_summary} <- GameSession.tick(state.session),
          {:ok, observation} <- LivingBriarRuntime.step(state.runtime) do
-      combined = Map.put(tick_summary, :living_briar, observation)
-      {:reply, {:ok, combined}, state}
+      {:reply, {:ok, Map.put(tick_summary, :living_briar, observation)}, state}
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
@@ -67,7 +65,6 @@ defmodule Procession.LivingGameSession do
     stop_runtime(state.runtime)
     cleanup = GameSession.cleanup(state.session)
     stop_inner_session(state.session)
-
     {:reply, Map.put(cleanup, :living_briar, living_summary),
      %{state | runtime: nil, session: nil}}
   end
@@ -87,8 +84,21 @@ defmodule Procession.LivingGameSession do
   def handle_call({:recent_events, entity_id}, _from, state), do:
     {:reply, GameSession.recent_events(state.session, entity_id), state}
 
-  def handle_call({:travel, destination_id}, _from, state), do:
-    {:reply, GameSession.travel(state.session, destination_id), state}
+  def handle_call({:travel, destination_id}, _from, state) do
+    case GameSession.travel(state.session, destination_id) do
+      {:ok, result} = success ->
+        with {:ok, player_id} <- GameSession.player(state.session),
+             {:ok, _presence} <-
+               LivingBriarRuntime.set_player_location(state.runtime, player_id, destination_id) do
+          {:reply, success, state}
+        else
+          {:error, reason} -> {:reply, {:error, {:regional_presence_sync_failed, reason}}, state}
+        end
+
+      {:error, _reason} = error ->
+        {:reply, error, state}
+    end
+  end
 
   def handle_call(:player, _from, state), do:
     {:reply, GameSession.player(state.session), state}
@@ -102,19 +112,16 @@ defmodule Procession.LivingGameSession do
   @impl true
   def terminate(_reason, state) do
     stop_runtime(state.runtime)
-
     if is_pid(state.session) and Process.alive?(state.session) do
       GameSession.cleanup(state.session)
       stop_inner_session(state.session)
     end
-
     :ok
   catch
     :exit, _ -> :ok
   end
 
   defp safe_snapshot(nil), do: nil
-
   defp safe_snapshot(runtime) do
     LivingBriarRuntime.snapshot(runtime)
   catch
@@ -122,7 +129,6 @@ defmodule Procession.LivingGameSession do
   end
 
   defp stop_runtime(nil), do: :ok
-
   defp stop_runtime(runtime) do
     if Process.alive?(runtime), do: LivingBriarRuntime.stop(runtime)
     :ok
@@ -131,7 +137,6 @@ defmodule Procession.LivingGameSession do
   end
 
   defp stop_inner_session(nil), do: :ok
-
   defp stop_inner_session(session) do
     if Process.alive?(session), do: GenServer.stop(session, :normal)
     :ok
