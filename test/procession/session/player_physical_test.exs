@@ -39,14 +39,16 @@ defmodule Procession.PlayerPhysicalTest do
 
     assert {:ok, %{kind: :moved, position: {1, 0}}} =
              PlayerPhysical.move(demo.session, :east)
+    assert {:ok, %{kind: :moved, position: {2, 0}}} =
+             PlayerPhysical.move(demo.session, :east)
     assert {:error, :body_out_of_contact} = PlayerPhysical.contact(demo.session, "mara")
 
     final = GameSession.summary(demo.session).living_briar
-    assert final.player_body.position == {1, 0}
+    assert final.player_body.position == {2, 0}
     assert final.populations == initial.populations
     assert abs(final.material_accounting_error) < 1.0e-8
     assert Enum.map(final.player_events, & &1.kind) ==
-             [:gathered_raw, :transformed_material, :transferred_usable, :moved]
+             [:gathered_raw, :transformed_material, :transferred_usable, :moved, :moved]
 
     cleanup = GameSession.cleanup(demo.session)
     assert cleanup.status == :cleaned_up
