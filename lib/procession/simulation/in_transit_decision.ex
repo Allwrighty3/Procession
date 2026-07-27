@@ -3,13 +3,20 @@ defmodule Procession.Simulation.InTransitDecision do
   Restores an archived developmental mind while its body is between regions.
 
   Transit evidence is intentionally low-level: bodily energy, relative boundary distance,
-  route progress, velocity, lateral displacement, and nearby moving bodies. Cognition emits
-  an opaque motor pattern; route geometry turns its physical force into longitudinal and
-  transverse impulse without introducing continue, pause, reverse, or journey semantics.
+  route progress, velocity, lateral displacement, nearby moving bodies, and sensory change.
+  Cognition emits an opaque motor pattern; route geometry turns its physical force into
+  longitudinal and transverse impulse without introducing continue, pause, reverse, curiosity,
+  boredom, or journey semantics.
+
+  The next sensory state supplies delayed credit to the previously emitted motor pattern.
+  Patterns followed by meaningful perceptual change gain support; patterns followed by highly
+  familiar, repeated perception gain little support or lose it. The credit remains attached to
+  the archived developmental field rather than becoming route-owned intent.
   """
 
   alias Procession.Simulation.DevelopmentalMindSnapshot
   alias Procession.Simulation.DevelopmentalMotorGeometry
+  alias Procession.Simulation.DevelopmentalSensorimotorField
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
   alias Procession.Simulation.RegionActivationLifecycle
 
@@ -23,8 +30,17 @@ defmodule Procession.Simulation.InTransitDecision do
            RegionActivationLifecycle.dormant_mind(archive_region, identity_id, lifecycle) do
       try do
         loop = DevelopmentalMindSnapshot.restore(snapshot)
+        base_features = sensory_features(context)
+        experience = experience_metrics(loop, base_features)
+        loop = apply_delayed_credit(loop, experience, loop_opts(opts))
         emission_tick = max(tick, (loop.last_tick || tick - 1) + 1)
-        sensed = DevelopmentalSensorimotorLoop.sense(loop, sensory_features(context), loop_opts(opts))
+
+        sensed =
+          DevelopmentalSensorimotorLoop.sense(
+            loop,
+            base_features ++ experience_features(experience),
+            loop_opts(opts)
+          )
 
         {emitted, outcome} =
           DevelopmentalSensorimotorLoop.emit(sensed, emission_tick, loop_opts(opts))
@@ -44,6 +60,7 @@ defmodule Procession.Simulation.InTransitDecision do
            expected_snapshot: snapshot,
            emitted_loop: emitted,
            outcome: outcome,
+           experience: experience,
            action: %{
              primitive: :motor_impulse,
              force: force,
@@ -51,7 +68,11 @@ defmodule Procession.Simulation.InTransitDecision do
              lateral_projection: lateral_projection,
              displaced?: outcome.displaced?,
              coordination: outcome.coordination,
-             intensity: outcome.intensity
+             intensity: outcome.intensity,
+             sensory_change: experience.change,
+             familiarity: experience.familiarity,
+             repetition: experience.repetition,
+             delayed_credit: experience.credit
            }
          }}
       rescue
@@ -87,6 +108,63 @@ defmodule Procession.Simulation.InTransitDecision do
       :ok -> {:ok, replacement}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  @doc "Derive sensory change, familiarity, repetition, and delayed motor credit from an archived loop."
+  def experience_metrics(loop, features) when is_list(features) do
+    current = features |> Enum.map(&feature_key/1) |> MapSet.new()
+    salience = loop.field.salience
+    previous = if salience, do: salience.last_features, else: MapSet.new()
+    exposure = if salience, do: salience.exposure, else: %{}
+    current_count = max(MapSet.size(current), 1)
+    shared = MapSet.intersection(current, previous) |> MapSet.size()
+    repetition = shared / current_count
+
+    changed =
+      current
+      |> MapSet.symmetric_difference(previous)
+      |> MapSet.size()
+
+    change = min(1.0, changed / max(MapSet.size(MapSet.union(current, previous)), 1))
+
+    familiarity =
+      current
+      |> Enum.map(fn feature ->
+        seen = Map.get(exposure, feature, 0.0)
+        seen / (1.0 + seen)
+      end)
+      |> average()
+
+    credit =
+      (change * 0.18 - repetition * familiarity * 0.08)
+      |> clamp(-0.08, 0.18)
+
+    %{change: change, familiarity: familiarity, repetition: repetition, credit: credit}
+  end
+
+  defp apply_delayed_credit(%{last_outcome: %{pattern: pattern}} = loop, experience, opts) do
+    field =
+      DevelopmentalSensorimotorField.record_output(
+        loop.field,
+        pattern,
+        experience.credit,
+        Keyword.put_new(opts, :output_source_mode, :rising_residual)
+      )
+
+    %{loop | field: field}
+  end
+
+  defp apply_delayed_credit(loop, _experience, _opts), do: loop
+
+  defp experience_features(experience) do
+    [
+      {:signal, {:route_sensory_change, experience_band(experience.change)},
+       magnitude(experience.change)},
+      {:signal, {:route_familiarity, experience_band(experience.familiarity)},
+       magnitude(experience.familiarity)},
+      {:signal, {:route_repetition, experience_band(experience.repetition)},
+       magnitude(experience.repetition)}
+    ]
   end
 
   defp sensory_features(context) do
@@ -125,6 +203,11 @@ defmodule Procession.Simulation.InTransitDecision do
     end)
   end
 
+  defp feature_key({:signal, feature, _magnitude}), do: feature
+  defp feature_key(feature), do: feature
+  defp experience_band(value) when value < 0.25, do: :low
+  defp experience_band(value) when value < 0.70, do: :middle
+  defp experience_band(_), do: :high
   defp progress_band(value) when value < 0.25, do: :near_source
   defp progress_band(value) when value < 0.75, do: :between
   defp progress_band(_), do: :near_far_boundary
@@ -138,6 +221,9 @@ defmodule Procession.Simulation.InTransitDecision do
   defp bucket(value) when value < 0.75, do: :middle
   defp bucket(_), do: :high
   defp magnitude(value), do: value |> max(0.1) |> min(1.5)
+  defp average([]), do: 0.0
+  defp average(values), do: Enum.sum(values) / length(values)
+  defp clamp(value, low, high), do: value |> max(low) |> min(high)
   defp loop_opts(opts), do: Keyword.get(opts, :loop_opts, [])
   defp snapshot_opts(opts), do: Keyword.get(opts, :snapshot_opts, [])
 
