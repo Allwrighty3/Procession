@@ -226,7 +226,9 @@ defmodule Procession.Simulation.CausalWorldKernel do
   The kernel resolves only physical eligibility and quantity. It stores no conclusion about
   why the contact occurred and does not classify the consequence as help, trade, theft, or gift.
   """
-  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts \\ [])
+  def transfer_held_resource(world, from_id, to_id, requested, opts \\ [])
+
+  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts)
       when is_number(requested) and requested > 0 do
     with {:ok, source} <- Map.fetch(world.entities, from_id),
          {:ok, recipient} <- Map.fetch(world.entities, to_id) do
