@@ -31,7 +31,7 @@ defmodule Procession.Simulation.InTransitDecision do
       try do
         loop = DevelopmentalMindSnapshot.restore(snapshot)
         base_features = sensory_features(context)
-        experience = sensory_experience(loop, base_features)
+        experience = experience_metrics(loop, base_features)
         loop = apply_delayed_credit(loop, experience, loop_opts(opts))
         emission_tick = max(tick, (loop.last_tick || tick - 1) + 1)
 
@@ -110,21 +110,8 @@ defmodule Procession.Simulation.InTransitDecision do
     end
   end
 
-  defp apply_delayed_credit(%{last_outcome: %{pattern: pattern}} = loop, experience, opts) do
-    field =
-      DevelopmentalSensorimotorField.record_output(
-        loop.field,
-        pattern,
-        experience.credit,
-        Keyword.put_new(opts, :output_source_mode, :rising_residual)
-      )
-
-    %{loop | field: field}
-  end
-
-  defp apply_delayed_credit(loop, _experience, _opts), do: loop
-
-  defp sensory_experience(loop, features) do
+  @doc "Derive sensory change, familiarity, repetition, and delayed motor credit from an archived loop."
+  def experience_metrics(loop, features) when is_list(features) do
     current = features |> Enum.map(&feature_key/1) |> MapSet.new()
     salience = loop.field.salience
     previous = if salience, do: salience.last_features, else: MapSet.new()
@@ -154,6 +141,20 @@ defmodule Procession.Simulation.InTransitDecision do
 
     %{change: change, familiarity: familiarity, repetition: repetition, credit: credit}
   end
+
+  defp apply_delayed_credit(%{last_outcome: %{pattern: pattern}} = loop, experience, opts) do
+    field =
+      DevelopmentalSensorimotorField.record_output(
+        loop.field,
+        pattern,
+        experience.credit,
+        Keyword.put_new(opts, :output_source_mode, :rising_residual)
+      )
+
+    %{loop | field: field}
+  end
+
+  defp apply_delayed_credit(loop, _experience, _opts), do: loop
 
   defp experience_features(experience) do
     [
