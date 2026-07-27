@@ -12,6 +12,8 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
   alias Procession.Simulation.RegionActivationLifecycle
 
+  @minimum_transit_energy 0.12
+
   def begin_cycle(region_id, identity_id, context, tick, opts \\ [])
 
   def begin_cycle(region_id, identity_id, context, tick, opts)
@@ -152,9 +154,15 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   defp translate(_outcome, _context), do: %{primitive: :no_effect}
 
   defp translate_boundary(direction, context) do
-    case Enum.find(Map.get(context, :exits, []), &(&1.direction == direction)) do
-      nil -> %{primitive: :no_effect}
-      exit -> %{primitive: :cross_region_boundary, direction: direction, region_id: exit.region_id}
+    resident = Map.get(context, :resident, %{})
+
+    if number(resident, :energy) < @minimum_transit_energy do
+      %{primitive: :no_effect}
+    else
+      case Enum.find(Map.get(context, :exits, []), &(&1.direction == direction)) do
+        nil -> %{primitive: :no_effect}
+        exit -> %{primitive: :cross_region_boundary, direction: direction, region_id: exit.region_id}
+      end
     end
   end
 
