@@ -10,7 +10,7 @@ defmodule Procession.LivingGameSession do
   use GenServer
 
   alias Procession.GameSession
-  alias Procession.Simulation.LivingBriarRuntime
+  alias Procession.Simulation.TransitAwareLivingBriarRuntime, as: LivingBriarRuntime
 
   @persistent_primitives [:contact_loose_raw, :manipulate_held_raw]
   @epsilon 1.0e-9
@@ -41,7 +41,7 @@ defmodule Procession.LivingGameSession do
   @impl true
   def init(opts) do
     prompt = Keyword.get(opts, :prompt, "a quiet frontier town")
-    runtime_opts = Keyword.take(opts, [:seed, :budget, :cadence])
+    runtime_opts = Keyword.take(opts, [:seed, :budget, :cadence, :transit_budget, :transit_cadence])
 
     case GameSession.start_demo(prompt) do
       {:ok, startup} ->
