@@ -1,29 +1,23 @@
 defmodule Procession.Demo do
   @moduledoc """
-  IEx-friendly helpers for the first playable vertical slice.
+  IEx-friendly helpers for Procession's playable and observable vertical slices.
 
-  This module does not own gameplay logic. It delegates setup to `GameSession`,
-  command execution to `Command`, and readable output to `Command.Display`.
+  This module does not own gameplay or simulation logic. It delegates session play to
+  `GameSession` and living-world observation to `Procession.Simulation.LivingBriar`.
   """
 
   alias Procession.Command
   alias Procession.Command.Display
   alias Procession.GameSession
+  alias Procession.Simulation.LivingBriar
 
   @default_prompt "a quiet frontier town"
 
-  @doc """
-  Starts the deterministic Phase 13 demo session.
-  """
-  def start(prompt \\ @default_prompt) do
-    GameSession.start_demo(prompt)
-  end
+  @doc "Starts the deterministic starter-area demo session."
+  def start(prompt \\ @default_prompt), do: GameSession.start_demo(prompt)
 
   @doc """
   Starts the deterministic demo and returns only the session pid.
-
-  This is the preferred IEx entry point when playing the vertical slice because it
-  avoids printing the full startup summary map.
   """
   def start_quiet(prompt \\ @default_prompt) do
     with {:ok, demo} <- start(prompt) do
@@ -40,6 +34,9 @@ defmodule Procession.Demo do
       - look
       - ask Mira about mine
       - events for Mira
+
+      To observe the canonical living-world simulation separately:
+      - Procession.Demo.watch_living_briar()
       """)
 
       demo.session
@@ -47,10 +44,24 @@ defmodule Procession.Demo do
   end
 
   @doc """
-  Runs a command against a demo session, prints readable output, and returns `:ok`.
+  Runs the canonical Living Briar scenario and returns structured observer evidence.
 
-  Accepts either the full demo map returned by `start/1` or the session pid.
+  The same boundary is used by tests and metrics. Options include `:ticks`, `:budget`,
+  `:cadence`, and `:seed`.
   """
+  def living_briar(opts \\ []) when is_list(opts), do: LivingBriar.run(opts)
+  def living_briar(_opts), do: {:error, :invalid_living_briar_options}
+
+  @doc "Runs Living Briar, prints a compact causal trace, and returns the structured run."
+  def watch_living_briar(opts \\ []) when is_list(opts) do
+    run = LivingBriar.run(opts)
+    IO.puts(LivingBriar.format(run))
+    run
+  end
+
+  def watch_living_briar(_opts), do: {:error, :invalid_living_briar_options}
+
+  @doc "Runs a command against a demo session and prints readable output."
   def run(demo_or_session, command_text) do
     with {:ok, session} <- session_from(demo_or_session) do
       session
@@ -60,22 +71,14 @@ defmodule Procession.Demo do
     end
   end
 
-  @doc """
-  Runs a command against a demo session and returns the raw command result.
-
-  This is useful for debugging, tests, or inspecting the underlying data shape.
-  """
+  @doc "Runs a command against a demo session and returns the raw command result."
   def command(demo_or_session, command_text) do
     with {:ok, session} <- session_from(demo_or_session) do
       Command.run(session, command_text)
     end
   end
 
-  @doc """
-  Cleans up a demo session and prints a short cleanup summary.
-
-  Accepts either the full demo map returned by `start/1` or the session pid.
-  """
+  @doc "Cleans up a demo session and prints a short cleanup summary."
   def stop(demo_or_session) do
     with {:ok, session} <- session_from(demo_or_session) do
       cleanup_summary = GameSession.cleanup(session)
@@ -91,11 +94,7 @@ defmodule Procession.Demo do
     end
   end
 
-  @doc """
-  Runs a command and returns formatted text without printing it.
-
-  Useful for tests or for callers that want to decide how to display output.
-  """
+  @doc "Runs a command and returns formatted text without printing it."
   def text(demo_or_session, command_text) do
     with {:ok, session} <- session_from(demo_or_session) do
       session
