@@ -1,0 +1,33 @@
+name: Compile Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/finish-interpersonal-and-transfer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - run: mix deps.get
+      - name: Capture compiler output
+        shell: bash
+        run: |
+          set +e
+          mix compile --warnings-as-errors > compile-diagnostic.txt 2>&1
+          code=$?
+          tail -n 120 compile-diagnostic.txt > compile-tail.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compile-diagnostic
+          path: compile-tail.txt
