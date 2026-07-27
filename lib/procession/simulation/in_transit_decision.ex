@@ -21,8 +21,10 @@ defmodule Procession.Simulation.InTransitDecision do
            RegionActivationLifecycle.dormant_mind(archive_region, identity_id, lifecycle) do
       try do
         loop = DevelopmentalMindSnapshot.restore(snapshot)
+        emission_tick = max(tick, (loop.last_tick || tick - 1) + 1)
         sensed = DevelopmentalSensorimotorLoop.sense(loop, sensory_features(context), loop_opts(opts))
-        {emitted, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, tick, loop_opts(opts))
+        {emitted, outcome} =
+          DevelopmentalSensorimotorLoop.emit(sensed, emission_tick, loop_opts(opts))
 
         {:ok,
          %{
@@ -78,7 +80,8 @@ defmodule Procession.Simulation.InTransitDecision do
     [
       {:signal, {:body_energy, bucket(number(body, :energy))}, magnitude(number(body, :energy))},
       {:signal, {:route_progress, progress_band(progress / extent)}, magnitude(progress / extent)},
-      {:signal, {:source_boundary_distance, distance_band(source_distance)}, magnitude(1.0 / (1.0 + source_distance))},
+      {:signal, {:source_boundary_distance, distance_band(source_distance)},
+       magnitude(1.0 / (1.0 + source_distance))},
       {:signal, {:far_boundary_distance, distance_band(destination_distance)},
        magnitude(1.0 / (1.0 + destination_distance))},
       {:signal, {:transit_heading, Map.get(context, :heading, :forward)}, 1.0},
@@ -92,7 +95,8 @@ defmodule Procession.Simulation.InTransitDecision do
     |> Map.get(:nearby_travelers, [])
     |> Enum.map(fn traveler ->
       {:signal,
-       {:nearby_transit_body, traveler.identity_id, traveler.relative, distance_band(traveler.distance)},
+       {:nearby_transit_body, traveler.identity_id, traveler.relative,
+        distance_band(traveler.distance)},
        magnitude(1.0 / max(1, traveler.distance))}
     end)
   end
