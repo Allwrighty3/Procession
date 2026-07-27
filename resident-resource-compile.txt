@@ -18,10 +18,4 @@ Compiling 12 files (.ex)
 Generated exqlite app
 ==> procession
 Compiling 264 files (.ex)
-
-== Compilation error in file lib/procession/simulation/regional_material_cycle.ex ==
-** (ArgumentError) cannot pipe state.residents |> Map.values() |> Enum.map(&(1.0 - &1.energy)) into Enum.sum() / count, the :/ operator can only take two arguments
-    (elixir 1.18.3) lib/macro.ex:329: Macro.pipe/3
-    (stdlib 6.2.2.3) lists.erl:2146: :lists.foldl/3
-    (elixir 1.18.3) expanding macro: Kernel.|>/2
-    lib/procession/simulation/regional_material_cycle.ex:70: Procession.Simulation.RegionalMaterialCycle.pressure/1
+Generated procession app
