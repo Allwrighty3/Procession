@@ -13,8 +13,6 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
   alias Procession.Simulation.RegionActivationLifecycle
 
-  @directions [:north, :south, :east, :west]
-
   def begin_cycle(region_id, identity_id, context, tick, opts \\ [])
       when is_map(context) and is_integer(tick) do
     lifecycle = Keyword.get(opts, :lifecycle_server, RegionActivationLifecycle)
@@ -101,7 +99,6 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   end
 
   defp translate(%{displaced?: false}, _context), do: %{primitive: :consume_held_usable}
-
   defp translate(%{direction: :north}, _context), do: %{primitive: :contact_loose_raw}
   defp translate(%{direction: :south}, _context), do: %{primitive: :manipulate_held_raw}
 
