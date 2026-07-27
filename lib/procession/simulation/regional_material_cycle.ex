@@ -18,6 +18,7 @@ defmodule Procession.Simulation.RegionalMaterialCycle do
         {id,
          %{
            id: id,
+           position: Map.get(attrs, :position, {0, 0}),
            raw: non_negative(Map.get(attrs, :raw, 0.0)),
            usable: non_negative(Map.get(attrs, :usable, 0.0)),
            energy: clamp(Map.get(attrs, :energy, 0.6), 0.0, 1.0),
@@ -32,6 +33,7 @@ defmodule Procession.Simulation.RegionalMaterialCycle do
     %{
       loose_raw: non_negative(Keyword.get(opts, :loose_raw, 1.0)),
       replenishment: non_negative(Keyword.get(opts, :replenishment, 0.0)),
+      contact_radius: max(0, Keyword.get(opts, :contact_radius, 0)),
       residents: residents,
       events: [],
       consumed_total: 0.0
@@ -125,7 +127,10 @@ defmodule Procession.Simulation.RegionalMaterialCycle do
         current
         |> sorted_ids()
         |> Enum.reject(fn id -> id == recipient_id end)
-        |> Enum.filter(fn id -> current.residents[id].usable > 0.08 end)
+        |> Enum.filter(fn id ->
+          donor = current.residents[id]
+          donor.usable > 0.08 and contacting?(donor, recipient, current.contact_radius)
+        end)
 
       donor_id =
         case donors do
@@ -186,6 +191,12 @@ defmodule Procession.Simulation.RegionalMaterialCycle do
 
       {next, total + amount}
     end)
+  end
+
+  defp contacting?(left, right, radius) do
+    {left_x, left_y} = left.position
+    {right_x, right_y} = right.position
+    abs(left_x - right_x) + abs(left_y - right_y) <= radius
   end
 
   defp held(state, key) do
