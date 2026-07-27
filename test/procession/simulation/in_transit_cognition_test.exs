@@ -4,7 +4,7 @@ defmodule Procession.Simulation.InTransitCognitionTest do
   alias Procession.Simulation.CognitiveMaterialKernel
   alias Procession.Simulation.TransitAwareLivingBriarRuntime
 
-  test "a body outside every region receives and commits a transit cognitive opportunity" do
+  test "a body outside every region emits and commits an opaque motor impulse" do
     {:ok, runtime} =
       TransitAwareLivingBriarRuntime.start_link(
         seed: 41,
@@ -28,8 +28,9 @@ defmodule Procession.Simulation.InTransitCognitionTest do
         accumulated: 1.0,
         extent: 4.0,
         body: body,
-        heading: :forward,
-        paused?: false
+        route_velocity: 0.0,
+        lateral_velocity: 0.0,
+        lateral_position: 0.0
       }
 
       %{
@@ -46,10 +47,15 @@ defmodule Procession.Simulation.InTransitCognitionTest do
     assert [%{identity: "mara", in_transit?: true, mind_committed?: true} = decision] =
              Enum.filter(observation.decisions, &Map.get(&1, :in_transit?, false))
 
-    assert decision.primitive in [:continue_transit, :pause_transit, :reverse_transit]
+    assert decision.primitive == :motor_impulse
+    assert is_tuple(decision.motor_force)
+    assert is_number(decision.route_projection)
+    assert is_number(decision.lateral_projection)
 
     summary = TransitAwareLivingBriarRuntime.snapshot(runtime)
     assert summary.in_transit_decisions == 1
+    assert summary.transit_motor_impulses == 1
+    assert summary.transit_cognitive_primitives == %{motor_impulse: 1}
     assert summary.transit_minds_committed?
     assert map_size(summary.resident_processes) == 1
     assert abs(summary.material_accounting_error) < 1.0e-8
@@ -57,7 +63,7 @@ defmodule Procession.Simulation.InTransitCognitionTest do
     TransitAwareLivingBriarRuntime.stop(runtime)
   end
 
-  test "reverse heading returns a traveler to the source boundary" do
+  test "negative route velocity returns a traveler to the source boundary" do
     {:ok, runtime} =
       TransitAwareLivingBriarRuntime.start_link(
         seed: 41,
@@ -77,11 +83,12 @@ defmodule Procession.Simulation.InTransitCognitionTest do
         action: %{primitive: :cross_region_boundary, direction: :east, region_id: :east_refuge},
         region_id: :crossroads,
         started_tick: 0,
-        accumulated: 1.0,
+        accumulated: 0.5,
         extent: 4.0,
         body: body,
-        heading: :reverse,
-        paused?: false
+        route_velocity: -1.0,
+        lateral_velocity: 0.0,
+        lateral_position: 0.0
       }
 
       %{
