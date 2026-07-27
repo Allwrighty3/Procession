@@ -3,7 +3,7 @@ defmodule Procession.Simulation.ResidentPersistentActionsTest do
 
   alias Procession.Simulation.LivingBriarRuntime
 
-  test "resident gathering advances without a cognitive opportunity" do
+  test "resident gathering advances without a cognitive opportunity while in material contact" do
     {:ok, runtime} = LivingBriarRuntime.start_link(seed: 41, budget: 0, cadence: 8)
 
     :sys.replace_state(runtime, fn state ->
@@ -15,7 +15,15 @@ defmodule Procession.Simulation.ResidentPersistentActionsTest do
         accumulated: 0.0
       }
 
-      %{state | resident_processes: %{"mara" => process}}
+      crossroads = state.regions.crossroads
+      mara = %{crossroads.residents["mara"] | position: {0, -2}}
+      crossroads = %{crossroads | residents: Map.put(crossroads.residents, "mara", mara)}
+
+      %{
+        state
+        | regions: Map.put(state.regions, :crossroads, crossroads),
+          resident_processes: %{"mara" => process}
+      }
     end)
 
     before = LivingBriarRuntime.snapshot(runtime)
@@ -48,6 +56,94 @@ defmodule Procession.Simulation.ResidentPersistentActionsTest do
     LivingBriarRuntime.stop(runtime)
   end
 
+  test "resident local movement approaches loose material across world ticks" do
+    {:ok, runtime} = LivingBriarRuntime.start_link(seed: 41, budget: 0, cadence: 8)
+
+    :sys.replace_state(runtime, fn state ->
+      process = %{
+        primitive: :move_local,
+        action: %{primitive: :move_local, target: :loose_raw, direction: :north},
+        region_id: :crossroads,
+        started_tick: 0,
+        accumulated: 0.0
+      }
+
+      %{state | resident_processes: %{"mara" => process}}
+    end)
+
+    assert {:ok, first} = LivingBriarRuntime.step(runtime)
+
+    assert [%{identity: "mara", primitive: :move_local, status: :continuing, amount: 1.0}] =
+             first.resident_process_events
+
+    first_state = :sys.get_state(runtime)
+    assert first_state.regions.crossroads.residents["mara"].position == {0, -1}
+    assert first.decisions == []
+
+    assert {:ok, second} = LivingBriarRuntime.step(runtime)
+
+    assert [%{identity: "mara", primitive: :move_local, status: :ended, amount: 1.0}] =
+             second.resident_process_events
+
+    second_state = :sys.get_state(runtime)
+    assert second_state.regions.crossroads.residents["mara"].position == {0, -2}
+    assert second.resident_processes == %{}
+    assert second.decisions == []
+
+    summary = LivingBriarRuntime.snapshot(runtime)
+    assert summary.resident_process_progress == 1
+    assert summary.resident_process_endings == 1
+    assert abs(summary.material_accounting_error) < 1.0e-8
+
+    LivingBriarRuntime.stop(runtime)
+  end
+
+  test "resident contact transfer ends when the target leaves contact" do
+    {:ok, runtime} = LivingBriarRuntime.start_link(seed: 41, budget: 0, cadence: 8)
+
+    {orin_usable, lena_usable} =
+      :sys.replace_state(runtime, fn state ->
+        west = state.regions.west_fields
+        orin = west.residents["orin"]
+        lena = %{west.residents["lena"] | position: {4, 0}}
+        west = %{west | residents: west.residents |> Map.put("orin", orin) |> Map.put("lena", lena)}
+
+        process = %{
+          primitive: :contact_body,
+          action: %{primitive: :contact_body, counterparty_id: "lena"},
+          region_id: :west_fields,
+          started_tick: 0,
+          accumulated: 0.0
+        }
+
+        put_in(state.regions.west_fields, west)
+        |> Map.put(:resident_processes, %{"orin" => process})
+      end)
+      |> then(fn state ->
+        west = state.regions.west_fields.residents
+        {west["orin"].usable, west["lena"].usable}
+      end)
+
+    assert {:ok, observation} = LivingBriarRuntime.step(runtime)
+
+    assert [
+             %{
+               identity: "orin",
+               primitive: :contact_body,
+               status: :ended,
+               consequence: :body_out_of_contact,
+               amount: 0.0
+             }
+           ] = observation.resident_process_events
+
+    state = :sys.get_state(runtime)
+    assert state.regions.west_fields.residents["orin"].usable == orin_usable
+    assert state.regions.west_fields.residents["lena"].usable == lena_usable
+    assert observation.resident_processes == %{}
+
+    LivingBriarRuntime.stop(runtime)
+  end
+
   test "resident transformation ends when held raw is exhausted" do
     {:ok, runtime} = LivingBriarRuntime.start_link(seed: 41, budget: 0, cadence: 8)
 
@@ -65,8 +161,14 @@ defmodule Procession.Simulation.ResidentPersistentActionsTest do
 
     assert {:ok, observation} = LivingBriarRuntime.step(runtime)
 
-    assert [%{identity: "mara", status: :ended, consequence: :transformed_material, amount: amount}] =
-             observation.resident_process_events
+    assert [
+             %{
+               identity: "mara",
+               status: :ended,
+               consequence: :transformed_material,
+               amount: amount
+             }
+           ] = observation.resident_process_events
 
     assert amount > 0.0
     assert observation.resident_processes == %{}
