@@ -96,6 +96,25 @@ defmodule Procession.Simulation.CausalWorldKernel do
         end
       end)
 
+    nearby_entity_signals =
+      world.entities
+      |> Map.values()
+      |> Enum.reject(&(&1.id == entity_id))
+      |> Enum.sort_by(& &1.id)
+      |> Enum.flat_map(fn other ->
+        distance = manhattan(entity.position, other.position)
+
+        if distance <= world.perception_radius do
+          [
+            {:signal,
+             {:nearby_body, other.id, relative_direction(entity.position, other.position),
+              distance_band(distance)}, proximity_gain(distance)}
+          ]
+        else
+          []
+        end
+      end)
+
     obstacle_signals =
       entity.position
       |> adjacent_positions()
@@ -112,7 +131,7 @@ defmodule Procession.Simulation.CausalWorldKernel do
     [
       {:signal, {:body, :energy_pressure}, 1.0 + hunger * 5.0},
       {:position, entity.position}
-      | boundary_signals ++ resource_signals ++ obstacle_signals
+      | boundary_signals ++ resource_signals ++ nearby_entity_signals ++ obstacle_signals
     ]
   end
 
@@ -271,6 +290,24 @@ defmodule Procession.Simulation.CausalWorldKernel do
   defp adjacent_positions({x, y}) do
     [north: {x, y - 1}, south: {x, y + 1}, east: {x + 1, y}, west: {x - 1, y}]
   end
+
+  defp relative_direction({x, y}, {other_x, other_y}) do
+    dx = other_x - x
+    dy = other_y - y
+
+    cond do
+      dx == 0 and dy == 0 -> :overlapping
+      abs(dx) >= abs(dy) and dx > 0 -> :east
+      abs(dx) >= abs(dy) and dx < 0 -> :west
+      dy > 0 -> :south
+      true -> :north
+    end
+  end
+
+  defp distance_band(0), do: :contact
+  defp distance_band(1), do: :adjacent
+  defp distance_band(distance) when distance <= 3, do: :near
+  defp distance_band(_distance), do: :far
 
   defp proximity_gain(distance), do: 1.0 / (max(distance, 0) + 1.0)
   defp manhattan({ax, ay}, {bx, by}), do: abs(ax - bx) + abs(ay - by)
