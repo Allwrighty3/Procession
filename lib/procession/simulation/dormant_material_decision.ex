@@ -18,7 +18,8 @@ defmodule Procession.Simulation.DormantMaterialDecision do
       when is_map(context) and is_integer(tick) do
     lifecycle = Keyword.get(opts, :lifecycle_server, RegionActivationLifecycle)
 
-    with {:ok, snapshot} <- RegionActivationLifecycle.dormant_mind(region_id, identity_id, lifecycle) do
+    with {:ok, snapshot} <-
+           RegionActivationLifecycle.dormant_mind(region_id, identity_id, lifecycle) do
       try do
         loop = DevelopmentalMindSnapshot.restore(snapshot)
         sensed = DevelopmentalSensorimotorLoop.sense(loop, sensory_features(context), loop_opts(opts))
@@ -79,7 +80,7 @@ defmodule Procession.Simulation.DormantMaterialDecision do
       {:signal, {:held_usable, bucket(number(resident, :usable))}, magnitude(number(resident, :usable))},
       {:signal, {:loose_raw, bucket(loose_raw)}, magnitude(loose_raw)},
       {:signal, {:regional_pressure, bucket(pressure)}, magnitude(pressure)}
-      | body_features(context) ++ exit_features(context)
+      | body_features(context) ++ resource_features(context) ++ exit_features(context)
     ]
   end
 
@@ -93,6 +94,20 @@ defmodule Procession.Simulation.DormantMaterialDecision do
     end)
   end
 
+  defp resource_features(context) do
+    case {Map.get(context, :loose_raw_direction), Map.get(context, :loose_raw_distance)} do
+      {direction, distance}
+      when direction in [:north, :south, :east, :west] and is_integer(distance) ->
+        [
+          {:signal, {:loose_raw_direction, direction, distance_band(distance)},
+           1.0 / max(1, distance)}
+        ]
+
+      _ ->
+        []
+    end
+  end
+
   defp exit_features(context) do
     context
     |> Map.get(:exits, [])
@@ -100,13 +115,37 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   end
 
   defp translate(%{displaced?: false}, _context), do: %{primitive: :consume_held_usable}
-  defp translate(%{direction: :north}, _context), do: %{primitive: :contact_loose_raw}
+
+  defp translate(%{direction: :north}, context) do
+    if Map.get(context, :loose_raw_contact?, false) do
+      %{primitive: :contact_loose_raw}
+    else
+      %{
+        primitive: :move_local,
+        target: :loose_raw,
+        direction: Map.get(context, :loose_raw_direction, :north)
+      }
+    end
+  end
+
   defp translate(%{direction: :south}, _context), do: %{primitive: :manipulate_held_raw}
 
   defp translate(%{direction: direction}, context) when direction in [:east, :west] do
-    case Enum.find(Map.get(context, :contacts, []), &(&1.direction == direction and &1.distance <= 1)) do
-      nil -> translate_boundary(direction, context)
-      contact -> %{primitive: :contact_body, counterparty_id: contact.identity_id}
+    case Enum.find(
+           Map.get(context, :contacts, []),
+           &(&1.direction == direction and &1.distance <= 1)
+         ) do
+      %{} = contact ->
+        %{primitive: :contact_body, counterparty_id: contact.identity_id}
+
+      nil ->
+        case Enum.find(Map.get(context, :observed_bodies, []), &(&1.direction == direction)) do
+          %{} = body ->
+            %{primitive: :move_local, counterparty_id: body.identity_id, direction: direction}
+
+          nil ->
+            translate_boundary(direction, context)
+        end
     end
   end
 
