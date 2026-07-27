@@ -584,7 +584,7 @@ defmodule Procession.Simulation.LivingBriarRuntime do
         event = process_event(identity_id, next, :started, tick, 0.0, :cognitive_selection)
         {Map.put(processes, identity_id, next), :started, [event]}
 
-      %{primitive: primitive, action: existing_action} = existing
+      %{primitive: primitive, action: existing_action}
       when primitive == action.primitive and existing_action == action ->
         {processes, :continued, []}
 
