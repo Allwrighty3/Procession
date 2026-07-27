@@ -4,9 +4,8 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   and translates its opaque motor consequence through currently available physical affordances.
 
   The translation contains no occupation, ownership, trade, charity, or destination semantics.
-  North/south consequences address local raw-material contact and held-material manipulation.
-  East/west consequences address a contacting body first and a perceived region boundary second.
-  A non-displacing consequence addresses held usable material.
+  Observed bodies may contribute sensory evidence without automatically becoming contact or
+  transfer affordances.
   """
 
   alias Procession.Simulation.DevelopmentalMindSnapshot
@@ -80,17 +79,17 @@ defmodule Procession.Simulation.DormantMaterialDecision do
       {:signal, {:held_usable, bucket(number(resident, :usable))}, magnitude(number(resident, :usable))},
       {:signal, {:loose_raw, bucket(loose_raw)}, magnitude(loose_raw)},
       {:signal, {:regional_pressure, bucket(pressure)}, magnitude(pressure)}
-      | contact_features(context) ++ exit_features(context)
+      | body_features(context) ++ exit_features(context)
     ]
   end
 
-  defp contact_features(context) do
-    context
-    |> Map.get(:contacts, [])
-    |> Enum.map(fn contact ->
+  defp body_features(context) do
+    (Map.get(context, :contacts, []) ++ Map.get(context, :observed_bodies, []))
+    |> Enum.uniq_by(&{&1.identity_id, &1.direction, &1.distance})
+    |> Enum.map(fn body ->
       {:signal,
-       {:nearby_body, contact.identity_id, contact.direction, distance_band(contact.distance)},
-       1.0 / max(1, contact.distance)}
+       {:nearby_body, body.identity_id, body.direction, distance_band(body.distance)},
+       1.0 / max(1, body.distance)}
     end)
   end
 
