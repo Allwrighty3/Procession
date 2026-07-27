@@ -2,27 +2,33 @@ defmodule Procession.Demo do
   @moduledoc """
   IEx-friendly helpers for Procession's playable and observable vertical slices.
 
-  This module does not own gameplay or simulation logic. It delegates session play to
-  `GameSession` and living-world observation to `Procession.Simulation.LivingBriar`.
+  This module does not own gameplay or simulation logic. It delegates compatibility play to
+  `GameSession`, integrated living-world play to `LivingGameSession`, and standalone observation
+  to `Procession.Simulation.LivingBriar`.
   """
 
   alias Procession.Command
   alias Procession.Command.Display
   alias Procession.GameSession
+  alias Procession.LivingGameSession
   alias Procession.Simulation.LivingBriar
 
   @default_prompt "a quiet frontier town"
 
-  @doc "Starts the deterministic starter-area demo session."
+  @doc "Starts the deterministic starter-area compatibility demo session."
   def start(prompt \\ @default_prompt), do: GameSession.start_demo(prompt)
 
-  @doc """
-  Starts the deterministic demo and returns only the session pid.
-  """
+  @doc "Starts a playable starter session whose waits advance one stateful Living Briar world."
+  def start_living(prompt \\ @default_prompt, opts \\ []) do
+    LivingGameSession.start_demo(prompt, opts)
+  end
+
+  @doc "Starts the deterministic compatibility demo and returns only the session pid."
   def start_quiet(prompt \\ @default_prompt) do
     with {:ok, demo} <- start(prompt) do
       IO.puts("""
       Procession demo started.
+      Compatibility mode uses the deterministic starter-area simulation.
 
       Try:
       - look
@@ -35,8 +41,29 @@ defmodule Procession.Demo do
       - ask Mira about mine
       - events for Mira
 
-      To observe the canonical living-world simulation separately:
-      - Procession.Demo.watch_living_briar()
+      For integrated living-world play:
+      - Procession.Demo.start_living_quiet()
+      """)
+
+      demo.session
+    end
+  end
+
+  @doc "Starts integrated Living Briar play and returns only the session pid."
+  def start_living_quiet(prompt \\ @default_prompt, opts \\ []) do
+    with {:ok, demo} <- start_living(prompt, opts) do
+      IO.puts("""
+      Procession Living Briar session started.
+
+      Ordinary commands still work. Each `wait` also advances the same stateful regional world.
+
+      Try:
+      - look
+      - wait
+      - wait
+      - go to Briar Village
+      - wait
+      - Procession.GameSession.summary(session)
       """)
 
       demo.session

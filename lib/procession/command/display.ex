@@ -7,15 +7,8 @@ defmodule Procession.Command.Display do
   """
 
   def format({:ok, %{command: :look, result: result}}) do
-    exits =
-      result
-      |> Map.get(:exits, [])
-      |> format_exits()
-
-    locals =
-      result
-      |> local_entities_for_display()
-      |> format_local_entities()
+    exits = result |> Map.get(:exits, []) |> format_exits()
+    locals = result |> local_entities_for_display() |> format_local_entities()
 
     """
     #{result.name}
@@ -47,27 +40,16 @@ defmodule Procession.Command.Display do
 
     body =
       case memories do
-        [] ->
-          "- nothing relevant"
-
-        memories ->
-          memories
-          |> Enum.map(fn memory -> "- #{memory.content}" end)
-          |> Enum.join("\n")
+        [] -> "- nothing relevant"
+        memories -> memories |> Enum.map(fn memory -> "- #{memory.content}" end) |> Enum.join("\n")
       end
 
-    [header, body]
-    |> Enum.join("\n")
+    [header, body] |> Enum.join("\n")
   end
 
   def format({:ok, %{command: :wait, result: result}}) do
-    actions =
-      result.successful_actions
-      |> Enum.map(&format_action/1)
-
-    failed =
-      result.failed_actions
-      |> Enum.map(&format_failed_action/1)
+    actions = result.successful_actions |> Enum.map(&format_action/1)
+    failed = result.failed_actions |> Enum.map(&format_failed_action/1)
 
     action_text =
       case actions do
@@ -81,12 +63,14 @@ defmodule Procession.Command.Display do
         failed -> "\n\nFailed actions:\n" <> Enum.join(failed, "\n")
       end
 
+    living_text = format_living_briar(Map.get(result, :living_briar))
+
     """
     Time passes.
 
     Entities ticked: #{result.entities_ticked}
 
-    #{action_text}#{failed_text}
+    #{action_text}#{failed_text}#{living_text}
     """
     |> String.trim()
   end
@@ -110,17 +94,11 @@ defmodule Procession.Command.Display do
 
     body =
       case events do
-        [] ->
-          "- no recent events"
-
-        events ->
-          events
-          |> Enum.map(fn event -> "- #{event.content}" end)
-          |> Enum.join("\n")
+        [] -> "- no recent events"
+        events -> events |> Enum.map(fn event -> "- #{event.content}" end) |> Enum.join("\n")
       end
 
-    [header, body]
-    |> Enum.join("\n")
+    [header, body] |> Enum.join("\n")
   end
 
   def format({:ok, %{command: :internal_field, result: snapshot} = command}) do
@@ -148,118 +126,91 @@ defmodule Procession.Command.Display do
     "#{target} says: #{response}"
   end
 
-  def format({:error, :unknown_command}) do
-    "Error: I don't know what you mean. Try `help`."
-  end
+  def format({:error, :unknown_command}), do: "Error: I don't know what you mean. Try `help`."
+  def format({:error, :invalid_command}), do: "Error: That command is not valid. Try `help`."
+  def format({:error, :missing_target}), do: "Error: Missing target. Try: look at Tobin."
+  def format({:error, :missing_topic}), do: "Error: Missing topic. Try: ask Tobin about road."
+  def format({:error, :missing_message}), do: "Error: Missing message. Try: talk to Tobin: Hello."
+  def format({:error, :entity_not_found}), do: "Error: I couldn't find that target."
 
-  def format({:error, :invalid_command}) do
-    "Error: That command is not valid. Try `help`."
-  end
-
-  def format({:error, :missing_target}) do
-    "Error: Missing target. Try: look at Tobin."
-  end
-
-  def format({:error, :missing_topic}) do
-    "Error: Missing topic. Try: ask Tobin about road."
-  end
-
-  def format({:error, :missing_message}) do
-    "Error: Missing message. Try: talk to Tobin: Hello."
-  end
-
-  def format({:error, :entity_not_found}) do
-    "Error: I couldn't find that target."
-  end
-
-  def format({:error, {:ambiguous_entity, matches}}) do
+  def format({:error, {:ambiguous_entity, matches}}), do:
     "Error: That name is ambiguous. Matching IDs: #{Enum.join(matches, ", ")}"
+
+  def format({:error, :entity_not_talkable}), do: "You cannot talk to that."
+  def format({:error, :entity_not_askable}), do: "You cannot ask that about anything."
+  def format({:error, :entity_not_a_location}), do: "That is not a place you can travel to."
+  def format({:error, :unknown_destination}), do: "You cannot travel there."
+  def format({:error, :destination_unreachable}), do: "You cannot reach that place from here."
+  def format({:error, reason}), do: "Error: #{inspect(reason)}"
+  def format(other), do: inspect(other, pretty: true)
+
+  defp format_living_briar(nil), do: ""
+
+  defp format_living_briar(observation) do
+    population = format_region_values(observation.populations, &to_string/1)
+    pressure = format_region_values(observation.pressures, &format_pressure/1)
+
+    decisions =
+      case observation.decisions do
+        [] -> ["- No dormant resident received a cognitive opportunity."]
+        values -> Enum.map(values, &format_living_decision/1)
+      end
+
+    "\n\nLiving Briar — tick #{observation.tick}\n" <>
+      "Population: #{population}\n" <>
+      "Pressure: #{pressure}\n" <>
+      Enum.join(decisions, "\n")
   end
 
-  def format({:error, :entity_not_talkable}) do
-    "You cannot talk to that."
+  defp format_living_decision(%{result: :failed} = decision), do:
+    "- #{decision.identity} could not act in #{decision.region}: #{inspect(decision.reason)}"
+
+  defp format_living_decision(decision) do
+    movement =
+      if decision.moved?,
+        do: " and crossed into #{decision.destination_region}",
+        else: ""
+
+    amount =
+      if decision.amount > 0.0,
+        do: " (#{Float.round(decision.amount, 4)} material)",
+        else: ""
+
+    "- #{decision.identity} in #{decision.region}: #{decision.physical_consequence}#{amount}#{movement}"
   end
 
-  def format({:error, :entity_not_askable}) do
-    "You cannot ask that about anything."
+  defp format_region_values(values, formatter) do
+    values
+    |> Enum.sort_by(fn {region, _value} -> region end)
+    |> Enum.map_join(", ", fn {region, value} -> "#{region}=#{formatter.(value)}" end)
   end
 
-  def format({:error, :entity_not_a_location}) do
-    "That is not a place you can travel to."
-  end
-
-  def format({:error, :unknown_destination}) do
-    "You cannot travel there."
-  end
-
-  def format({:error, :destination_unreachable}) do
-    "You cannot reach that place from here."
-  end
-
-  def format({:error, reason}) do
-    "Error: #{inspect(reason)}"
-  end
-
-  def format(other) do
-    inspect(other, pretty: true)
-  end
+  defp format_pressure(value), do: value |> Float.round(3) |> to_string()
 
   defp format_exits([]), do: "none"
-
-  defp format_exits(exits) do
-    exits
-    |> Enum.map(fn exit -> "#{exit.label} -> #{exit.to}" end)
-    |> Enum.join(", ")
-  end
-
-  defp local_entities_for_display(result) do
-    Map.get(result, :local_entity_names) || Map.get(result, :local_entities, [])
-  end
-
+  defp format_exits(exits), do: exits |> Enum.map(fn exit -> "#{exit.label} -> #{exit.to}" end) |> Enum.join(", ")
+  defp local_entities_for_display(result), do: Map.get(result, :local_entity_names) || Map.get(result, :local_entities, [])
   defp format_local_entities([]), do: "none"
-
-  defp format_local_entities(local_entities) do
-    Enum.join(local_entities, ", ")
-  end
-
+  defp format_local_entities(local_entities), do: Enum.join(local_entities, ", ")
   defp format_traits(traits) when traits == %{}, do: "none"
-
-  defp format_traits(traits) do
-    traits
-    |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
-    |> Enum.join(", ")
-  end
-
+  defp format_traits(traits), do: traits |> Enum.map(fn {key, value} -> "#{key}: #{value}" end) |> Enum.join(", ")
   defp format_memory_summary(nil), do: "unknown"
+  defp format_memory_summary(summary), do: "short #{summary.short}, medium #{summary.medium}, long #{summary.long}"
 
-  defp format_memory_summary(summary) do
-    "short #{summary.short}, medium #{summary.medium}, long #{summary.long}"
-  end
-
-  defp format_action(%{action: :send_message, from: from, to: to, content: content}) do
+  defp format_action(%{action: :send_message, from: from, to: to, content: content}), do:
     "- #{from} sent #{to}: #{content}"
-  end
 
-  defp format_action(action) do
-    "- #{inspect(action)}"
-  end
-
-  defp format_failed_action(action) do
-    "- #{inspect(action)}"
-  end
-
+  defp format_action(action), do: "- #{inspect(action)}"
+  defp format_failed_action(action), do: "- #{inspect(action)}"
   defp format_route(nil), do: ""
   defp format_route(""), do: ""
   defp format_route(route), do: " by #{route}"
-
   defp display_target(%{entity_name: entity_name}) when is_binary(entity_name), do: entity_name
   defp display_target(%{target: target}), do: target
   defp display_target(_command), do: "Unknown"
 
-  defp display_destination(%{destination_name: destination_name})
-       when is_binary(destination_name) do
-    destination_name
-  end
+  defp display_destination(%{destination_name: destination_name}) when is_binary(destination_name),
+    do: destination_name
 
   defp display_destination(%{destination: destination}), do: destination
   defp display_destination(_command), do: "Unknown"
