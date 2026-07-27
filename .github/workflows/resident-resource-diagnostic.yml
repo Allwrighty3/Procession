@@ -1,0 +1,28 @@
+name: Resident Resource Compile Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/resident-resource-cascade
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18.3'
+      - run: mix deps.get
+      - name: Capture compile output
+        run: |
+          set +e
+          mix compile --warnings-as-errors > compile.txt 2>&1
+          code=$?
+          tail -n 120 compile.txt > compile-tail.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resident-resource-compile
+          path: compile-tail.txt
