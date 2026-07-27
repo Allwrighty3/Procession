@@ -1,0 +1,255 @@
+name: Patch Persistent Local Movement
+
+on:
+  push:
+    branches:
+      - agent/persistent-local-movement
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[local-movement-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/persistent-local-movement
+      - name: Patch runtime and affordance translation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing replacement target: {label}')
+              return text.replace(old, new, 1)
+
+          decision_path = Path('lib/procession/simulation/dormant_material_decision.ex')
+          decision = decision_path.read_text()
+          decision = replace_once(
+              decision,
+              '      | body_features(context) ++ exit_features(context)\n',
+              '      | body_features(context) ++ resource_features(context) ++ exit_features(context)\n',
+              'resource sensory features'
+          )
+          decision = replace_once(
+              decision,
+              '  defp exit_features(context) do\n',
+              '''  defp resource_features(context) do
+    case {Map.get(context, :loose_raw_direction), Map.get(context, :loose_raw_distance)} do
+      {direction, distance} when direction in [:north, :south, :east, :west] and is_integer(distance) ->
+        [{:signal, {:loose_raw_direction, direction, distance_band(distance)}, 1.0 / max(1, distance)}]
+
+      _ ->
+        []
+    end
+  end
+
+  defp exit_features(context) do
+''',
+              'resource feature function'
+          )
+          decision = replace_once(
+              decision,
+              '  defp translate(%{direction: :north}, _context), do: %{primitive: :contact_loose_raw}\n',
+              '''  defp translate(%{direction: :north}, context) do
+    if Map.get(context, :loose_raw_contact?, false) do
+      %{primitive: :contact_loose_raw}
+    else
+      %{primitive: :move_local, target: :loose_raw, direction: Map.get(context, :loose_raw_direction, :north)}
+    end
+  end
+''',
+              'north material affordance'
+          )
+          decision = replace_once(
+              decision,
+              '''    case Enum.find(Map.get(context, :contacts, []), &(&1.direction == direction and &1.distance <= 1)) do
+      nil -> translate_boundary(direction, context)
+      contact -> %{primitive: :contact_body, counterparty_id: contact.identity_id}
+    end
+''',
+              '''    case Enum.find(Map.get(context, :contacts, []), &(&1.direction == direction and &1.distance <= 1)) do
+      %{} = contact ->
+        %{primitive: :contact_body, counterparty_id: contact.identity_id}
+
+      nil ->
+        case Enum.find(Map.get(context, :observed_bodies, []), &(&1.direction == direction)) do
+          %{} = body -> %{primitive: :move_local, counterparty_id: body.identity_id, direction: direction}
+          nil -> translate_boundary(direction, context)
+        end
+    end
+''',
+              'body approach affordance'
+          )
+          decision_path.write_text(decision)
+
+          runtime_path = Path('lib/procession/simulation/living_briar_runtime.ex')
+          runtime = runtime_path.read_text()
+          runtime = replace_once(
+              runtime,
+              '    :contact_body\n',
+              '    :contact_body,\n    :move_local\n',
+              'persistent move primitive'
+          )
+          runtime = replace_once(
+              runtime,
+              '''      advance_resident_processes(
+        replenished_regions,
+        state.resident_processes,
+        tick
+      )
+''',
+              '''      advance_resident_processes(
+        replenished_regions,
+        state.resident_processes,
+        tick
+      )
+''',
+              'stable advance call'
+          )
+          runtime = replace_once(
+              runtime,
+              '''          action = Map.fetch!(process, :action)
+          {kernel, consequence} =
+            CognitiveMaterialKernel.apply(current_regions[region_id], identity_id, action)
+
+          updated_regions = Map.put(current_regions, region_id, kernel)
+''',
+              '''          action = Map.fetch!(process, :action)
+          {updated_regions, consequence} =
+            advance_physical_process(current_regions, region_id, identity_id, process)
+''',
+              'process advancement dispatch'
+          )
+          runtime = replace_once(
+              runtime,
+              '''  defp process_can_continue?(_regions, _identity_id, _process, %{amount: amount})
+''',
+              '''  defp advance_physical_process(regions, region_id, identity_id, %{primitive: :move_local} = process) do
+    kernel = regions[region_id]
+    resident = kernel.residents[identity_id]
+
+    case local_target_position(kernel, region_id, process.action) do
+      nil ->
+        {regions, physical_consequence(:local_target_absent, 0.0, -0.05)}
+
+      target_position ->
+        next_position = step_toward(resident.position, target_position)
+        moved = if next_position == resident.position, do: 0.0, else: 1.0
+        resident = %{resident | position: next_position}
+        kernel = %{kernel | residents: Map.put(kernel.residents, identity_id, resident)}
+        {Map.put(regions, region_id, kernel), physical_consequence(:moved_locally, moved, 0.12)}
+    end
+  end
+
+  defp advance_physical_process(regions, region_id, identity_id, %{primitive: :contact_loose_raw}) do
+    kernel = regions[region_id]
+    resident = kernel.residents[identity_id]
+
+    if distance(resident.position, raw_position(region_id)) <= 1 do
+      {kernel, consequence} =
+        CognitiveMaterialKernel.apply(kernel, identity_id, %{primitive: :contact_loose_raw})
+
+      {Map.put(regions, region_id, kernel), consequence}
+    else
+      {regions, physical_consequence(:loose_raw_out_of_contact, 0.0, -0.05)}
+    end
+  end
+
+  defp advance_physical_process(regions, region_id, identity_id, process) do
+    {kernel, consequence} =
+      CognitiveMaterialKernel.apply(regions[region_id], identity_id, process.action)
+
+    {Map.put(regions, region_id, kernel), consequence}
+  end
+
+  defp process_can_continue?(_regions, _identity_id, _process, %{amount: amount})
+''',
+              'physical process helpers'
+          )
+          runtime = replace_once(
+              runtime,
+              '''      {:contact_loose_raw, %{} = material, %{} = body} ->
+        room = max(0.0, body.capacity - body.raw - body.usable)
+        material.loose_raw > 1.0e-12 and room > 1.0e-12 and body.gather_rate > 0.0
+''',
+              '''      {:contact_loose_raw, %{} = material, %{} = body} ->
+        room = max(0.0, body.capacity - body.raw - body.usable)
+
+        distance(body.position, raw_position(region_id)) <= 1 and
+          material.loose_raw > 1.0e-12 and room > 1.0e-12 and body.gather_rate > 0.0
+''',
+              'gathering contact continuation'
+          )
+          runtime = replace_once(
+              runtime,
+              '''      {:contact_body, %{} = material, %{} = body} ->
+''',
+              '''      {:move_local, %{} = material, %{} = body} ->
+        case local_target_position(material, region_id, process.action) do
+          nil -> false
+          target_position -> distance(body.position, target_position) > material.contact_radius
+        end
+
+      {:contact_body, %{} = material, %{} = body} ->
+''',
+              'movement continuation'
+          )
+          runtime = replace_once(
+              runtime,
+              '''    context = %{
+      resident: resident,
+      loose_raw: kernel.loose_raw,
+''',
+              '''    loose_raw_position = raw_position(region_id)
+
+    context = %{
+      resident: resident,
+      loose_raw: kernel.loose_raw,
+      loose_raw_direction: relative_direction(resident.position, loose_raw_position),
+      loose_raw_distance: distance(resident.position, loose_raw_position),
+      loose_raw_contact?: distance(resident.position, loose_raw_position) <= 1,
+''',
+              'material locus context'
+          )
+          runtime = replace_once(
+              runtime,
+              '''  defp default_player_body(player_id),
+''',
+              '''  defp local_target_position(kernel, region_id, %{target: :loose_raw}),
+    do: raw_position(region_id)
+
+  defp local_target_position(kernel, _region_id, %{counterparty_id: target_id}) do
+    case Map.get(kernel.residents, target_id) do
+      nil -> nil
+      target -> target.position
+    end
+  end
+
+  defp local_target_position(_kernel, _region_id, _action), do: nil
+
+  defp raw_position(:west_fields), do: {0, -2}
+  defp raw_position(:crossroads), do: {0, -2}
+  defp raw_position(:east_refuge), do: {0, -2}
+
+  defp step_toward({x, y}, {tx, ty}) when x < tx, do: {x + 1, y}
+  defp step_toward({x, y}, {tx, ty}) when x > tx, do: {x - 1, y}
+  defp step_toward({x, y}, {_tx, ty}) when y < ty, do: {x, y + 1}
+  defp step_toward({x, y}, {_tx, ty}) when y > ty, do: {x, y - 1}
+  defp step_toward(position, _target), do: position
+
+  defp default_player_body(player_id),
+''',
+              'target and movement helpers'
+          )
+          runtime_path.write_text(runtime)
+          PY
+          mix format lib/procession/simulation/dormant_material_decision.ex lib/procession/simulation/living_briar_runtime.ex
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add lib/procession/simulation/dormant_material_decision.ex lib/procession/simulation/living_briar_runtime.ex
+          git commit -m 'Add persistent local movement and spatial contact [local-movement-patch]'
+          git push origin HEAD:agent/persistent-local-movement
