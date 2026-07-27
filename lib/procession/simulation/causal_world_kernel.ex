@@ -220,6 +220,101 @@ defmodule Procession.Simulation.CausalWorldKernel do
     loose + held
   end
 
+  @doc """
+  Transfers a conserved held quantity between two locally contacting bodies.
+
+  The kernel resolves only physical eligibility and quantity. It stores no conclusion about
+  why the contact occurred and does not classify the consequence as help, trade, theft, or gift.
+  """
+  def transfer_held_resource(world, from_id, to_id, requested, opts \\ [])
+
+  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts)
+      when is_number(requested) and requested > 0 do
+    with {:ok, source} <- Map.fetch(world.entities, from_id),
+         {:ok, recipient} <- Map.fetch(world.entities, to_id) do
+      contact_radius = max(0, Keyword.get(opts, :held_transfer_contact_radius, 1))
+      distance = manhattan(source.position, recipient.position)
+
+      if from_id == to_id or distance > contact_radius do
+        {world,
+         %{
+ status: :rejected,
+ reason: if(from_id == to_id, do: :same_identity, else: :out_of_contact),
+ requested: requested,
+ transferred: 0.0,
+ distance: distance
+         }}
+      else
+        limit = max(0.0, Keyword.get(opts, :held_transfer_limit, 0.12) * 1.0)
+        amount = min(requested * 1.0, min(source.inventory, limit))
+
+        if amount <= 0.0 do
+{world,
+ %{
+   status: :rejected,
+   reason: :no_held_quantity,
+   requested: requested,
+   transferred: 0.0,
+   distance: distance
+ }}
+        else
+source = %{source | inventory: source.inventory - amount}
+recipient = %{recipient | inventory: recipient.inventory + amount}
+
+event = %{
+  tick: world.tick,
+  entity_id: from_id,
+  counterparty_id: to_id,
+  motor_pattern: Keyword.get(opts, :motor_pattern, {:contact_a, :contact_b}),
+  from: source.position,
+  proposed: recipient.position,
+  position: recipient.position,
+  displaced?: false,
+  blocked?: false,
+  transferred: amount,
+  held_transfer?: true
+}
+
+updated =
+  world
+  |> put_entity(source)
+  |> put_entity(recipient)
+  |> Map.update!(:events, &[event | &1])
+
+{updated,
+ %{
+   status: :transferred,
+   requested: requested,
+   transferred: amount,
+   distance: distance,
+   source_feedback: [
+     {:signal, {:body, :held_quantity_change}, -amount},
+     {:signal, {:contact, :body, to_id}, 1.0 + amount * 5.0}
+   ],
+   recipient_feedback: [
+     {:signal, {:body, :held_quantity_change}, amount},
+     {:signal, {:contact, :body, from_id}, 1.0 + amount * 5.0}
+   ],
+   event: event
+ }}
+        end
+      end
+    else
+      :error ->
+        {world,
+         %{
+ status: :rejected,
+ reason: :identity_not_found,
+ requested: requested,
+ transferred: 0.0
+         }}
+    end
+  end
+
+  def transfer_held_resource(%__MODULE__{} = world, _from_id, _to_id, requested, _opts) do
+    {world, %{status: :rejected, reason: :invalid_quantity, requested: requested, transferred: 0.0}}
+  end
+
   defp physical_proposal(position, %{displaced?: true, direction: direction}) do
     move(position, direction)
   end
