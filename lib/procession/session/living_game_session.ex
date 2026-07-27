@@ -25,14 +25,30 @@ defmodule Procession.LivingGameSession do
     prompt = Keyword.get(opts, :prompt, "a quiet frontier town")
     runtime_opts = Keyword.take(opts, [:seed, :budget, :cadence])
 
-    with {:ok, startup} <- GameSession.start_demo(prompt),
-         {:ok, runtime} <- LivingBriarRuntime.start_link(runtime_opts),
-         {:ok, player_id} <- GameSession.player(startup.session),
-         {:ok, location_id} <- GameSession.player_location(startup.session),
-         {:ok, _presence} <- LivingBriarRuntime.set_player_location(runtime, player_id, location_id) do
-      {:ok, %__MODULE__{session: startup.session, runtime: runtime, startup: startup}}
-    else
-      {:error, reason} -> {:stop, reason}
+    case GameSession.start_demo(prompt) do
+      {:ok, startup} ->
+        case LivingBriarRuntime.start_link(runtime_opts) do
+          {:ok, runtime} ->
+            player_id = GameSession.player(startup.session)
+
+            with {:ok, location_id} <- GameSession.player_location(startup.session),
+                 {:ok, _presence} <-
+                   LivingBriarRuntime.set_player_location(runtime, player_id, location_id) do
+              {:ok, %__MODULE__{session: startup.session, runtime: runtime, startup: startup}}
+            else
+              {:error, reason} ->
+                stop_runtime(runtime)
+                cleanup_inner_session(startup.session)
+                {:stop, reason}
+            end
+
+          {:error, reason} ->
+            cleanup_inner_session(startup.session)
+            {:stop, reason}
+        end
+
+      {:error, reason} ->
+        {:stop, reason}
     end
   end
 
@@ -87,11 +103,10 @@ defmodule Procession.LivingGameSession do
   def handle_call({:travel, destination_id}, _from, state) do
     case GameSession.travel(state.session, destination_id) do
       {:ok, _travel_result} = success ->
-        with {:ok, player_id} <- GameSession.player(state.session),
-             {:ok, _presence} <-
-               LivingBriarRuntime.set_player_location(state.runtime, player_id, destination_id) do
-          {:reply, success, state}
-        else
+        player_id = GameSession.player(state.session)
+
+        case LivingBriarRuntime.set_player_location(state.runtime, player_id, destination_id) do
+          {:ok, _presence} -> {:reply, success, state}
           {:error, reason} -> {:reply, {:error, {:regional_presence_sync_failed, reason}}, state}
         end
 
@@ -112,10 +127,7 @@ defmodule Procession.LivingGameSession do
   @impl true
   def terminate(_reason, state) do
     stop_runtime(state.runtime)
-    if is_pid(state.session) and Process.alive?(state.session) do
-      GameSession.cleanup(state.session)
-      stop_inner_session(state.session)
-    end
+    cleanup_inner_session(state.session)
     :ok
   catch
     :exit, _ -> :ok
@@ -126,6 +138,17 @@ defmodule Procession.LivingGameSession do
     LivingBriarRuntime.snapshot(runtime)
   catch
     :exit, _ -> nil
+  end
+
+  defp cleanup_inner_session(nil), do: :ok
+  defp cleanup_inner_session(session) do
+    if Process.alive?(session) do
+      GameSession.cleanup(session)
+      stop_inner_session(session)
+    end
+    :ok
+  catch
+    :exit, _ -> :ok
   end
 
   defp stop_runtime(nil), do: :ok
