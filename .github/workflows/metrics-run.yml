@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/experiment-results-20260726
+  pull_request:
 
 permissions:
   contents: read
