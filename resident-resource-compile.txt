@@ -1,0 +1,21 @@
+===> Analyzing applications...
+===> Compiling telemetry
+==> jason
+Compiling 10 files (.ex)
+Generated jason app
+==> db_connection
+Compiling 18 files (.ex)
+Generated db_connection app
+==> elixir_make
+Compiling 8 files (.ex)
+Generated elixir_make app
+==> cc_precompiler
+Compiling 3 files (.ex)
+Generated cc_precompiler app
+==> exqlite
+Downloading precompiled NIF to /home/runner/.cache/elixir_make/exqlite-nif-2.17-x86_64-linux-gnu-0.37.0.tar.gz
+Compiling 12 files (.ex)
+Generated exqlite app
+==> procession
+Compiling 264 files (.ex)
+Generated procession app
