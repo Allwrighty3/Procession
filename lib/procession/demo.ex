@@ -38,6 +38,8 @@ defmodule Procession.Demo do
       - wait
       - go to Briar Village
       - look
+      - ask Mira about mine
+      - events for Mira
 
       For integrated living-world play:
       - Procession.Demo.start_living_quiet()
