@@ -31,7 +31,7 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
     initial_total = total_material(world.regions)
     started = System.monotonic_time(:microsecond)
 
-    {regions, cursor, traces} =
+    {regions, _cursor, traces} =
       Enum.reduce(1..ticks, {world.regions, 0, []}, fn tick, {regions, cursor, traces} ->
         regions = Map.new(regions, fn {id, kernel} -> {id, CognitiveMaterialKernel.begin_tick(kernel)} end)
 
@@ -80,11 +80,17 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
 
     case DormantMaterialDecision.begin_cycle(region_id, identity_id, context, tick, opts) do
       {:ok, token} ->
-        {regions, consequence, moved?} = execute(regions, region_id, identity_id, token.action, world)
+        {regions, consequence, destination_region} =
+          execute(regions, region_id, identity_id, token.action, world)
+
+        commit_token =
+          if destination_region == region_id,
+            do: token,
+            else: %{token | region_id: destination_region}
 
         commit =
           DormantMaterialDecision.commit_cycle(
-            token,
+            commit_token,
             consequence.features,
             consequence.coherence,
             opts
@@ -94,12 +100,13 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
          %{
            identity: identity_id,
            from: region_id,
+           to: destination_region,
            primitive: token.action.primitive,
            motor_pattern: token.outcome.pattern,
            motor_direction: token.outcome.direction,
            consequence: consequence.kind,
            amount: consequence.amount,
-           moved?: moved?,
+           moved?: destination_region != region_id,
            commit: commit
          }}
 
@@ -108,22 +115,28 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
     end
   end
 
-  defp execute(regions, region_id, identity_id, %{primitive: :cross_region_boundary, region_id: to}, world) do
+  defp execute(
+         regions,
+         region_id,
+         identity_id,
+         %{primitive: :cross_region_boundary, region_id: to},
+         world
+       ) do
     case RegionActivationLifecycle.migrate(identity_id, region_id, to, [], world.lifecycle) do
       {:ok, _} ->
         {resident, source} = CognitiveMaterialKernel.remove_resident(regions[region_id], identity_id)
         target = CognitiveMaterialKernel.put_resident(regions[to], %{resident | position: {0, 0}})
         next = regions |> Map.put(region_id, source) |> Map.put(to, target)
-        {next, physical_consequence(:crossed_region_boundary, 0.0, 0.2), true}
+        {next, physical_consequence(:crossed_region_boundary, 0.0, 0.2), to}
 
       {:error, _} ->
-        {regions, physical_consequence(:boundary_crossing_rejected, 0.0, -0.05), false}
+        {regions, physical_consequence(:boundary_crossing_rejected, 0.0, -0.05), region_id}
     end
   end
 
   defp execute(regions, region_id, identity_id, action, _world) do
     {kernel, consequence} = CognitiveMaterialKernel.apply(regions[region_id], identity_id, action)
-    {Map.put(regions, region_id, kernel), consequence, false}
+    {Map.put(regions, region_id, kernel), consequence, region_id}
   end
 
   defp physical_consequence(kind, amount, coherence) do
@@ -139,7 +152,8 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
     %{
       tick: tick,
       populations: Map.new(regions, fn {id, kernel} -> {id, map_size(kernel.residents)} end),
-      pressures: Map.new(regions, fn {id, kernel} -> {id, CognitiveMaterialKernel.pressure(kernel)} end),
+      pressures:
+        Map.new(regions, fn {id, kernel} -> {id, CognitiveMaterialKernel.pressure(kernel)} end),
       decisions: decisions,
       deferred: max(0, deferred)
     }
@@ -148,10 +162,7 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
   defp summarize(regions, traces, initial_total, elapsed, ticks, budget, cadence, seed) do
     decisions = Enum.flat_map(traces, & &1.decisions)
     successful = Enum.reject(decisions, &Map.has_key?(&1, :error))
-
-    counts =
-      Enum.frequencies_by(successful, fn decision -> decision.primitive end)
-
+    counts = Enum.frequencies_by(successful, fn decision -> decision.primitive end)
     replenished = ticks * Enum.sum(Enum.map(regions, fn {_id, kernel} -> kernel.replenishment end))
 
     %{
@@ -168,11 +179,21 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
         primitives: counts,
         runtime_us_per_tick: elapsed / ticks
       },
-      final_populations: Map.new(regions, fn {id, kernel} -> {id, map_size(kernel.residents)} end),
+      final_populations:
+        Map.new(regions, fn {id, kernel} -> {id, map_size(kernel.residents)} end),
       material_accounting_error: total_material(regions) - (initial_total + replenished),
       analysis: %{
         archived_minds_committed?: Enum.all?(successful, &match?({:ok, _}, &1.commit)),
-        material_primitives_observed?: Enum.any?(successful, &(&1.primitive in [:contact_loose_raw, :manipulate_held_raw, :consume_held_usable, :contact_body])),
+        material_primitives_observed?:
+          Enum.any?(
+            successful,
+            &(&1.primitive in [
+                :contact_loose_raw,
+                :manipulate_held_raw,
+                :consume_held_usable,
+                :contact_body
+              ])
+          ),
         population_changed?: traces |> Enum.map(& &1.populations) |> Enum.uniq() |> length() > 1,
         pressure_changed?: traces |> Enum.map(& &1.pressures) |> Enum.uniq() |> length() > 1,
         cascade_observed?: cascade?(traces)
@@ -220,7 +241,16 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
           }
         end)
 
-      commitments = Map.new(residents, &{&1.id, %{position: &1.position, energy: &1.energy, mobility: 0.85, inventory: &1.usable}})
+      commitments =
+        Map.new(residents, fn resident ->
+          {resident.id,
+           %{
+             position: resident.position,
+             energy: resident.energy,
+             mobility: 0.85,
+             inventory: resident.usable
+           }}
+        end)
 
       region =
         MultiResolutionRegion.new(id: region_id, entities: [])
@@ -242,7 +272,8 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
           :east_refuge -> [loose_raw: 0.75, replenishment: 0.015]
         end
 
-      {region_id, CognitiveMaterialKernel.new(Keyword.merge(opts, residents: residents, contact_radius: 1))}
+      {region_id,
+       CognitiveMaterialKernel.new(Keyword.merge(opts, residents: residents, contact_radius: 1))}
     end)
   end
 
@@ -270,7 +301,11 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
 
   defp fresh_snapshot(identity_id, seed) do
     DevelopmentalSensorimotorLoop.new(
-      field_opts: [micro_nodes: 96, input_width: 4, encoding_salt: {:unified_material, identity_id}],
+      field_opts: [
+        micro_nodes: 96,
+        input_width: 4,
+        encoding_salt: {:unified_material, identity_id}
+      ],
       body_opts: [initial_coordination: 0.35],
       seed: seed + :erlang.phash2(identity_id, 10_000)
     )
@@ -278,18 +313,37 @@ defmodule Procession.Simulation.UnifiedDormantMaterialExperiment do
   end
 
   defp exits(:west_fields), do: [%{direction: :east, region_id: :crossroads}]
-  defp exits(:crossroads), do: [%{direction: :west, region_id: :west_fields}, %{direction: :east, region_id: :east_refuge}]
+
+  defp exits(:crossroads),
+    do: [
+      %{direction: :west, region_id: :west_fields},
+      %{direction: :east, region_id: :east_refuge}
+    ]
+
   defp exits(:east_refuge), do: [%{direction: :west, region_id: :crossroads}]
 
   defp locations(regions) do
     regions
-    |> Enum.flat_map(fn {region_id, kernel} -> Enum.map(kernel.residents, fn {id, _} -> {id, region_id} end) end)
+    |> Enum.flat_map(fn {region_id, kernel} ->
+      Enum.map(kernel.residents, fn {id, _} -> {id, region_id} end)
+    end)
     |> Map.new()
   end
 
-  defp total_material(regions), do: Enum.sum(Enum.map(regions, fn {_id, kernel} -> CognitiveMaterialKernel.total_material(kernel) end))
+  defp total_material(regions) do
+    Enum.sum(
+      Enum.map(regions, fn {_id, kernel} -> CognitiveMaterialKernel.total_material(kernel) end)
+    )
+  end
+
   defp rotate_take([], _cursor, _budget), do: []
-  defp rotate_take(ids, cursor, budget), do: ids |> Stream.cycle() |> Stream.drop(rem(cursor, length(ids))) |> Enum.take(min(budget, length(ids)))
+
+  defp rotate_take(ids, cursor, budget) do
+    ids
+    |> Stream.cycle()
+    |> Stream.drop(rem(cursor, length(ids)))
+    |> Enum.take(min(budget, length(ids)))
+  end
 
   defp stop_world(world) do
     Enum.each([world.lifecycle, world.manager], fn name ->
