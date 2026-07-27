@@ -17,7 +17,8 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     :manipulate_held_raw,
     :consume_held_usable,
     :contact_body,
-    :move_local
+    :move_local,
+    :cross_region_boundary
   ]
   @location_regions %{
     "loc_crossroads" => :crossroads,
@@ -127,7 +128,7 @@ defmodule Procession.Simulation.LivingBriarRuntime do
       end)
 
     {regions, resident_processes, process_events} =
-      advance_resident_processes(replenished_regions, state.resident_processes, tick)
+      advance_resident_processes(replenished_regions, state.resident_processes, tick, state)
 
     {regions, resident_processes, decisions, deferred, cursor, cognition_process_events} =
       service_cognition(regions, resident_processes, tick, state)
@@ -191,7 +192,9 @@ defmodule Procession.Simulation.LivingBriarRuntime do
        player_observations: Enum.count(decisions, &(&1[:player_observed?] == true)),
        decisions: length(decisions),
        failures: state.failures,
-       migrations: Enum.count(successful, & &1.moved?),
+       migrations:
+       Enum.count(successful, & &1.moved?) +
+         Enum.count(process_events, &(&1.status == :arrived)),
        deferred: Enum.sum(Enum.map(traces, & &1.deferred)),
        primitives: Enum.frequencies_by(successful, & &1.primitive),
        resident_processes: state.resident_processes,
@@ -201,9 +204,17 @@ defmodule Procession.Simulation.LivingBriarRuntime do
        resident_process_interruptions: Enum.count(process_events, &(&1.status == :interrupted)),
        resident_process_progress: Enum.count(process_events, &(&1.status == :continuing)),
        resident_process_endings: Enum.count(process_events, &(&1.status == :ended)),
+       transit_starts:
+         Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :started)),
+       transit_progress:
+         Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :continuing)),
+       transit_arrivals:
+         Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :arrived)),
+       transit_stranded:
+         Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :stranded)),
        material_accounting_error:
-         total_material(state.regions) + player_material(state.player_body) -
-           (state.initial_total + replenished),
+         total_material(state.regions) + transit_material(state.resident_processes) +
+           player_material(state.player_body) - (state.initial_total + replenished),
        archived_minds_committed?: Enum.all?(successful, &match?({:ok, _}, &1.commit))
      }, state}
   end
@@ -250,14 +261,39 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     end
   end
 
-  defp advance_resident_processes(regions, processes, tick) do
-    processes
-    |> Enum.sort_by(fn {identity_id, _process} -> identity_id end)
-    |> Enum.reduce({regions, %{}, []}, fn {identity_id, process},
-                                        {current_regions, next_processes, events} ->
+  defp advance_resident_processes(regions, processes, tick, state) do
+  processes
+  |> Enum.sort_by(fn {identity_id, _process} -> identity_id end)
+  |> Enum.reduce({regions, %{}, []}, fn {identity_id, process},
+                                      {current_regions, next_processes, events} ->
+    if process.primitive == :cross_region_boundary do
+      {updated_regions, updated_process, status, consequence} =
+        advance_transit_process(current_regions, identity_id, process, state)
+
+      event =
+        process_event(
+          identity_id,
+          updated_process,
+          status,
+          tick,
+          consequence.amount,
+          consequence.kind
+        )
+
+      next_processes =
+        if status in [:continuing, :stranded] do
+          Map.put(next_processes, identity_id, updated_process)
+        else
+          next_processes
+        end
+
+      {updated_regions, next_processes, [event | events]}
+    else
       case Map.get(locations(current_regions), identity_id) do
         nil ->
-          event = process_event(identity_id, process, :interrupted, tick, 0.0, :identity_absent)
+          event =
+            process_event(identity_id, process, :interrupted, tick, 0.0, :identity_absent)
+
           {current_regions, next_processes, [event | events]}
 
         region_id ->
@@ -297,11 +333,75 @@ defmodule Procession.Simulation.LivingBriarRuntime do
             {updated_regions, next_processes, [event | events]}
           end
       end
-    end)
-    |> then(fn {next_regions, next_processes, events} ->
-      {next_regions, next_processes, Enum.reverse(events)}
-    end)
+    end
+  end)
+  |> then(fn {next_regions, next_processes, events} ->
+    {next_regions, next_processes, Enum.reverse(events)}
+  end)
+end
+
+defp advance_transit_process(regions, identity_id, process, state) do
+  source_region = process.region_id
+  destination_region = process.action.region_id
+  extent = Map.get(process, :extent, transit_extent(source_region, destination_region))
+
+  {body, regions} =
+    case Map.get(process, :body) do
+      nil ->
+        {resident, source} =
+          CognitiveMaterialKernel.remove_resident(regions[source_region], identity_id)
+
+        {resident, Map.put(regions, source_region, source)}
+
+      resident ->
+        {resident, regions}
+    end
+
+  energy = clamp(body.energy - 0.018, 0.0, 1.0)
+  body = %{body | energy: energy}
+  progress = process.accumulated + if(energy > 0.0, do: 1.0, else: 0.0)
+
+  updated_process =
+    process
+    |> Map.put(:body, body)
+    |> Map.put(:extent, extent)
+    |> Map.put(:accumulated, progress)
+
+  cond do
+    energy <= 0.0 and progress < extent ->
+      {regions, updated_process, :stranded,
+       physical_consequence(:transit_stranded, 0.0, -0.2)}
+
+    progress < extent ->
+      {regions, updated_process, :continuing,
+       physical_consequence(:advanced_in_transit, 1.0, 0.1)}
+
+    true ->
+      case RegionActivationLifecycle.migrate(
+             identity_id,
+             source_region,
+             destination_region,
+             [],
+             state.lifecycle
+           ) do
+        {:ok, _} ->
+          target =
+            CognitiveMaterialKernel.put_resident(
+              regions[destination_region],
+              %{body | position: transit_entry_position(process.action.direction)}
+            )
+
+          {Map.put(regions, destination_region, target), updated_process, :arrived,
+           physical_consequence(:crossed_region_boundary, 1.0, 0.2)}
+
+        {:error, _} ->
+          source = CognitiveMaterialKernel.put_resident(regions[source_region], body)
+
+          {Map.put(regions, source_region, source), updated_process, :ended,
+           physical_consequence(:boundary_crossing_rejected, 0.0, -0.1)}
+      end
   end
+end
 
   defp advance_physical_process(regions, region_id, identity_id, %{primitive: :move_local} = process) do
     kernel = regions[region_id]
@@ -679,27 +779,6 @@ defmodule Procession.Simulation.LivingBriarRuntime do
 
   defp player_observation(_state, _region_id, _resident), do: []
 
-  defp execute(
-         regions,
-         region_id,
-         identity_id,
-         %{primitive: :cross_region_boundary, region_id: to},
-         state
-       ) do
-    case RegionActivationLifecycle.migrate(identity_id, region_id, to, [], state.lifecycle) do
-      {:ok, _} ->
-        {resident, source} =
-          CognitiveMaterialKernel.remove_resident(regions[region_id], identity_id)
-
-        target = CognitiveMaterialKernel.put_resident(regions[to], %{resident | position: {0, 0}})
-        next = regions |> Map.put(region_id, source) |> Map.put(to, target)
-        {next, physical_consequence(:crossed_region_boundary, 0.0, 0.2), to}
-
-      {:error, _} ->
-        {regions, physical_consequence(:boundary_crossing_rejected, 0.0, -0.05), region_id}
-    end
-  end
-
   defp execute(regions, region_id, identity_id, action, _state) do
     {kernel, consequence} = CognitiveMaterialKernel.apply(regions[region_id], identity_id, action)
     {Map.put(regions, region_id, kernel), consequence, region_id}
@@ -713,17 +792,21 @@ defmodule Procession.Simulation.LivingBriarRuntime do
       features: [{:signal, {:physical_consequence, kind}, 1.0}]
     }
 
-  defp process_event(identity_id, process, status, tick, amount, consequence),
-    do: %{
-      identity: identity_id,
-      primitive: process.primitive,
-      region: process.region_id,
-      status: status,
-      tick: tick,
-      amount: amount,
-      accumulated: process.accumulated,
-      consequence: consequence
-    }
+  defp process_event(identity_id, process, status, tick, amount, consequence) do
+  %{
+    identity: identity_id,
+    primitive: process.primitive,
+    region: process.region_id,
+    destination_region: get_in(process, [:action, :region_id]),
+    status: status,
+    tick: tick,
+    amount: amount,
+    accumulated: process.accumulated,
+    extent: Map.get(process, :extent),
+    energy: get_in(process, [:body, :energy]),
+    consequence: consequence
+  }
+end
 
   defp trace(
          tick,
@@ -945,6 +1028,27 @@ defmodule Procession.Simulation.LivingBriarRuntime do
   defp player_position(body), do: body.position
   defp player_material(nil), do: 0.0
   defp player_material(body), do: body.raw + body.usable + body.consumed
+
+  defp transit_material(processes) do
+    processes
+    |> Map.values()
+    |> Enum.map(fn process ->
+      case Map.get(process, :body) do
+        nil -> 0.0
+        body -> body.raw + body.usable
+      end
+    end)
+    |> Enum.sum()
+  end
+
+  defp transit_extent(:west_fields, :crossroads), do: 3.0
+  defp transit_extent(:crossroads, :west_fields), do: 3.0
+  defp transit_extent(:crossroads, :east_refuge), do: 4.0
+  defp transit_extent(:east_refuge, :crossroads), do: 4.0
+  defp transit_extent(_from, _to), do: 3.0
+  defp transit_entry_position(:east), do: {-2, 0}
+  defp transit_entry_position(:west), do: {2, 0}
+  defp transit_entry_position(_), do: {0, 0}
   defp direction_delta(:north), do: {0, -1}
   defp direction_delta(:south), do: {0, 1}
   defp direction_delta(:east), do: {1, 0}
