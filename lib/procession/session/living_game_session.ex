@@ -65,7 +65,10 @@ defmodule Procession.LivingGameSession do
     living_summary = safe_snapshot(state.runtime)
     stop_runtime(state.runtime)
     cleanup = GameSession.cleanup(state.session)
-    {:reply, Map.put(cleanup, :living_briar, living_summary), %{state | runtime: nil}}
+    stop_inner_session(state.session)
+
+    {:reply, Map.put(cleanup, :living_briar, living_summary),
+     %{state | runtime: nil, session: nil}}
   end
 
   def handle_call(:look, _from, state), do:
@@ -101,6 +104,7 @@ defmodule Procession.LivingGameSession do
 
     if is_pid(state.session) and Process.alive?(state.session) do
       GameSession.cleanup(state.session)
+      stop_inner_session(state.session)
     end
 
     :ok
@@ -120,6 +124,15 @@ defmodule Procession.LivingGameSession do
 
   defp stop_runtime(runtime) do
     if Process.alive?(runtime), do: LivingBriarRuntime.stop(runtime)
+    :ok
+  catch
+    :exit, _ -> :ok
+  end
+
+  defp stop_inner_session(nil), do: :ok
+
+  defp stop_inner_session(session) do
+    if Process.alive?(session), do: GenServer.stop(session, :normal)
     :ok
   catch
     :exit, _ -> :ok
