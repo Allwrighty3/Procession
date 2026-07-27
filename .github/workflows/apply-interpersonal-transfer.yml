@@ -1,0 +1,530 @@
+name: Apply Interpersonal And Transfer
+
+on:
+  push:
+    branches:
+      - agent/finish-interpersonal-and-transfer
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Implement interpersonal controls and held transfer') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finish-interpersonal-and-transfer
+      - name: Apply implementation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          kernel = Path('lib/procession/simulation/causal_world_kernel.ex')
+          text = kernel.read_text()
+          marker = '''  def total_resource(%__MODULE__{} = world) do
+    loose = world.resources |> Map.values() |> Enum.map(& &1.quantity) |> Enum.sum()
+    held = world.entities |> Map.values() |> Enum.map(& &1.inventory) |> Enum.sum()
+    loose + held
+  end
+'''
+          addition = marker + '''
+  @doc """
+  Transfers a conserved held quantity between two locally contacting bodies.
+
+  The kernel resolves only physical eligibility and quantity. It stores no conclusion about
+  why the contact occurred and does not classify the consequence as help, trade, theft, or gift.
+  """
+  @spec transfer_held_resource(t(), term(), term(), number(), keyword()) :: {t(), map()}
+        when t: %__MODULE__{}
+  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts \\ [])
+      when is_number(requested) and requested > 0 do
+    with {:ok, source} <- Map.fetch(world.entities, from_id),
+         {:ok, recipient} <- Map.fetch(world.entities, to_id) do
+      contact_radius = max(0, Keyword.get(opts, :held_transfer_contact_radius, 1))
+      distance = manhattan(source.position, recipient.position)
+
+      if from_id == to_id or distance > contact_radius do
+        {world,
+         %{
+           status: :rejected,
+           reason: if(from_id == to_id, do: :same_identity, else: :out_of_contact),
+           requested: requested,
+           transferred: 0.0,
+           distance: distance
+         }}
+      else
+        limit = max(0.0, Keyword.get(opts, :held_transfer_limit, 0.12) * 1.0)
+        amount = min(requested * 1.0, min(source.inventory, limit))
+
+        if amount <= 0.0 do
+          {world,
+           %{
+             status: :rejected,
+             reason: :no_held_quantity,
+             requested: requested,
+             transferred: 0.0,
+             distance: distance
+           }}
+        else
+          source = %{source | inventory: source.inventory - amount}
+          recipient = %{recipient | inventory: recipient.inventory + amount}
+
+          event = %{
+            tick: world.tick,
+            entity_id: from_id,
+            counterparty_id: to_id,
+            motor_pattern: Keyword.get(opts, :motor_pattern, {:contact_a, :contact_b}),
+            from: source.position,
+            proposed: recipient.position,
+            position: recipient.position,
+            displaced?: false,
+            blocked?: false,
+            transferred: amount,
+            held_transfer?: true
+          }
+
+          updated =
+            world
+            |> put_entity(source)
+            |> put_entity(recipient)
+            |> Map.update!(:events, &[event | &1])
+
+          {updated,
+           %{
+             status: :transferred,
+             requested: requested,
+             transferred: amount,
+             distance: distance,
+             source_feedback: [
+               {:signal, {:body, :held_quantity_change}, -amount},
+               {:signal, {:contact, :body, to_id}, 1.0 + amount * 5.0}
+             ],
+             recipient_feedback: [
+               {:signal, {:body, :held_quantity_change}, amount},
+               {:signal, {:contact, :body, from_id}, 1.0 + amount * 5.0}
+             ],
+             event: event
+           }}
+        end
+      end
+    else
+      :error ->
+        {world,
+         %{
+           status: :rejected,
+           reason: :identity_not_found,
+           requested: requested,
+           transferred: 0.0
+         }}
+    end
+  end
+
+  def transfer_held_resource(%__MODULE__{} = world, _from_id, _to_id, requested, _opts) do
+    {world, %{status: :rejected, reason: :invalid_quantity, requested: requested, transferred: 0.0}}
+  end
+'''
+          if marker not in text:
+              raise SystemExit('kernel marker missing')
+          kernel.write_text(text.replace(marker, addition))
+          PY
+
+          cat > lib/procession/simulation/local_interpersonal_controls_experiment.ex <<'EOF'
+          defmodule Procession.Simulation.LocalInterpersonalControlsExperiment do
+            @moduledoc """
+            Compares grounded interpersonal learning against absence, range, behavioral variation,
+            reversal, and actor-identity controls. No scenario stores named social conclusions.
+            """
+
+            alias Procession.Simulation.CausalWorldKernel
+            alias Procession.Simulation.DevelopmentalSensorimotorLoop
+            alias Procession.Simulation.SocialRelationPlane
+
+            @default_cycles 96
+            @scenarios [:absent, :out_of_range, :stationary, :consistent, :random, :reversal, :new_actor]
+
+            def run(opts \\ []) do
+              cycles = positive(Keyword.get(opts, :cycles, @default_cycles), @default_cycles)
+              seed = Keyword.get(opts, :seed, 41)
+
+              results = Map.new(@scenarios, &{&1, run_scenario(&1, cycles, seed)})
+
+              %{
+                experiment: :local_interpersonal_controls,
+                cycles: cycles,
+                seed: seed,
+                scenarios: results,
+                grounded_effect_present?:
+                  results.consistent.relation_count > results.absent.relation_count and
+                    results.consistent.relation_count > results.out_of_range.relation_count,
+                actor_specific?: results.new_actor.trained_actor_relation? and not results.new_actor.new_actor_relation?,
+                reversal_observed?:
+                  results.reversal.east_relation? and results.reversal.west_relation?,
+                named_social_conclusions_present?:
+                  Enum.any?(results, fn {_name, result} -> result.named_social_conclusions_present? end)
+              }
+            end
+
+            defp run_scenario(scenario, cycles, seed) do
+              observer = "control_observer"
+              trained_actor = "control_actor"
+              new_actor = "control_actor_new"
+              presence = presence_features(scenario, observer, trained_actor)
+              loop = new_loop(seed, scenario)
+
+              {plane, loop, target} =
+                Enum.reduce(1..cycles, {SocialRelationPlane.new(), loop, nil}, fn cycle, {plane, loop, target} ->
+                  event = cycle_event(scenario, trained_actor, cycle, cycles)
+
+                  {plane, social_signals} =
+                    if event do
+                      SocialRelationPlane.observe(plane, observer, event, cycle, observer_salience: 1.0)
+                    else
+                      {plane, []}
+                    end
+
+                  raw = if event, do: [SocialRelationPlane.physical_observation_signal(event)], else: []
+                  sensed = DevelopmentalSensorimotorLoop.sense(loop, presence ++ raw ++ social_signals)
+
+                  {emitted, outcome} =
+                    DevelopmentalSensorimotorLoop.emit(sensed, cycle,
+                      seed: seed,
+                      bounds: {6, 6},
+                      output_exploration: 1.0
+                    )
+
+                  target = target || outcome.pattern
+                  coherence = if event && outcome.pattern == target, do: 1.0, else: if(event, do: -0.35, else: 0.0)
+                  loop = DevelopmentalSensorimotorLoop.feedback(emitted, consequence_features(event), coherence)
+                  {plane, loop, target}
+                end)
+
+              probe_presence =
+                if scenario == :new_actor do
+                  presence_features(:consistent, observer, new_actor)
+                else
+                  presence
+                end
+
+              probe_actor = if scenario == :new_actor, do: new_actor, else: trained_actor
+              probe_event = observed_event(probe_actor, :east, cycles + 1, scenario == :stationary)
+              probe_signals = relation_signals(plane, observer, probe_event, cycles + 1)
+              sensed = DevelopmentalSensorimotorLoop.sense(loop, probe_presence ++ probe_signals)
+              {_loop, outcome} = DevelopmentalSensorimotorLoop.emit(sensed, cycles + 1, seed: seed, bounds: {6, 6}, output_exploration: 0.0)
+              trace = SocialRelationPlane.trace(plane)
+
+              %{
+                relation_count: trace.relation_count,
+                observations: trace.observations,
+                motor_pattern: outcome.pattern,
+                target_motor_pattern: target,
+                trained_actor_relation?: actor_relation?(plane, observer, trained_actor),
+                new_actor_relation?: actor_relation?(plane, observer, new_actor),
+                east_relation?: direction_relation?(plane, observer, trained_actor, :east),
+                west_relation?: direction_relation?(plane, observer, trained_actor, :west),
+                grounded_presence_count: count_presence(probe_presence),
+                named_social_conclusions_present?: named_social_conclusions?(plane)
+              }
+            end
+
+            defp presence_features(:absent, _observer, _actor), do: []
+
+            defp presence_features(scenario, observer, actor) do
+              actor_position = if scenario == :out_of_range, do: {6, 6}, else: {2, 1}
+
+              CausalWorldKernel.new(
+                bounds: {6, 6},
+                perception_radius: 2,
+                entities: [
+                  %{id: observer, position: {1, 1}, energy: 0.8},
+                  %{id: actor, position: actor_position, energy: 0.8}
+                ],
+                resources: []
+              )
+              |> CausalWorldKernel.perceive(observer)
+              |> Enum.filter(fn
+                {:signal, {:nearby_body, ^actor, _, _}, _} -> true
+                _ -> false
+              end)
+            end
+
+            defp cycle_event(:absent, _actor, _cycle, _cycles), do: nil
+            defp cycle_event(:out_of_range, _actor, _cycle, _cycles), do: nil
+            defp cycle_event(:stationary, actor, cycle, _cycles), do: observed_event(actor, :none, cycle, true)
+            defp cycle_event(:consistent, actor, cycle, _cycles), do: observed_event(actor, :east, cycle, false)
+            defp cycle_event(:new_actor, actor, cycle, _cycles), do: observed_event(actor, :east, cycle, false)
+
+            defp cycle_event(:random, actor, cycle, _cycles) do
+              direction = Enum.at([:east, :north, :west, :south], rem(cycle - 1, 4))
+              observed_event(actor, direction, cycle, false)
+            end
+
+            defp cycle_event(:reversal, actor, cycle, cycles) do
+              observed_event(actor, if(cycle <= div(cycles, 2), do: :east, else: :west), cycle, false)
+            end
+
+            defp observed_event(actor, direction, tick, stationary?) do
+              from = {2, 1}
+              position = move(from, direction)
+
+              %{
+                tick: tick,
+                entity_id: actor,
+                motor_pattern: {:motor_a, :motor_b},
+                from: from,
+                proposed: position,
+                position: position,
+                displaced?: not stationary?,
+                blocked?: false,
+                transferred: 0.0
+              }
+            end
+
+            defp move(position, :none), do: position
+            defp move({x, y}, :east), do: {x + 1, y}
+            defp move({x, y}, :west), do: {x - 1, y}
+            defp move({x, y}, :north), do: {x, y - 1}
+            defp move({x, y}, :south), do: {x, y + 1}
+
+            defp consequence_features(nil), do: [{:signal, :no_local_actor_event, 0.1}]
+            defp consequence_features(event), do: [{:signal, {:observed_actor_consequence, SocialRelationPlane.event_signature(event)}, 1.0}]
+
+            defp relation_signals(plane, observer, event, tick) do
+              {_plane, signals} = SocialRelationPlane.observe(plane, observer, event, tick, observer_salience: 1.0)
+              signals
+            end
+
+            defp actor_relation?(plane, observer, actor) do
+              plane.relations |> Map.keys() |> Enum.any?(fn {o, a, _context} -> o == observer and a == actor end)
+            end
+
+            defp direction_relation?(plane, observer, actor, direction) do
+              plane.relations
+              |> Map.keys()
+              |> Enum.any?(fn
+                {^observer, ^actor, {:movement_attempt, ^direction}} -> true
+                _ -> false
+              end)
+            end
+
+            defp count_presence(features), do: Enum.count(features, &match?({:signal, {:nearby_body, _, _, _}, _}, &1))
+
+            defp named_social_conclusions?(plane) do
+              plane |> SocialRelationPlane.trace() |> inspect() |> String.match?(~r/\b(friend|trust|teacher|leader|help|avoid|follow|authority)\b/i)
+            end
+
+            defp new_loop(seed, scenario) do
+              DevelopmentalSensorimotorLoop.new(
+                field_opts: [
+                  micro_nodes: 96,
+                  input_width: 4,
+                  encoding_salt: {:interpersonal_control, scenario, seed},
+                  output_source_threshold: 0.0,
+                  output_edge_retention: 1.0,
+                  output_plasticity_budget: 0.5
+                ],
+                body_opts: [initial_coordination: 1.0],
+                position: {1, 1}
+              )
+            end
+
+            defp positive(value, _fallback) when is_integer(value) and value > 0, do: value
+            defp positive(_value, fallback), do: fallback
+          end
+          EOF
+
+          cat > lib/procession/simulation/held_resource_transfer_experiment.ex <<'EOF'
+          defmodule Procession.Simulation.HeldResourceTransferExperiment do
+            @moduledoc """Exercises conserved body-to-body held quantity transfer without intent labels."""
+
+            alias Procession.Simulation.CausalWorldKernel
+            alias Procession.Simulation.SocialRelationPlane
+
+            def run(opts \\ []) do
+              requested = max(0.0, Keyword.get(opts, :requested, 0.2) * 1.0)
+              limit = max(0.0, Keyword.get(opts, :limit, 0.12) * 1.0)
+
+              initial = world({1, 1}) |> CausalWorldKernel.begin_tick()
+              total_before = CausalWorldKernel.total_resource(initial)
+
+              {contact_world, contact} =
+                CausalWorldKernel.transfer_held_resource(initial, "source", "recipient", requested,
+                  held_transfer_limit: limit
+                )
+
+              {far_world, far} =
+                world({5, 5})
+                |> CausalWorldKernel.begin_tick()
+                |> CausalWorldKernel.transfer_held_resource("source", "recipient", requested,
+                  held_transfer_limit: limit
+                )
+
+              %{
+                experiment: :held_resource_transfer,
+                requested: requested,
+                limit: limit,
+                contact: contact,
+                out_of_contact: far,
+                inventories_before: inventories(initial),
+                inventories_after: inventories(contact_world),
+                conserved?: abs(CausalWorldKernel.total_resource(contact_world) - total_before) < 1.0e-9,
+                out_of_contact_unchanged?: inventories(far_world) == inventories(world({5, 5}) |> CausalWorldKernel.begin_tick()),
+                social_event_context: if(contact[:event], do: SocialRelationPlane.event_context(contact.event), else: nil),
+                named_intent_present?: named_intent?(contact)
+              }
+            end
+
+            defp world(recipient_position) do
+              CausalWorldKernel.new(
+                bounds: {6, 6},
+                entities: [
+                  %{id: "source", position: {1, 1}, inventory: 0.35, energy: 0.8},
+                  %{id: "recipient", position: recipient_position, inventory: 0.05, energy: 0.8}
+                ],
+                resources: [%{id: "loose", position: {6, 6}, quantity: 0.6}]
+              )
+            end
+
+            defp inventories(world), do: Map.new(world.entities, fn {id, entity} -> {id, entity.inventory} end)
+
+            defp named_intent?(result) do
+              result |> inspect() |> String.match?(~r/\b(gift|give|trade|help|steal|theft|charity)\b/i)
+            end
+          end
+          EOF
+
+          mkdir -p lib/mix/tasks
+          cat > lib/mix/tasks/procession.metrics.local_interpersonal_controls.ex <<'EOF'
+          defmodule Mix.Tasks.Procession.Metrics.LocalInterpersonalControls do
+            use Mix.Task
+            @shortdoc "Runs grounded local interpersonal control scenarios"
+
+            @impl true
+            def run(args) do
+              Mix.Task.run("app.start")
+              {opts, _, _} = OptionParser.parse(args, strict: [cycles: :integer, seed: :integer])
+              result = Procession.Simulation.LocalInterpersonalControlsExperiment.run(opts)
+              Mix.shell().info(inspect(result, pretty: true, limit: :infinity))
+            end
+          end
+          EOF
+
+          cat > lib/mix/tasks/procession.metrics.held_resource_transfer.ex <<'EOF'
+          defmodule Mix.Tasks.Procession.Metrics.HeldResourceTransfer do
+            use Mix.Task
+            @shortdoc "Runs the held body-to-body resource transfer experiment"
+
+            @impl true
+            def run(args) do
+              Mix.Task.run("app.start")
+              {opts, _, _} = OptionParser.parse(args, strict: [requested: :float, limit: :float])
+              result = Procession.Simulation.HeldResourceTransferExperiment.run(opts)
+              Mix.shell().info(inspect(result, pretty: true, limit: :infinity))
+            end
+          end
+          EOF
+
+          cat >> test/procession/simulation/causal_world_kernel_test.exs.tmp <<'EOF'
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('test/procession/simulation/causal_world_kernel_test.exs')
+          text = p.read_text()
+          marker = '\nend\n'
+          tests = '''
+
+            test "held resource transfer conserves quantity between contacting bodies" do
+              initial =
+                world(
+                  entities: [
+                    %{id: "mara", position: {2, 2}, inventory: 0.3},
+                    %{id: "oren", position: {3, 2}, inventory: 0.1}
+                  ],
+                  resources: []
+                )
+                |> CausalWorldKernel.begin_tick()
+
+              total = CausalWorldKernel.total_resource(initial)
+              {updated, result} = CausalWorldKernel.transfer_held_resource(initial, "mara", "oren", 0.2, held_transfer_limit: 0.12)
+
+              assert result.status == :transferred
+              assert_in_delta result.transferred, 0.12, 1.0e-9
+              assert_in_delta updated.entities["mara"].inventory, 0.18, 1.0e-9
+              assert_in_delta updated.entities["oren"].inventory, 0.22, 1.0e-9
+              assert_in_delta CausalWorldKernel.total_resource(updated), total, 1.0e-9
+              refute Map.has_key?(result.event, :intent)
+              refute Map.has_key?(result.event, :action)
+            end
+
+            test "held resource transfer requires local contact" do
+              initial =
+                world(
+                  entities: [
+                    %{id: "mara", position: {0, 0}, inventory: 0.3},
+                    %{id: "oren", position: {4, 4}, inventory: 0.1}
+                  ],
+                  resources: []
+                )
+
+              {updated, result} = CausalWorldKernel.transfer_held_resource(initial, "mara", "oren", 0.1)
+              assert result == %{status: :rejected, reason: :out_of_contact, requested: 0.1, transferred: 0.0, distance: 8}
+              assert CausalWorldKernel.trace(updated) == CausalWorldKernel.trace(initial)
+            end
+          '''
+          idx = text.rfind(marker)
+          if idx < 0:
+              raise SystemExit('test module end missing')
+          p.write_text(text[:idx] + tests + text[idx:])
+          PY
+
+          cat > test/procession/simulation/local_interpersonal_controls_experiment_test.exs <<'EOF'
+          defmodule Procession.Simulation.LocalInterpersonalControlsExperimentTest do
+            use ExUnit.Case, async: true
+            alias Procession.Simulation.LocalInterpersonalControlsExperiment
+
+            test "grounded observation controls isolate local directed learning" do
+              result = LocalInterpersonalControlsExperiment.run(cycles: 32, seed: 41)
+
+              assert result.scenarios.absent.relation_count == 0
+              assert result.scenarios.out_of_range.relation_count == 0
+              assert result.scenarios.consistent.relation_count > 0
+              assert result.scenarios.stationary.relation_count > 0
+              assert result.grounded_effect_present?
+              assert result.actor_specific?
+              assert result.reversal_observed?
+              refute result.named_social_conclusions_present?
+            end
+          end
+          EOF
+
+          cat > test/procession/simulation/held_resource_transfer_experiment_test.exs <<'EOF'
+          defmodule Procession.Simulation.HeldResourceTransferExperimentTest do
+            use ExUnit.Case, async: true
+            alias Procession.Simulation.HeldResourceTransferExperiment
+
+            test "reports conserved local transfer and rejects distant transfer" do
+              result = HeldResourceTransferExperiment.run(requested: 0.2, limit: 0.12)
+
+              assert result.contact.status == :transferred
+              assert result.out_of_contact.reason == :out_of_contact
+              assert result.conserved?
+              assert result.out_of_contact_unchanged?
+              assert match?({:resource_contact, _band}, result.social_event_context)
+              refute result.named_intent_present?
+            end
+          end
+          EOF
+
+          rm -f test/procession/simulation/causal_world_kernel_test.exs.tmp
+          rm -f .github/workflows/apply-interpersonal-transfer.yml
+
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib test .github/workflows
+          git commit -m "Implement interpersonal controls and held transfer"
+          git push origin HEAD:agent/finish-interpersonal-and-transfer
