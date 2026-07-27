@@ -15,9 +15,10 @@ defmodule Procession.LivingGameSession do
   defstruct [:session, :runtime, :startup]
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts)
+  def start(opts \\ []), do: GenServer.start(__MODULE__, opts)
 
   def start_demo(prompt \\ "a quiet frontier town", opts \\ []) do
-    with {:ok, session} <- start_link(Keyword.put(opts, :prompt, prompt)),
+    with {:ok, session} <- start(Keyword.put(opts, :prompt, prompt)),
          startup <- GenServer.call(session, :startup) do
       {:ok, Map.put(startup, :session, session)}
     end
