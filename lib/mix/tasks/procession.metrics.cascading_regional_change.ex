@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Procession.Metrics.CascadingRegionalChange do
   use Mix.Task
 
-  @moduledoc "Runs the cascading three-region dormant migration experiment."
+  @moduledoc "Runs the cascading three-region dormant migration and regional feedback experiment."
   @shortdoc "Runs cascading regional change metrics"
 
   @impl true
