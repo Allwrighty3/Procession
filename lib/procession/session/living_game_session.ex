@@ -86,7 +86,7 @@ defmodule Procession.LivingGameSession do
 
   def handle_call({:travel, destination_id}, _from, state) do
     case GameSession.travel(state.session, destination_id) do
-      {:ok, result} = success ->
+      {:ok, _travel_result} = success ->
         with {:ok, player_id} <- GameSession.player(state.session),
              {:ok, _presence} <-
                LivingBriarRuntime.set_player_location(state.runtime, player_id, destination_id) do
