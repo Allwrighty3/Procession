@@ -16,7 +16,8 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     :contact_loose_raw,
     :manipulate_held_raw,
     :consume_held_usable,
-    :contact_body
+    :contact_body,
+    :move_local
   ]
   @location_regions %{
     "loc_crossroads" => :crossroads,
@@ -126,58 +127,10 @@ defmodule Procession.Simulation.LivingBriarRuntime do
       end)
 
     {regions, resident_processes, process_events} =
-      advance_resident_processes(
-        replenished_regions,
-        state.resident_processes,
-        tick
-      )
+      advance_resident_processes(replenished_regions, state.resident_processes, tick)
 
     {regions, resident_processes, decisions, deferred, cursor, cognition_process_events} =
-      if rem(tick, state.cadence) == 0 do
-        ids = locations(regions) |> Map.keys() |> Enum.sort()
-        selected = rotate_take(ids, state.cursor, state.budget)
-
-        {next_regions, next_processes, next_decisions, next_events} =
-          Enum.reduce(
-            selected,
-            {regions, resident_processes, [], []},
-            fn identity_id, {current_regions, current_processes, decisions, events} ->
-              {updated_regions, updated_processes, decision, decision_events} =
-                decide_and_apply(
-                  current_regions,
-                  current_processes,
-                  identity_id,
-                  tick,
-                  state
-                )
-
-              {
-                updated_regions,
-                updated_processes,
-                [decision | decisions],
-                decision_events ++ events
-              }
-            end
-          )
-
-        {
-          next_regions,
-          next_processes,
-          Enum.reverse(next_decisions),
-          max(0, length(ids) - length(selected)),
-          state.cursor + state.budget,
-          Enum.reverse(next_events)
-        }
-      else
-        {
-          regions,
-          resident_processes,
-          [],
-          map_size(locations(regions)),
-          state.cursor,
-          []
-        }
-      end
+      service_cognition(regions, resident_processes, tick, state)
 
     all_process_events = process_events ++ cognition_process_events
     observed_by = Enum.count(decisions, &(&1[:player_observed?] == true))
@@ -220,7 +173,6 @@ defmodule Procession.Simulation.LivingBriarRuntime do
       state.tick *
         Enum.sum(Enum.map(state.regions, fn {_id, kernel} -> kernel.replenishment end))
 
-    player_material = player_material(state.player_body)
     process_events = Enum.reverse(state.resident_process_events)
 
     {:reply,
@@ -250,7 +202,8 @@ defmodule Procession.Simulation.LivingBriarRuntime do
        resident_process_progress: Enum.count(process_events, &(&1.status == :continuing)),
        resident_process_endings: Enum.count(process_events, &(&1.status == :ended)),
        material_accounting_error:
-         total_material(state.regions) + player_material - (state.initial_total + replenished),
+         total_material(state.regions) + player_material(state.player_body) -
+           (state.initial_total + replenished),
        archived_minds_committed?: Enum.all?(successful, &match?({:ok, _}, &1.commit))
      }, state}
   end
@@ -260,6 +213,41 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     stop_if_alive(state.lifecycle)
     stop_if_alive(state.manager)
     :ok
+  end
+
+  defp service_cognition(regions, processes, tick, state) do
+    if rem(tick, state.cadence) == 0 do
+      ids = locations(regions) |> Map.keys() |> Enum.sort()
+      selected = rotate_take(ids, state.cursor, state.budget)
+
+      {next_regions, next_processes, decisions, events} =
+        Enum.reduce(selected, {regions, processes, [], []}, fn identity_id,
+                                                              {current_regions,
+                                                               current_processes,
+                                                               current_decisions,
+                                                               current_events} ->
+          {updated_regions, updated_processes, decision, decision_events} =
+            decide_and_apply(current_regions, current_processes, identity_id, tick, state)
+
+          {
+            updated_regions,
+            updated_processes,
+            [decision | current_decisions],
+            decision_events ++ current_events
+          }
+        end)
+
+      {
+        next_regions,
+        next_processes,
+        Enum.reverse(decisions),
+        max(0, length(ids) - length(selected)),
+        state.cursor + state.budget,
+        Enum.reverse(events)
+      }
+    else
+      {regions, processes, [], map_size(locations(regions)), state.cursor, []}
+    end
   end
 
   defp advance_resident_processes(regions, processes, tick) do
@@ -273,11 +261,9 @@ defmodule Procession.Simulation.LivingBriarRuntime do
           {current_regions, next_processes, [event | events]}
 
         region_id ->
-          action = Map.fetch!(process, :action)
-          {kernel, consequence} =
-            CognitiveMaterialKernel.apply(current_regions[region_id], identity_id, action)
+          {updated_regions, consequence} =
+            advance_physical_process(current_regions, region_id, identity_id, process)
 
-          updated_regions = Map.put(current_regions, region_id, kernel)
           accumulated = process.accumulated + consequence.amount
           updated_process = %{process | region_id: region_id, accumulated: accumulated}
 
@@ -317,6 +303,49 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     end)
   end
 
+  defp advance_physical_process(regions, region_id, identity_id, %{primitive: :move_local} = process) do
+    kernel = regions[region_id]
+    resident = kernel.residents[identity_id]
+
+    case local_target_position(kernel, region_id, process.action) do
+      nil ->
+        {regions, physical_consequence(:local_target_absent, 0.0, -0.05)}
+
+      target_position ->
+        next_position = step_toward(resident.position, target_position)
+        moved = if next_position == resident.position, do: 0.0, else: 1.0
+        resident = %{resident | position: next_position}
+        kernel = %{kernel | residents: Map.put(kernel.residents, identity_id, resident)}
+        {Map.put(regions, region_id, kernel), physical_consequence(:moved_locally, moved, 0.12)}
+    end
+  end
+
+  defp advance_physical_process(
+         regions,
+         region_id,
+         identity_id,
+         %{primitive: :contact_loose_raw}
+       ) do
+    kernel = regions[region_id]
+    resident = kernel.residents[identity_id]
+
+    if distance(resident.position, raw_position(region_id)) <= kernel.contact_radius do
+      {next_kernel, consequence} =
+        CognitiveMaterialKernel.apply(kernel, identity_id, %{primitive: :contact_loose_raw})
+
+      {Map.put(regions, region_id, next_kernel), consequence}
+    else
+      {regions, physical_consequence(:loose_raw_out_of_contact, 0.0, -0.05)}
+    end
+  end
+
+  defp advance_physical_process(regions, region_id, identity_id, process) do
+    {kernel, consequence} =
+      CognitiveMaterialKernel.apply(regions[region_id], identity_id, process.action)
+
+    {Map.put(regions, region_id, kernel), consequence}
+  end
+
   defp process_can_continue?(_regions, _identity_id, _process, %{amount: amount})
        when amount <= 1.0e-12,
        do: false
@@ -327,9 +356,17 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     resident = kernel && kernel.residents[identity_id]
 
     case {process.primitive, kernel, resident} do
+      {:move_local, %{} = material, %{} = body} ->
+        case local_target_position(material, region_id, process.action) do
+          nil -> false
+          target -> distance(body.position, target) > material.contact_radius
+        end
+
       {:contact_loose_raw, %{} = material, %{} = body} ->
         room = max(0.0, body.capacity - body.raw - body.usable)
-        material.loose_raw > 1.0e-12 and room > 1.0e-12 and body.gather_rate > 0.0
+
+        distance(body.position, raw_position(region_id)) <= material.contact_radius and
+          material.loose_raw > 1.0e-12 and room > 1.0e-12 and body.gather_rate > 0.0
 
       {:manipulate_held_raw, _material, %{} = body} ->
         body.raw > 1.0e-12 and body.transform_rate > 0.0
@@ -451,10 +488,15 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     kernel = regions[region_id]
     resident = kernel.residents[identity_id]
     observed_bodies = player_observation(state, region_id, resident)
+    resource_position = raw_position(region_id)
 
     context = %{
       resident: resident,
       loose_raw: kernel.loose_raw,
+      loose_raw_direction: relative_direction(resident.position, resource_position),
+      loose_raw_distance: distance(resident.position, resource_position),
+      loose_raw_contact?:
+        distance(resident.position, resource_position) <= kernel.contact_radius,
       pressure: CognitiveMaterialKernel.pressure(kernel),
       contacts: CognitiveMaterialKernel.contacts(kernel, identity_id),
       observed_bodies: observed_bodies,
@@ -536,12 +578,16 @@ defmodule Procession.Simulation.LivingBriarRuntime do
 
       {regions, next_processes, decision, process_events}
     else
-      {processes, interruption_events} = interrupt_resident_process(processes, identity_id, tick)
+      {remaining_processes, interruption_events} =
+        interrupt_resident_process(processes, identity_id, tick)
+
       {next_regions, consequence, destination_region} =
         execute(regions, region_id, identity_id, action, state)
 
       commit_token =
-        if destination_region == region_id, do: token, else: %{token | region_id: destination_region}
+        if destination_region == region_id,
+          do: token,
+          else: %{token | region_id: destination_region}
 
       commit =
         DormantMaterialDecision.commit_cycle(
@@ -566,7 +612,7 @@ defmodule Procession.Simulation.LivingBriarRuntime do
         commit: commit
       }
 
-      {next_regions, processes, decision, interruption_events}
+      {next_regions, remaining_processes, decision, interruption_events}
     end
   end
 
@@ -844,6 +890,28 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     )
     |> DevelopmentalMindSnapshot.capture()
   end
+
+  defp local_target_position(_kernel, region_id, %{target: :loose_raw}),
+    do: raw_position(region_id)
+
+  defp local_target_position(kernel, _region_id, %{counterparty_id: target_id}) do
+    case Map.get(kernel.residents, target_id) do
+      nil -> nil
+      target -> target.position
+    end
+  end
+
+  defp local_target_position(_kernel, _region_id, _action), do: nil
+
+  defp raw_position(:west_fields), do: {0, -3}
+  defp raw_position(:crossroads), do: {0, -3}
+  defp raw_position(:east_refuge), do: {0, -3}
+
+  defp step_toward({x, y}, {tx, _ty}) when x < tx, do: {x + 1, y}
+  defp step_toward({x, y}, {tx, _ty}) when x > tx, do: {x - 1, y}
+  defp step_toward({x, y}, {_tx, ty}) when y < ty, do: {x, y + 1}
+  defp step_toward({x, y}, {_tx, ty}) when y > ty, do: {x, y - 1}
+  defp step_toward(position, _target), do: position
 
   defp default_player_body(player_id),
     do: %{
