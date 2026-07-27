@@ -39,8 +39,12 @@ defmodule Procession.Simulation.LivingBriarRuntime do
     seed = Keyword.get(opts, :seed, 41)
     budget = max(0, Keyword.get(opts, :budget, 3))
     cadence = max(1, Keyword.get(opts, :cadence, 1))
-    {:ok, manager} = LiveResolutionManager.start_link()
-    {:ok, lifecycle} = RegionActivationLifecycle.start_link(resolution_server: manager)
+    suffix = System.unique_integer([:positive, :monotonic])
+    manager_name = String.to_atom("living_briar_manager_#{suffix}")
+    lifecycle_name = String.to_atom("living_briar_lifecycle_#{suffix}")
+    {:ok, manager} = LiveResolutionManager.start_link(name: manager_name)
+    {:ok, lifecycle} =
+      RegionActivationLifecycle.start_link(name: lifecycle_name, resolution_server: manager)
     regions = seed_regions(manager)
     seed_archives(lifecycle, seed)
 
