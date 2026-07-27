@@ -12,6 +12,8 @@ defmodule Procession.LivingGameSession do
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts)
   def start(opts \\ []), do: GenServer.start(__MODULE__, opts)
+  def physical_action(session, primitive, opts \\ []),
+    do: GenServer.call(session, {:player_physical_action, primitive, opts})
 
   def start_demo(prompt \\ "a quiet frontier town", opts \\ []) do
     with {:ok, session} <- start(Keyword.put(opts, :prompt, prompt)),
@@ -62,6 +64,10 @@ defmodule Procession.LivingGameSession do
     else
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
+  end
+
+  def handle_call({:player_physical_action, primitive, opts}, _from, state) do
+    {:reply, LivingBriarRuntime.player_action(state.runtime, primitive, opts), state}
   end
 
   def handle_call(:summary, _from, state) do
