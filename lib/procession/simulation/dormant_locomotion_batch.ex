@@ -85,7 +85,7 @@ defmodule Procession.Simulation.DormantLocomotionBatch do
 
   def rotate_take(waiting, tick, budget) do
     count = length(waiting)
-    offset = rem(tick, count)
+    offset = rem(tick * min(budget, count), count)
     {left, right} = Enum.split(waiting, offset)
 
     (right ++ left)

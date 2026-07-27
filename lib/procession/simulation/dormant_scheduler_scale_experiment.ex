@@ -57,7 +57,7 @@ defmodule Procession.Simulation.DormantSchedulerScaleExperiment do
       :timer.tc(fn ->
         Enum.reduce(1..ticks, {initial_counts, 0, 0}, fn tick, {counts, attempted, cycles} ->
           if rem(tick, cadence) == 0 do
-            selected = DormantLocomotionBatch.rotate_take(waiting, tick, budget)
+            selected = DormantLocomotionBatch.rotate_take(waiting, cycles, budget)
 
             updated_counts =
               Enum.reduce(selected, counts, fn identity_id, acc ->

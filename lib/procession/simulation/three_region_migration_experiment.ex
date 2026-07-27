@@ -48,7 +48,7 @@ defmodule Procession.Simulation.ThreeRegionMigrationExperiment do
 
         batch =
           if rem(tick, cadence) == 0 do
-            DormantLocomotionBatch.run(tick, &exits/2,
+            DormantLocomotionBatch.run(@training_cycles + tick, &exits/2,
               travel_server: world.travel,
               lifecycle_server: world.lifecycle,
               resolution_server: world.manager,
