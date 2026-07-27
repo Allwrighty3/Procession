@@ -1,0 +1,68 @@
+name: Apply Evidence Fixes
+
+on:
+  push:
+    branches:
+      - agent/fix-experiment-evidence
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Apply evidence fixes') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-experiment-evidence
+      - name: Apply fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing replacement in {path}: {old!r}')
+              p.write_text(text.replace(old, new))
+
+          replace(
+              'lib/procession/simulation/dormant_locomotion_batch.ex',
+              'offset = rem(tick, count)',
+              'offset = rem(tick * min(budget, count), count)'
+          )
+          replace(
+              'test/procession/simulation/dormant_locomotion_batch_test.exs',
+              'assert DormantLocomotionBatch.rotate_take(waiting, 1, 2) == ["b", "c"]\n    assert DormantLocomotionBatch.rotate_take(waiting, 3, 2) == ["d", "a"]',
+              'assert DormantLocomotionBatch.rotate_take(waiting, 1, 2) == ["c", "d"]\n    assert DormantLocomotionBatch.rotate_take(waiting, 3, 2) == ["c", "d"]'
+          )
+          replace(
+              'test/procession/simulation/dormant_locomotion_batch_test.exs',
+              'assert result.selected == ["b", "c"]',
+              'assert result.selected == ["c", "d"]'
+          )
+          replace(
+              'test/procession/simulation/dormant_locomotion_batch_test.exs',
+              'assert Enum.map(result.results, &elem(&1, 0)) == ["b", "c"]\n    assert {:ok, %{exits: [%{identity: "b", region: "region_b"}]}} = result.results |> hd() |> elem(1)',
+              'assert Enum.map(result.results, &elem(&1, 0)) == ["c", "d"]\n    assert {:ok, %{exits: [%{identity: "c", region: "region_c"}]}} = result.results |> hd() |> elem(1)'
+          )
+          replace(
+              'lib/procession/simulation/dormant_scheduler_scale_experiment.ex',
+              'selected = DormantLocomotionBatch.rotate_take(waiting, tick, budget)',
+              'selected = DormantLocomotionBatch.rotate_take(waiting, cycles, budget)'
+          )
+          replace(
+              'lib/procession/simulation/three_region_migration_experiment.ex',
+              'DormantLocomotionBatch.run(tick, &exits/2,',
+              'DormantLocomotionBatch.run(@training_cycles + tick, &exits/2,'
+          )
+          PY
+      - name: Commit fixes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib test
+          git commit -m "Apply evidence fixes"
+          git push origin HEAD:agent/fix-experiment-evidence
