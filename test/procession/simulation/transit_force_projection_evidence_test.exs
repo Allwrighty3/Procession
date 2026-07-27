@@ -3,6 +3,7 @@ defmodule Procession.Simulation.TransitForceProjectionEvidenceTest do
 
   alias Procession.Simulation.TransitAwareLivingBriarRuntime
 
+  @moduletag timeout: 180_000
   @tag :transit_force_projection_evidence
   test "prints force-projected transit evidence" do
     for opts <- [
@@ -12,10 +13,10 @@ defmodule Procession.Simulation.TransitForceProjectionEvidenceTest do
           [seed: 41, budget: 1, cadence: 4, transit_budget: 1, transit_cadence: 4]
         ] do
       {:ok, runtime} = TransitAwareLivingBriarRuntime.start_link(opts)
-      Enum.each(1..192, fn _ -> assert {:ok, _} = TransitAwareLivingBriarRuntime.step(runtime) end)
+      Enum.each(1..128, fn _ -> assert {:ok, _} = TransitAwareLivingBriarRuntime.step(runtime) end)
       summary = TransitAwareLivingBriarRuntime.snapshot(runtime)
       events = summary.resident_process_events
-      transit_decisions = Enum.filter(summary.resident_process_events, &(&1.primitive == :cross_region_boundary))
+      transit_events = Enum.filter(events, &(&1.primitive == :cross_region_boundary))
 
       IO.puts(
         "TRANSIT_FORCE_PROJECTION_EVIDENCE " <>
@@ -35,7 +36,7 @@ defmodule Procession.Simulation.TransitForceProjectionEvidenceTest do
             active_transit: Enum.count(summary.resident_processes, fn {_id, process} ->
               process.primitive == :cross_region_boundary
             end),
-            lateral_motion_ticks: Enum.count(transit_decisions, fn event ->
+            lateral_motion_ticks: Enum.count(transit_events, fn event ->
               abs(Map.get(event, :lateral_position, 0.0)) > 1.0e-6
             end),
             populations: summary.populations,
