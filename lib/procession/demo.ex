@@ -27,7 +27,8 @@ defmodule Procession.Demo do
   def start_quiet(prompt \\ @default_prompt) do
     with {:ok, demo} <- start(prompt) do
       IO.puts("""
-      Procession compatibility demo started.
+      Procession demo started.
+      Compatibility mode uses the deterministic starter-area simulation.
 
       Try:
       - look
