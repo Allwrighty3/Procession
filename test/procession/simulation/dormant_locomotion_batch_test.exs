@@ -61,8 +61,8 @@ defmodule Procession.Simulation.DormantLocomotionBatchTest do
     waiting = ["a", "b", "c", "d"]
 
     assert DormantLocomotionBatch.rotate_take(waiting, 0, 2) == ["a", "b"]
-    assert DormantLocomotionBatch.rotate_take(waiting, 1, 2) == ["b", "c"]
-    assert DormantLocomotionBatch.rotate_take(waiting, 3, 2) == ["d", "a"]
+    assert DormantLocomotionBatch.rotate_take(waiting, 1, 2) == ["c", "d"]
+    assert DormantLocomotionBatch.rotate_take(waiting, 3, 2) == ["c", "d"]
     assert DormantLocomotionBatch.rotate_take(waiting, 4, 2) == ["a", "b"]
   end
 
@@ -87,10 +87,10 @@ defmodule Procession.Simulation.DormantLocomotionBatchTest do
     assert result.succeeded == 2
     assert result.failed == 0
     assert result.deferred == 2
-    assert result.selected == ["b", "c"]
+    assert result.selected == ["c", "d"]
 
-    assert Enum.map(result.results, &elem(&1, 0)) == ["b", "c"]
-    assert {:ok, %{exits: [%{identity: "b", region: "region_b"}]}} = result.results |> hd() |> elem(1)
+    assert Enum.map(result.results, &elem(&1, 0)) == ["c", "d"]
+    assert {:ok, %{exits: [%{identity: "c", region: "region_c"}]}} = result.results |> hd() |> elem(1)
   end
 
   test "one failed dormant decision does not prevent later selected identities" do
