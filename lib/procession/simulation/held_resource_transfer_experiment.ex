@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.HeldResourceTransferExperiment do
-  @moduledoc """Exercises conserved body-to-body held quantity transfer without intent labels."""
+  @moduledoc "Exercises conserved body-to-body held quantity transfer without intent labels."
 
   alias Procession.Simulation.CausalWorldKernel
   alias Procession.Simulation.SocialRelationPlane
@@ -32,8 +32,10 @@ defmodule Procession.Simulation.HeldResourceTransferExperiment do
       inventories_before: inventories(initial),
       inventories_after: inventories(contact_world),
       conserved?: abs(CausalWorldKernel.total_resource(contact_world) - total_before) < 1.0e-9,
-      out_of_contact_unchanged?: inventories(far_world) == inventories(world({5, 5}) |> CausalWorldKernel.begin_tick()),
-      social_event_context: if(contact[:event], do: SocialRelationPlane.event_context(contact.event), else: nil),
+      out_of_contact_unchanged?:
+        inventories(far_world) == inventories(world({5, 5}) |> CausalWorldKernel.begin_tick()),
+      social_event_context:
+        if(contact[:event], do: SocialRelationPlane.event_context(contact.event), else: nil),
       named_intent_present?: named_intent?(contact)
     }
   end
@@ -49,7 +51,8 @@ defmodule Procession.Simulation.HeldResourceTransferExperiment do
     )
   end
 
-  defp inventories(world), do: Map.new(world.entities, fn {id, entity} -> {id, entity.inventory} end)
+  defp inventories(world),
+    do: Map.new(world.entities, fn {id, entity} -> {id, entity.inventory} end)
 
   defp named_intent?(result) do
     result |> inspect() |> String.match?(~r/\b(gift|give|trade|help|steal|theft|charity)\b/i)
