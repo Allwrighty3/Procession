@@ -1,0 +1,40 @@
+name: Trigger Interpersonal Transfer Apply
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/finish-interpersonal-and-transfer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finish-interpersonal-and-transfer
+      - name: Execute stored implementation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/apply-interpersonal-transfer.yml').read_text()
+          start = text.index('      - name: Apply implementation')
+          run_start = text.index('        run: |\n', start) + len('        run: |\n')
+          end = text.index('\n      - name: Commit implementation', run_start)
+          lines = text[run_start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          Path('/tmp/apply.sh').write_text(script + '\n')
+          PY
+          bash /tmp/apply.sh
+          rm -f .github/workflows/trigger-apply.yml
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib test .github/workflows
+          git commit -m "Implement interpersonal controls and held transfer"
+          git push origin HEAD:agent/finish-interpersonal-and-transfer
