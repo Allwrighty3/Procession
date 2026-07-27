@@ -33,6 +33,7 @@ defmodule Procession.Simulation.PersistentTransitTest do
     assert arrival.populations.crossroads == 0
     assert arrival.populations.east_refuge == 3
     assert arrival.resident_processes == %{}
+
     assert [%{identity: "mara", status: :arrived, consequence: :crossed_region_boundary}] =
              arrival.resident_process_events
 
