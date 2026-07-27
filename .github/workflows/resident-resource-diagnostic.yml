@@ -5,11 +5,17 @@ on:
     branches:
       - agent/resident-resource-cascade
 
+permissions:
+  contents: write
+
 jobs:
   diagnose:
+    if: ${{ !contains(github.event.head_commit.message, 'Persist resident resource compiler output') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/resident-resource-cascade
       - uses: erlef/setup-beam@v1
         with:
           otp-version: '27'
@@ -19,10 +25,12 @@ jobs:
         run: |
           set +e
           mix compile --warnings-as-errors > compile.txt 2>&1
-          code=$?
-          tail -n 120 compile.txt > compile-tail.txt
+          tail -n 120 compile.txt > resident-resource-compile.txt
           exit 0
-      - uses: actions/upload-artifact@v4
-        with:
-          name: resident-resource-compile
-          path: compile-tail.txt
+      - name: Commit diagnostic
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add resident-resource-compile.txt
+          git commit -m "Persist resident resource compiler output" || exit 0
+          git push origin HEAD:agent/resident-resource-cascade
