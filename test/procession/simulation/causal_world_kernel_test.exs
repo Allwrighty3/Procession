@@ -44,6 +44,41 @@ defmodule Procession.Simulation.CausalWorldKernelTest do
     assert {:signal, {:body, :energy_pressure}, 4.25} in signals
   end
 
+  test "nearby bodies are perceived by relative direction and grounded distance" do
+    world =
+      world(
+        perception_radius: 3,
+        entities: [
+          %{id: "mara", position: {2, 2}, energy: 0.5},
+          %{id: "oren", position: {3, 2}, energy: 0.5},
+          %{id: "sela", position: {2, 4}, energy: 0.5}
+        ],
+        resources: []
+      )
+
+    signals = CausalWorldKernel.perceive(world, "mara")
+
+    assert {:signal, {:nearby_body, "oren", :east, :adjacent}, 0.5} in signals
+    assert {:signal, {:nearby_body, "sela", :south, :near}, 1.0 / 3.0} in signals
+  end
+
+  test "bodies outside perception radius do not leak into sensory input" do
+    world =
+      world(
+        perception_radius: 1,
+        entities: [
+          %{id: "mara", position: {0, 0}, energy: 0.5},
+          %{id: "oren", position: {2, 0}, energy: 0.5}
+        ],
+        resources: []
+      )
+
+    refute Enum.any?(CausalWorldKernel.perceive(world, "mara"), fn
+             {:signal, {:nearby_body, "oren", _direction, _distance}, _magnitude} -> true
+             _ -> false
+           end)
+  end
+
   test "contact transfers a conserved quantity and produces grounded feedback" do
     initial =
       world(
