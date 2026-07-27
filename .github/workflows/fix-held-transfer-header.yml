@@ -1,0 +1,39 @@
+name: Fix Held Transfer Header
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/finish-interpersonal-and-transfer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finish-interpersonal-and-transfer
+      - name: Fix function header
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/procession/simulation/causal_world_kernel.ex')
+          text = p.read_text()
+          old = '  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts \\\\ [])\n      when is_number(requested) and requested > 0 do\n'
+          new = '  def transfer_held_resource(world, from_id, to_id, requested, opts \\\\ [])\n\n  def transfer_held_resource(%__MODULE__{} = world, from_id, to_id, requested, opts)\n      when is_number(requested) and requested > 0 do\n'
+          if old not in text:
+              raise SystemExit('transfer signature marker missing')
+          p.write_text(text.replace(old, new))
+          PY
+          rm -f .github/workflows/fix-held-transfer-header.yml
+          rm -f .github/workflows/compile-diagnostic.yml
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib .github/workflows
+          git commit -m "Fix held transfer default argument header"
+          git push origin HEAD:agent/finish-interpersonal-and-transfer
