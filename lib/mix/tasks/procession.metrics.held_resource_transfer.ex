@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Procession.Metrics.HeldResourceTransfer do
   use Mix.Task
 
-  @moduledoc "Runs the conserved held body-to-body resource transfer experiment."
+  @moduledoc "Runs the conserved local held body-to-body resource transfer experiment."
   @shortdoc "Runs the held body-to-body resource transfer experiment"
 
   @impl true
