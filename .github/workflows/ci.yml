@@ -1,330 +1,53 @@
-name: Apply In-Transit Cognition
+name: Elixir CI
 
 on:
   push:
     branches:
-      - agent/in-transit-cognition
+      - main
+      - agent/**
+      - maintenance/**
+  pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: ${{ !contains(github.event.head_commit.message, '[in-transit-cognition]') }}
+  test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
         with:
-          ref: agent/in-transit-cognition
-          fetch-depth: 0
-      - name: Patch runtime
+          otp-version: "27"
+          elixir-version: "1.18.3"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-otp-27-elixir-1.18.3-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp-27-elixir-1.18.3-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run full test suite
+        shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('lib/procession/simulation/living_briar_runtime.ex')
-          t = p.read_text()
+          set -o pipefail
+          mix test 2>&1 | tee full-test-output.txt
 
-          def rep(old, new, count=1):
-              global t
-              if old not in t:
-                  raise SystemExit('missing patch anchor:\n' + old[:300])
-              t = t.replace(old, new, count)
-
-          rep('  alias Procession.Simulation.LiveResolutionManager\n',
-              '  alias Procession.Simulation.InTransitDecision\n  alias Procession.Simulation.LiveResolutionManager\n')
-
-          old = '''  defp service_cognition(regions, processes, tick, state) do
-    if rem(tick, state.cadence) == 0 do
-      ids = locations(regions) |> Map.keys() |> Enum.sort()
-      selected = rotate_take(ids, state.cursor, state.budget)
-
-      {next_regions, next_processes, decisions, events} =
-        Enum.reduce(selected, {regions, processes, [], []}, fn identity_id,
-                                                              {current_regions,
-                                                               current_processes,
-                                                               current_decisions,
-                                                               current_events} ->
-          {updated_regions, updated_processes, decision, decision_events} =
-            decide_and_apply(current_regions, current_processes, identity_id, tick, state)
-
-          {
-            updated_regions,
-            updated_processes,
-            [decision | current_decisions],
-            decision_events ++ current_events
-          }
-        end)
-
-      {
-        next_regions,
-        next_processes,
-        Enum.reverse(decisions),
-        max(0, length(ids) - length(selected)),
-        state.cursor + state.budget,
-        Enum.reverse(events)
-      }
-    else
-      {regions, processes, [], map_size(locations(regions)), state.cursor, []}
-    end
-  end'''
-          new = '''  defp service_cognition(regions, processes, tick, state) do
-    regional_ids = locations(regions) |> Map.keys()
-    transit_ids =
-      processes
-      |> Enum.filter(fn {_id, process} ->
-        process.primitive == :cross_region_boundary and is_map(Map.get(process, :body))
-      end)
-      |> Enum.map(&elem(&1, 0))
-
-    ids = (regional_ids ++ transit_ids) |> Enum.uniq() |> Enum.sort()
-
-    if rem(tick, state.cadence) == 0 do
-      selected = rotate_take(ids, state.cursor, state.budget)
-
-      {next_regions, next_processes, decisions, events} =
-        Enum.reduce(selected, {regions, processes, [], []}, fn identity_id,
-                                                              {current_regions,
-                                                               current_processes,
-                                                               current_decisions,
-                                                               current_events} ->
-          result =
-            case Map.get(current_processes, identity_id) do
-              %{primitive: :cross_region_boundary, body: body} = process when is_map(body) ->
-                decide_in_transit(
-                  current_regions,
-                  current_processes,
-                  identity_id,
-                  process,
-                  tick,
-                  state
-                )
-
-              _ ->
-                decide_and_apply(current_regions, current_processes, identity_id, tick, state)
-            end
-
-          {updated_regions, updated_processes, decision, decision_events} = result
-
-          {
-            updated_regions,
-            updated_processes,
-            [decision | current_decisions],
-            decision_events ++ current_events
-          }
-        end)
-
-      {
-        next_regions,
-        next_processes,
-        Enum.reverse(decisions),
-        max(0, length(ids) - length(selected)),
-        state.cursor + state.budget,
-        Enum.reverse(events)
-      }
-    else
-      {regions, processes, [], length(ids), state.cursor, []}
-    end
-  end'''
-          rep(old, new)
-
-          rep('''    energy = clamp(body.energy - 0.018, 0.0, 1.0)
-    body = %{body | energy: energy}
-    progress = process.accumulated + if(energy > 0.0, do: 1.0, else: 0.0)
-''', '''    paused? = Map.get(process, :paused?, false)
-    heading = Map.get(process, :heading, :forward)
-    energy = if paused?, do: body.energy, else: clamp(body.energy - 0.018, 0.0, 1.0)
-    body = %{body | energy: energy}
-
-    delta =
-      cond do
-        paused? -> 0.0
-        energy <= 0.0 -> 0.0
-        heading == :reverse -> -1.0
-        true -> 1.0
-      end
-
-    progress = process.accumulated + delta
-''')
-
-          rep('''    cond do
-      energy <= 0.0 and progress < extent ->
-        {regions, updated_process, :stranded,
-         physical_consequence(:transit_stranded, 0.0, -0.2)}
-
-      progress < extent ->
-        {regions, updated_process, :continuing,
-         physical_consequence(:advanced_in_transit, 1.0, 0.1)}
-
-      true ->''', '''    cond do
-      paused? ->
-        {regions, updated_process, :paused,
-         physical_consequence(:paused_in_transit, 0.0, 0.02)}
-
-      heading == :reverse and progress <= 0.0 ->
-        source =
-          CognitiveMaterialKernel.put_resident(
-            regions[source_region],
-            %{body | position: transit_departure_position(process.action.direction)}
-          )
-
-        {Map.put(regions, source_region, source), updated_process, :returned,
-         physical_consequence(:returned_to_source_boundary, 1.0, 0.12)}
-
-      energy <= 0.0 and progress < extent ->
-        {regions, updated_process, :stranded,
-         physical_consequence(:transit_stranded, 0.0, -0.2)}
-
-      progress < extent ->
-        {regions, updated_process, :continuing,
-         physical_consequence(:advanced_in_transit, abs(delta), 0.1)}
-
-      true ->''')
-
-          rep('''        if status in [:continuing, :stranded] do
-          Map.put(next_processes, identity_id, updated_process)
-''', '''        if status in [:continuing, :paused, :stranded] do
-          Map.put(next_processes, identity_id, updated_process)
-''')
-
-          rep('''        transit_stranded:
-          Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :stranded)),
-''', '''        transit_stranded:
-          Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :stranded)),
-        transit_pauses:
-          Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :paused)),
-        transit_returns:
-          Enum.count(process_events, &(&1.primitive == :cross_region_boundary and &1.status == :returned)),
-        in_transit_decisions:
-          Enum.count(successful, &(&1[:in_transit?] == true)),
-''')
-
-          rep('''    next = %{
-      primitive: action.primitive,
-      action: action,
-      region_id: region_id,
-      started_tick: tick,
-      accumulated: 0.0
-    }
-''', '''    next = %{
-      primitive: action.primitive,
-      action: action,
-      region_id: region_id,
-      started_tick: tick,
-      accumulated: 0.0,
-      heading: :forward,
-      paused?: false
-    }
-''')
-
-          anchor = '  defp decide_and_apply(regions, processes, identity_id, tick, state) do\n'
-          insert = '''  defp decide_in_transit(regions, processes, identity_id, process, tick, state) do
-    context = %{
-      body: process.body,
-      progress: process.accumulated,
-      extent: Map.get(process, :extent, transit_extent(process.region_id, process.action.region_id)),
-      heading: Map.get(process, :heading, :forward),
-      paused?: Map.get(process, :paused?, false),
-      route_direction: process.action.direction,
-      nearby_travelers: nearby_transit_travelers(processes, identity_id, process)
-    }
-
-    opts = [
-      lifecycle_server: state.lifecycle,
-      loop_opts: [
-        seed: state.seed + :erlang.phash2({identity_id, :transit}, 10_000),
-        output_exploration: 0.82
-      ]
-    ]
-
-    case InTransitDecision.begin_cycle(process.region_id, identity_id, context, tick, opts) do
-      {:ok, token} ->
-        {updated_process, consequence} = apply_transit_cognition(process, token.action)
-        commit =
-          InTransitDecision.commit_cycle(
-            token,
-            consequence.features,
-            consequence.coherence,
-            opts
-          )
-
-        decision = %{
-          identity: identity_id,
-          from: process.region_id,
-          to: process.region_id,
-          primitive: token.action.primitive,
-          motor_pattern: token.outcome.pattern,
-          motor_direction: token.outcome.direction,
-          consequence: consequence.kind,
-          amount: 0.0,
-          moved?: false,
-          process_status: :updated,
-          player_observed?: false,
-          in_transit?: true,
-          commit: commit
-        }
-
-        {regions, Map.put(processes, identity_id, updated_process), decision, []}
-
-      {:error, reason} ->
-        decision = %{
-          identity: identity_id,
-          from: process.region_id,
-          error: reason,
-          moved?: false,
-          player_observed?: false,
-          in_transit?: true
-        }
-
-        {regions, processes, decision, []}
-    end
-  end
-
-  defp apply_transit_cognition(process, %{primitive: :continue_transit}) do
-    {%{process | heading: :forward, paused?: false},
-     physical_consequence(:continued_in_transit, 0.0, 0.08)}
-  end
-
-  defp apply_transit_cognition(process, %{primitive: :reverse_transit}) do
-    {%{process | heading: :reverse, paused?: false},
-     physical_consequence(:reversed_in_transit, 0.0, 0.08)}
-  end
-
-  defp apply_transit_cognition(process, _action) do
-    {%{process | paused?: true}, physical_consequence(:paused_in_transit, 0.0, 0.04)}
-  end
-
-  defp nearby_transit_travelers(processes, identity_id, process) do
-    processes
-    |> Enum.reject(fn {other_id, _} -> other_id == identity_id end)
-    |> Enum.flat_map(fn {other_id, other} ->
-      same_route? =
-        other.primitive == :cross_region_boundary and
-          Map.get(other, :region_id) == process.region_id and
-          get_in(other, [:action, :region_id]) == process.action.region_id and
-          is_map(Map.get(other, :body))
-
-      if same_route? do
-        difference = other.accumulated - process.accumulated
-
-        [%{
-          identity_id: other_id,
-          relative: if(difference >= 0.0, do: :ahead, else: :behind),
-          distance: trunc(abs(difference))
-        }]
-      else
-        []
-      end
-    end)
-  end
-
-'''
-          rep(anchor, insert + anchor)
-
-          p.write_text(t)
-          PY
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add -A
-          git commit -m 'Enable cognition during regional transit [in-transit-cognition]'
-          git push origin HEAD:agent/in-transit-cognition
+      - name: Upload full test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-output
+          path: full-test-output.txt
