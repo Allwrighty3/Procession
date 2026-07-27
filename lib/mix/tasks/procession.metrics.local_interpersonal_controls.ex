@@ -1,5 +1,7 @@
 defmodule Mix.Tasks.Procession.Metrics.LocalInterpersonalControls do
   use Mix.Task
+
+  @moduledoc "Runs grounded local interpersonal control scenarios."
   @shortdoc "Runs grounded local interpersonal control scenarios"
 
   @impl true
