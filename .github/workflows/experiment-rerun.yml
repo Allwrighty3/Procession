@@ -1,0 +1,47 @@
+name: Experiment Rerun
+
+on:
+  push:
+    branches:
+      - agent/experiment-rerun-20260726
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18.3"
+      - uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-otp-27-elixir-1.18.3-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp-27-elixir-1.18.3-
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - name: Run fixed experiments
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo '=== DORMANT SCHEDULER SCALE ==='
+            mix procession.metrics.dormant_scheduler_scale --ticks 256 --populations 100,1000,10000 --budgets 8,32,128 --cadences 1,4,16
+            for seed in 19 41 77; do
+              echo "=== THREE REGION MIGRATION seed=$seed ==="
+              mix procession.metrics.three_region_migration --ticks 24 --budget 2 --cadence 1 --seed "$seed"
+            done
+            echo '=== THREE REGION MIGRATION constrained ==='
+            mix procession.metrics.three_region_migration --ticks 24 --budget 1 --cadence 4 --seed 41
+          } 2>&1 | tee experiment-rerun.txt
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: experiment-rerun
+          path: experiment-rerun.txt
