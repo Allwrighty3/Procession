@@ -504,11 +504,11 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   defp cascading_feedback?(traces) do
     traces
     |> Enum.chunk_every(3, 1, :discard)
-    |> Enum.any?(fn [before, changed, after] ->
+    |> Enum.any?(fn [before, changed, later] ->
       Enum.any?(@regions, fn region ->
         before.regional[region].population != changed.regional[region].population and
-          (changed.regional[region].last_production != after.regional[region].last_production or
-             changed.regional[region].regional_support != after.regional[region].regional_support)
+          (changed.regional[region].last_production != later.regional[region].last_production or
+             changed.regional[region].regional_support != later.regional[region].regional_support)
       end)
     end)
   end
