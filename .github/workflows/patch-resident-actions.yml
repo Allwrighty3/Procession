@@ -1,0 +1,35 @@
+name: Patch Resident Actions
+
+on:
+  push:
+    branches:
+      - agent/resident-persistent-actions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[resident-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/resident-persistent-actions
+      - name: Remove unused continuation binding
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('lib/procession/simulation/living_briar_runtime.ex')
+          text = path.read_text()
+          old = '%{primitive: primitive, action: existing_action} = existing\n      when primitive == action.primitive and existing_action == action ->'
+          new = '%{primitive: primitive, action: existing_action}\n      when primitive == action.primitive and existing_action == action ->'
+          if old not in text:
+              raise SystemExit('target source text not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add lib/procession/simulation/living_briar_runtime.ex
+          git commit -m 'Remove unused resident process binding [resident-patch]'
+          git push origin HEAD:agent/resident-persistent-actions
