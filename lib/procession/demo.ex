@@ -49,11 +49,14 @@ defmodule Procession.Demo do
   The same boundary is used by tests and metrics. Options include `:ticks`, `:budget`,
   `:cadence`, and `:seed`.
   """
-  def living_briar(opts \\ []) when is_list(opts), do: LivingBriar.run(opts)
+  def living_briar(opts \\ [])
+  def living_briar(opts) when is_list(opts), do: LivingBriar.run(opts)
   def living_briar(_opts), do: {:error, :invalid_living_briar_options}
 
   @doc "Runs Living Briar, prints a compact causal trace, and returns the structured run."
-  def watch_living_briar(opts \\ []) when is_list(opts) do
+  def watch_living_briar(opts \\ [])
+
+  def watch_living_briar(opts) when is_list(opts) do
     run = LivingBriar.run(opts)
     IO.puts(LivingBriar.format(run))
     run
