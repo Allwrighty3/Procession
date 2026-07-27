@@ -164,16 +164,31 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   end
 
   defp initial_conditions(:west_fields),
-    do: %{regional_stock: 1.2, production_rate: 0.08, shelter_capacity: 2.0,
-      regional_support: 0.5, local_resource_pressure: 0.35}
+    do: %{
+      regional_stock: 1.2,
+      production_rate: 0.08,
+      shelter_capacity: 2.0,
+      regional_support: 0.5,
+      local_resource_pressure: 0.35
+    }
 
   defp initial_conditions(:crossroads),
-    do: %{regional_stock: 0.65, production_rate: 0.025, shelter_capacity: 2.0,
-      regional_support: 0.45, local_resource_pressure: 0.55}
+    do: %{
+      regional_stock: 0.65,
+      production_rate: 0.025,
+      shelter_capacity: 2.0,
+      regional_support: 0.45,
+      local_resource_pressure: 0.55
+    }
 
   defp initial_conditions(:east_refuge),
-    do: %{regional_stock: 1.0, production_rate: 0.04, shelter_capacity: 2.5,
-      regional_support: 0.65, local_resource_pressure: 0.3}
+    do: %{
+      regional_stock: 1.0,
+      production_rate: 0.04,
+      shelter_capacity: 2.5,
+      regional_support: 0.65,
+      local_resource_pressure: 0.3
+    }
 
   defp seed_archives(lifecycle, minds) do
     :sys.replace_state(lifecycle, fn state ->
@@ -240,7 +255,9 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
 
       updated_commitments =
         Map.new(commitments, fn {identity, commitment} ->
-          energy = clamp(number(commitment, :energy) + support * 0.025 - pressure * 0.035, 0.0, 1.0)
+          energy =
+            clamp(number(commitment, :energy) + support * 0.025 - pressure * 0.035, 0.0, 1.0)
+
           inventory_delta = if stock_per_person > 0.2, do: 0.008, else: -0.006
           inventory = clamp(number(commitment, :inventory) + inventory_delta, 0.0, 1.0)
           {identity, commitment |> Map.put(:energy, energy) |> Map.put(:inventory, inventory)}
@@ -324,7 +341,8 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
               output_exploration: 1.0
             )
 
-          coherence = if outcome.displaced? and outcome.direction == profile.history, do: 1.0, else: -0.25
+          coherence =
+            if outcome.displaced? and outcome.direction == profile.history, do: 1.0, else: -0.25
 
           DevelopmentalSensorimotorLoop.feedback(
             emitted,
@@ -354,8 +372,13 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   defp decisions(batch) do
     Enum.map(batch.results, fn
       {identity, {:ok, result}} ->
-        %{identity: identity, status: :ok, action: result.decision.action,
-          direction: Map.get(result.decision, :observed_direction), execution: result.execution}
+        %{
+          identity: identity,
+          status: :ok,
+          action: result.decision.action,
+          direction: Map.get(result.decision, :observed_direction),
+          execution: result.execution
+        }
 
       {identity, {:error, reason}} ->
         %{identity: identity, status: :error, reason: reason}
@@ -366,8 +389,13 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
     Map.new(locations, fn {identity, region_id} ->
       value =
         case LiveResolutionManager.fetch(region_id, manager) do
-          {:ok, region} -> region.summary |> Map.get(:identity_commitments, %{}) |> Map.get(identity, %{})
-          _ -> %{}
+          {:ok, region} ->
+            region.summary
+            |> Map.get(:identity_commitments, %{})
+            |> Map.get(identity, %{})
+
+          _ ->
+            %{}
         end
 
       {identity, Map.take(value, [:energy, :mobility, :inventory, :consumed])}
@@ -376,8 +404,18 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
 
   defp compact_journeys(journeys) do
     Map.new(journeys, fn {identity, journey} ->
-      {identity, Map.take(journey, [:status, :current_region, :from, :to, :segment_progress,
-        :segment_extent, :elapsed_ticks, :segments_crossed, :last_outcome])}
+      {identity,
+       Map.take(journey, [
+         :status,
+         :current_region,
+         :from,
+         :to,
+         :segment_progress,
+         :segment_extent,
+         :elapsed_ticks,
+         :segments_crossed,
+         :last_outcome
+       ])}
     end)
   end
 
@@ -399,16 +437,26 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   end
 
   defp regional_fields(summary) do
-    Map.take(summary, [:population, :regional_stock, :regional_support,
-      :local_resource_pressure, :last_production, :last_consumption])
+    Map.take(summary, [
+      :population,
+      :regional_stock,
+      :regional_support,
+      :local_resource_pressure,
+      :last_production,
+      :last_consumption
+    ])
   end
 
   defp snapshot_metrics(lifecycle, locations) do
     Map.new(locations, fn {identity, region_id} ->
       case DormantMindArchive.fetch(region_id, identity, lifecycle) do
         {:ok, snapshot} ->
-          {identity, %{bytes: :erlang.external_size(snapshot),
-            cost: DevelopmentalMindSnapshot.cost(snapshot), retained: snapshot.metrics}}
+          {identity,
+           %{
+             bytes: :erlang.external_size(snapshot),
+             cost: DevelopmentalMindSnapshot.cost(snapshot),
+             retained: snapshot.metrics
+           }}
 
         {:error, reason} ->
           {identity, %{error: reason}}
@@ -418,21 +466,32 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
 
   defp analyze(traces) do
     decisions = Enum.flat_map(traces, & &1.decisions)
-    directions = decisions |> Enum.filter(&(&1[:action] == :continue)) |> Enum.group_by(& &1.identity, & &1.direction)
+
+    directions =
+      decisions
+      |> Enum.filter(&(&1[:action] == :continue))
+      |> Enum.group_by(& &1.identity, & &1.direction)
+
     {deteriorations, recoveries} = energy_changes(traces)
 
     %{
       population_changed?: population_changed?(traces),
       cascading_feedback_observed?: cascading_feedback?(traces),
       dynamic_conditions_changed?: dynamic_conditions_changed?(traces),
-      route_reversals: Enum.sum(Enum.map(directions, fn {_id, values} -> pair_count(values, &opposite?/2) end)),
-      repeated_direction_choices: Enum.sum(Enum.map(directions, fn {_id, values} -> pair_count(values, &Kernel.==/2) end)),
+      route_reversals:
+        Enum.sum(Enum.map(directions, fn {_id, values} -> pair_count(values, &opposite?/2) end)),
+      repeated_direction_choices:
+        Enum.sum(Enum.map(directions, fn {_id, values} -> pair_count(values, &Kernel.==/2) end)),
       boundary_hesitation_ticks: Enum.count(decisions, &(&1[:action] == :remain)),
       bodily_deteriorations: deteriorations,
       bodily_recoveries: recoveries,
       distinct_regions_entered:
-        traces |> Enum.flat_map(& &1.location_changes) |> Enum.map(& &1.to)
-        |> Enum.reject(&match?({:transit, _, _, _}, &1)) |> Enum.uniq() |> length()
+        traces
+        |> Enum.flat_map(& &1.location_changes)
+        |> Enum.map(& &1.to)
+        |> Enum.filter(&(&1 in @regions))
+        |> Enum.uniq()
+        |> length()
     }
   end
 
@@ -457,6 +516,7 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
 
   defp dynamic_conditions_changed?([first | _] = traces) do
     last = List.last(traces)
+
     Enum.any?(@regions, fn region ->
       first.regional[region].regional_stock != last.regional[region].regional_stock or
         first.regional[region].regional_support != last.regional[region].regional_support
@@ -483,15 +543,25 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   end
 
   defp pair_count(values, predicate) do
-    values |> Enum.chunk_every(2, 1, :discard) |> Enum.count(fn [a, b] -> predicate.(a, b) end)
+    values
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.count(fn [a, b] -> predicate.(a, b) end)
   end
 
   defp opposite?(:east, :west), do: true
   defp opposite?(:west, :east), do: true
   defp opposite?(_, _), do: false
 
-  defp totals, do: %{attempted: 0, succeeded: 0, failed: 0, deferred: 0,
-    location_changes: 0, entered_regions: 0}
+  defp totals do
+    %{
+      attempted: 0,
+      succeeded: 0,
+      failed: 0,
+      deferred: 0,
+      location_changes: 0,
+      entered_regions: 0
+    }
+  end
 
   defp accumulate(totals, trace) do
     entered = Enum.count(trace.travel_events, &match?({:entered_region, _, _}, &1))
@@ -506,7 +576,10 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   end
 
   defp waiting_count(travel) do
-    travel |> CoarseTravel.trace() |> DormantLocomotionBatch.waiting_identities() |> length()
+    travel
+    |> CoarseTravel.trace()
+    |> DormantLocomotionBatch.waiting_identities()
+    |> length()
   end
 
   defp stop_world(world) do
