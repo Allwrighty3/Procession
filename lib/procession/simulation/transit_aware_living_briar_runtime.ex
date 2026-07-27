@@ -123,17 +123,18 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
   end
 
   defp detach_transit(runtime) do
-    :sys.replace_state(runtime, fn inner ->
-      {transit, regional} =
-        Enum.split_with(inner.resident_processes, fn {_id, process} ->
-          process.primitive == :cross_region_boundary
-        end)
+    inner = :sys.get_state(runtime)
 
-      Process.put({__MODULE__, runtime, :detached}, Map.new(transit))
-      %{inner | resident_processes: Map.new(regional)}
+    {transit, regional} =
+      Enum.split_with(inner.resident_processes, fn {_id, process} ->
+        process.primitive == :cross_region_boundary
+      end)
+
+    :sys.replace_state(runtime, fn state ->
+      %{state | resident_processes: Map.new(regional)}
     end)
 
-    Process.delete({__MODULE__, runtime, :detached}) || %{}
+    Map.new(transit)
   end
 
   defp reattach_transit(runtime, transit) do
