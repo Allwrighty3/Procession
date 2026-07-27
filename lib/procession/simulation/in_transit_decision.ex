@@ -3,11 +3,13 @@ defmodule Procession.Simulation.InTransitDecision do
   Restores an archived developmental mind while its body is between regions.
 
   Transit evidence is intentionally low-level: bodily energy, relative boundary distance,
-  route progress, and nearby moving bodies. Motor output may continue, pause, or reverse
-  physical progress without introducing a semantic journey goal.
+  route progress, velocity, lateral displacement, and nearby moving bodies. Cognition emits
+  an opaque motor pattern; route geometry turns its physical force into longitudinal and
+  transverse impulse without introducing continue, pause, reverse, or journey semantics.
   """
 
   alias Procession.Simulation.DevelopmentalMindSnapshot
+  alias Procession.Simulation.DevelopmentalMotorGeometry
   alias Procession.Simulation.DevelopmentalSensorimotorLoop
   alias Procession.Simulation.RegionActivationLifecycle
 
@@ -23,8 +25,17 @@ defmodule Procession.Simulation.InTransitDecision do
         loop = DevelopmentalMindSnapshot.restore(snapshot)
         emission_tick = max(tick, (loop.last_tick || tick - 1) + 1)
         sensed = DevelopmentalSensorimotorLoop.sense(loop, sensory_features(context), loop_opts(opts))
+
         {emitted, outcome} =
           DevelopmentalSensorimotorLoop.emit(sensed, emission_tick, loop_opts(opts))
+
+        force = DevelopmentalMotorGeometry.pattern_force(outcome.pattern)
+
+        {route_projection, lateral_projection} =
+          DevelopmentalMotorGeometry.route_projection(
+            force,
+            Map.fetch!(context, :route_direction)
+          )
 
         {:ok,
          %{
@@ -33,7 +44,15 @@ defmodule Procession.Simulation.InTransitDecision do
            expected_snapshot: snapshot,
            emitted_loop: emitted,
            outcome: outcome,
-           action: translate(outcome, context)
+           action: %{
+             primitive: :motor_impulse,
+             force: force,
+             route_projection: route_projection,
+             lateral_projection: lateral_projection,
+             displaced?: outcome.displaced?,
+             coordination: outcome.coordination,
+             intensity: outcome.intensity
+           }
          }}
       rescue
         error -> {:error, {:in_transit_decision_failed, Exception.message(error)}}
@@ -76,6 +95,9 @@ defmodule Procession.Simulation.InTransitDecision do
     extent = max(number(context, :extent), 1.0)
     source_distance = progress
     destination_distance = max(0.0, extent - progress)
+    route_velocity = number(context, :route_velocity)
+    lateral_velocity = number(context, :lateral_velocity)
+    lateral_position = number(context, :lateral_position)
 
     [
       {:signal, {:body_energy, bucket(number(body, :energy))}, magnitude(number(body, :energy))},
@@ -84,8 +106,10 @@ defmodule Procession.Simulation.InTransitDecision do
        magnitude(1.0 / (1.0 + source_distance))},
       {:signal, {:far_boundary_distance, distance_band(destination_distance)},
        magnitude(1.0 / (1.0 + destination_distance))},
-      {:signal, {:transit_heading, Map.get(context, :heading, :forward)}, 1.0},
-      {:signal, {:transit_paused, Map.get(context, :paused?, false)}, 1.0}
+      {:signal, {:route_velocity, signed_band(route_velocity)}, magnitude(abs(route_velocity))},
+      {:signal, {:lateral_velocity, signed_band(lateral_velocity)}, magnitude(abs(lateral_velocity))},
+      {:signal, {:lateral_displacement, signed_band(lateral_position)},
+       magnitude(abs(lateral_position) / (1.0 + abs(lateral_position)))}
       | traveler_features(context)
     ]
   end
@@ -101,26 +125,15 @@ defmodule Procession.Simulation.InTransitDecision do
     end)
   end
 
-  defp translate(%{displaced?: false}, _context), do: %{primitive: :pause_transit}
-
-  defp translate(%{direction: direction}, context) when direction in [:east, :west] do
-    route_direction = Map.fetch!(context, :route_direction)
-
-    if direction == route_direction do
-      %{primitive: :continue_transit}
-    else
-      %{primitive: :reverse_transit}
-    end
-  end
-
-  defp translate(_outcome, _context), do: %{primitive: :pause_transit}
-
   defp progress_band(value) when value < 0.25, do: :near_source
   defp progress_band(value) when value < 0.75, do: :between
   defp progress_band(_), do: :near_far_boundary
   defp distance_band(value) when value <= 1.0, do: :contact
   defp distance_band(value) when value <= 3.0, do: :nearby
   defp distance_band(_), do: :far
+  defp signed_band(value) when value < -0.05, do: :negative
+  defp signed_band(value) when value > 0.05, do: :positive
+  defp signed_band(_), do: :near_zero
   defp bucket(value) when value < 0.25, do: :low
   defp bucket(value) when value < 0.75, do: :middle
   defp bucket(_), do: :high
