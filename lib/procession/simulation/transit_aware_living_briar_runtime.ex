@@ -4,9 +4,9 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
   physical and cognitive pass.
 
   Regional material state and dormant archives remain authoritative in the wrapped runtime.
-  This coordinator removes active transit processes from the regional tick, advances them once,
-  gives a bounded subset an in-transit cognitive opportunity, then writes the resulting process
-  and trace evidence back atomically.
+  Transit cognition emits opaque motor impulses. This coordinator projects those impulses onto
+  route geometry, advances velocity and position through world time, and reports arrival,
+  stopping, reversal, and return as observations rather than cognitive actions.
   """
 
   use GenServer
@@ -15,6 +15,11 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
   alias Procession.Simulation.InTransitDecision
   alias Procession.Simulation.LivingBriarRuntime
   alias Procession.Simulation.RegionActivationLifecycle
+
+  @velocity_epsilon 1.0e-6
+  @drag 0.72
+  @lateral_drag 0.62
+  @energy_per_distance 0.006
 
   defstruct [:runtime, :seed, :budget, :cadence, cursor: 0, decisions: [], events: []]
 
@@ -95,18 +100,19 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
   def handle_call(:snapshot, _from, state) do
     summary = LivingBriarRuntime.snapshot(state.runtime)
     decisions = Enum.reverse(state.decisions)
+    successful = Enum.reject(decisions, &Map.has_key?(&1, :error))
     events = Enum.reverse(state.events)
 
     enhanced =
       summary
       |> Map.put(:in_transit_decisions, length(decisions))
-      |> Map.put(:transit_cognitive_primitives, Enum.frequencies_by(decisions, & &1.primitive))
-      |> Map.put(:transit_pauses, Enum.count(events, &(&1.status == :paused)))
+      |> Map.put(:transit_cognitive_primitives, Enum.frequencies_by(successful, & &1.primitive))
+      |> Map.put(:transit_stationary_ticks, Enum.count(events, &(&1.status == :stationary)))
       |> Map.put(:transit_returns, Enum.count(events, &(&1.status == :returned)))
-      |> Map.put(:transit_reversals, Enum.count(decisions, &(&1.primitive == :reverse_transit)))
-      |> Map.put(:transit_continuations, Enum.count(decisions, &(&1.primitive == :continue_transit)))
-      |> Map.put(:transit_cognitive_pauses, Enum.count(decisions, &(&1.primitive == :pause_transit)))
-      |> Map.put(:transit_minds_committed?, Enum.all?(decisions, &match?({:ok, _}, &1.commit)))
+      |> Map.put(:transit_reversals, Enum.count(events, &(&1.status == :reversing)))
+      |> Map.put(:transit_forward_ticks, Enum.count(events, &(&1.status == :advancing)))
+      |> Map.put(:transit_motor_impulses, length(successful))
+      |> Map.put(:transit_minds_committed?, Enum.all?(successful, &match?({:ok, _}, &1.commit)))
 
     {:reply, enhanced, state}
   end
@@ -157,7 +163,7 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
         event = process_event(identity_id, updated, status, tick, consequence)
 
         processes =
-          if status in [:continuing, :paused, :stranded] do
+          if status in [:advancing, :reversing, :stationary, :stranded] do
             Map.put(processes, identity_id, updated)
           else
             processes
@@ -187,34 +193,34 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
           {resident, regions}
       end
 
-    paused? = Map.get(process, :paused?, false)
-    heading = Map.get(process, :heading, :forward)
-    energy = if paused?, do: body.energy, else: clamp(body.energy - 0.018, 0.0, 1.0)
-    body = %{body | energy: energy}
+    velocity = clamp(Map.get(process, :route_velocity, 0.0) * @drag, -1.0, 1.0)
+    lateral_velocity = clamp(Map.get(process, :lateral_velocity, 0.0) * @lateral_drag, -1.0, 1.0)
 
-    delta =
-      cond do
-        paused? -> 0.0
-        energy <= 0.0 -> 0.0
-        heading == :reverse -> -1.0
-        true -> 1.0
+    {velocity, lateral_velocity} =
+      if body.energy <= 0.0 do
+        {0.0, 0.0}
+      else
+        {velocity, lateral_velocity}
       end
 
-    progress = process.accumulated + delta
+    distance = abs(velocity) + abs(lateral_velocity) * 0.35
+    energy = clamp(body.energy - distance * @energy_per_distance, 0.0, 1.0)
+    body = %{body | energy: energy}
+    progress = process.accumulated + velocity
+    lateral = Map.get(process, :lateral_position, 0.0) + lateral_velocity
 
     updated =
       process
       |> Map.put(:body, body)
       |> Map.put(:extent, extent)
       |> Map.put(:accumulated, progress)
-      |> Map.put_new(:heading, :forward)
-      |> Map.put_new(:paused?, false)
+      |> Map.put(:route_velocity, velocity)
+      |> Map.put(:lateral_velocity, lateral_velocity)
+      |> Map.put(:lateral_position, lateral)
+      |> Map.drop([:heading, :paused?])
 
     cond do
-      paused? ->
-        {regions, updated, :paused, consequence(:paused_in_transit, 0.0, 0.02)}
-
-      heading == :reverse and progress <= 0.0 ->
+      progress <= 0.0 and velocity < -@velocity_epsilon ->
         kernel =
           CognitiveMaterialKernel.put_resident(
             regions[source],
@@ -222,15 +228,9 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
           )
 
         {Map.put(regions, source, kernel), updated, :returned,
-         consequence(:returned_to_source_boundary, 1.0, 0.12)}
+         consequence(:returned_to_source_boundary, abs(velocity), 0.12)}
 
-      energy <= 0.0 and progress < extent ->
-        {regions, updated, :stranded, consequence(:transit_stranded, 0.0, -0.2)}
-
-      progress < extent ->
-        {regions, updated, :continuing, consequence(:advanced_in_transit, abs(delta), 0.1)}
-
-      true ->
+      progress >= extent ->
         case RegionActivationLifecycle.migrate(identity_id, source, destination, [], lifecycle) do
           {:ok, _} ->
             kernel =
@@ -240,7 +240,7 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
               )
 
             {Map.put(regions, destination, kernel), updated, :arrived,
-             consequence(:crossed_region_boundary, 1.0, 0.2)}
+             consequence(:crossed_region_boundary, abs(velocity), 0.2)}
 
           {:error, _} ->
             kernel = CognitiveMaterialKernel.put_resident(regions[source], body)
@@ -248,6 +248,20 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
             {Map.put(regions, source, kernel), updated, :ended,
              consequence(:boundary_crossing_rejected, 0.0, -0.1)}
         end
+
+      body.energy <= 0.0 and abs(velocity) <= @velocity_epsilon ->
+        {regions, updated, :stranded, consequence(:transit_stranded, 0.0, -0.2)}
+
+      velocity > @velocity_epsilon ->
+        {regions, updated, :advancing,
+         consequence(:advanced_in_transit, velocity, motion_coherence(velocity))}
+
+      velocity < -@velocity_epsilon ->
+        {regions, updated, :reversing,
+         consequence(:reversed_in_transit, abs(velocity), motion_coherence(velocity))}
+
+      true ->
+        {regions, updated, :stationary, consequence(:stationary_in_transit, 0.0, 0.0)}
     end
   end
 
@@ -277,7 +291,8 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
 
           case InTransitDecision.begin_cycle(process.region_id, identity_id, context, tick, opts) do
             {:ok, token} ->
-              {updated, physical} = apply_cognitive_action(process, token.action)
+              {updated, physical} = apply_motor_impulse(process, token.action)
+
               commit =
                 InTransitDecision.commit_cycle(
                   token,
@@ -293,8 +308,11 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
                 primitive: token.action.primitive,
                 motor_pattern: token.outcome.pattern,
                 motor_direction: token.outcome.direction,
+                motor_force: token.action.force,
+                route_projection: token.action.route_projection,
+                lateral_projection: token.action.lateral_projection,
                 consequence: physical.kind,
-                amount: 0.0,
+                amount: token.action.route_projection,
                 moved?: false,
                 process_status: :updated,
                 player_observed?: false,
@@ -329,8 +347,9 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
       body: process.body,
       progress: process.accumulated,
       extent: Map.get(process, :extent, transit_extent(process.region_id, process.action.region_id)),
-      heading: Map.get(process, :heading, :forward),
-      paused?: Map.get(process, :paused?, false),
+      route_velocity: Map.get(process, :route_velocity, 0.0),
+      lateral_velocity: Map.get(process, :lateral_velocity, 0.0),
+      lateral_position: Map.get(process, :lateral_position, 0.0),
       route_direction: process.action.direction,
       nearby_travelers: nearby_travelers(processes, identity_id, process)
     }
@@ -360,16 +379,45 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
     end)
   end
 
-  defp apply_cognitive_action(process, %{primitive: :continue_transit}) do
-    {%{process | heading: :forward, paused?: false}, consequence(:continued_in_transit, 0.0, 0.08)}
-  end
+  defp apply_motor_impulse(process, action) do
+    energy = process.body.energy
+    coordination = Map.get(action, :coordination, 0.0)
+    displaced_factor = if Map.get(action, :displaced?, false), do: 1.0, else: 0.15
+    bodily_factor = clamp(energy, 0.0, 1.0)
+    gain = displaced_factor * bodily_factor * (0.25 + 0.75 * coordination)
 
-  defp apply_cognitive_action(process, %{primitive: :reverse_transit}) do
-    {%{process | heading: :reverse, paused?: false}, consequence(:reversed_in_transit, 0.0, 0.08)}
-  end
+    route_impulse = action.route_projection * gain
+    lateral_impulse = action.lateral_projection * gain
 
-  defp apply_cognitive_action(process, _action) do
-    {%{process | paused?: true}, consequence(:paused_in_transit, 0.0, 0.04)}
+    route_velocity =
+      clamp(Map.get(process, :route_velocity, 0.0) + route_impulse, -1.0, 1.0)
+
+    lateral_velocity =
+      clamp(Map.get(process, :lateral_velocity, 0.0) + lateral_impulse, -1.0, 1.0)
+
+    updated =
+      process
+      |> Map.put(:route_velocity, route_velocity)
+      |> Map.put(:lateral_velocity, lateral_velocity)
+      |> Map.put_new(:lateral_position, 0.0)
+      |> Map.drop([:heading, :paused?])
+
+    kind =
+      cond do
+        route_impulse > @velocity_epsilon -> :forward_motor_impulse
+        route_impulse < -@velocity_epsilon -> :reverse_motor_impulse
+        abs(lateral_impulse) > @velocity_epsilon -> :transverse_motor_impulse
+        true -> :weak_motor_impulse
+      end
+
+    coherence =
+      cond do
+        abs(route_impulse) > @velocity_epsilon -> 0.08
+        abs(lateral_impulse) > @velocity_epsilon -> 0.02
+        true -> -0.01
+      end
+
+    {updated, consequence(kind, abs(route_impulse) + abs(lateral_impulse), coherence)}
   end
 
   defp attach_transit_evidence(runtime, processes, events, decisions) do
@@ -419,6 +467,9 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
       amount: decision.amount,
       motor_pattern: decision.motor_pattern,
       observed_direction: decision.motor_direction,
+      motor_force: decision.motor_force,
+      route_projection: decision.route_projection,
+      lateral_projection: decision.lateral_projection,
       moved?: false,
       process_status: decision.process_status,
       in_transit?: true,
@@ -434,6 +485,8 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
       tick: tick,
       amount: physical.amount,
       accumulated: process.accumulated,
+      route_velocity: Map.get(process, :route_velocity, 0.0),
+      lateral_position: Map.get(process, :lateral_position, 0.0),
       consequence: physical.kind
     }
 
@@ -445,6 +498,7 @@ defmodule Procession.Simulation.TransitAwareLivingBriarRuntime do
       features: [{:signal, {:physical_consequence, kind}, 1.0}]
     }
 
+  defp motion_coherence(velocity), do: min(0.12, 0.04 + abs(velocity) * 0.08)
   defp transit_extent(:west_fields, :crossroads), do: 3.0
   defp transit_extent(:crossroads, :west_fields), do: 3.0
   defp transit_extent(:crossroads, :east_refuge), do: 4.0
