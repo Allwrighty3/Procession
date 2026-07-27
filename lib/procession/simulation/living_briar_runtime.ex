@@ -127,8 +127,7 @@ defmodule Procession.Simulation.LivingBriarRuntime do
        deferred: Enum.sum(Enum.map(traces, & &1.deferred)),
        primitives: Enum.frequencies_by(successful, & &1.primitive),
        material_accounting_error:
-         total_material(state.regions) + player_material -
-           (state.initial_total + replenished + player_material(state.player_body, :consumed)),
+         total_material(state.regions) + player_material - (state.initial_total + replenished),
        archived_minds_committed?: Enum.all?(successful, &match?({:ok, _}, &1.commit))}, state}
   end
 
@@ -358,7 +357,7 @@ defmodule Procession.Simulation.LivingBriarRuntime do
   end
 
   defp default_player_body(player_id), do: %{id: player_id, position: {0, 0},
-    raw: 0.0, usable: 0.08, consumed: 0.0, energy: 0.7, capacity: 0.8,
+    raw: 0.0, usable: 0.0, consumed: 0.0, energy: 0.7, capacity: 0.8,
     gather_rate: 0.06, transform_rate: 0.04, consume_rate: 0.025, transfer_rate: 0.02}
   defp player_event(kind, details), do: Map.merge(%{kind: kind}, details)
   defp record_player_event(state, event), do: %{state | player_events: [event | state.player_events]}
@@ -368,8 +367,6 @@ defmodule Procession.Simulation.LivingBriarRuntime do
   defp player_position(body), do: body.position
   defp player_material(nil), do: 0.0
   defp player_material(body), do: body.raw + body.usable + body.consumed
-  defp player_material(nil, :consumed), do: 0.0
-  defp player_material(body, :consumed), do: body.consumed
   defp direction_delta(:north), do: {0, -1}
   defp direction_delta(:south), do: {0, 1}
   defp direction_delta(:east), do: {1, 0}
