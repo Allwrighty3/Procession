@@ -35,7 +35,7 @@ defmodule Procession.Simulation.LivingBriar do
         seed: result.seed
       },
       summary: summary(result),
-      observations: Enum.map(result.traces, &observe_tick/1),
+      observations: observations(result.traces),
       evidence: result
     }
   end
@@ -90,13 +90,24 @@ defmodule Procession.Simulation.LivingBriar do
     }
   end
 
-  defp observe_tick(trace) do
+  defp observations(traces) do
+    {observations, _previous} =
+      Enum.map_reduce(traces, nil, fn trace, previous_populations ->
+        observation = observe_tick(trace, previous_populations)
+        {observation, trace.populations}
+      end)
+
+    observations
+  end
+
+  defp observe_tick(trace, previous_populations) do
     %{
       tick: trace.tick,
       populations: trace.populations,
       pressures: trace.pressures,
       deferred: trace.deferred,
-      population_changed?: false,
+      population_changed?:
+        not is_nil(previous_populations) and previous_populations != trace.populations,
       decisions: Enum.map(trace.decisions, &observe_decision/1)
     }
   end
@@ -127,9 +138,10 @@ defmodule Procession.Simulation.LivingBriar do
 
   defp format_observation(observation) do
     decision_lines = Enum.map(observation.decisions, &format_decision/1)
+    population_marker = if observation.population_changed?, do: " population changed", else: ""
 
     ([
-       "tick #{observation.tick} populations=#{format_populations(observation.populations)} deferred=#{observation.deferred}"
+       "tick #{observation.tick} populations=#{format_populations(observation.populations)} deferred=#{observation.deferred}#{population_marker}"
      ] ++ decision_lines)
     |> Enum.join("\n")
   end
