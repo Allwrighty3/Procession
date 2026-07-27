@@ -14,6 +14,8 @@ defmodule Procession.Simulation.DormantMaterialDecision do
   alias Procession.Simulation.RegionActivationLifecycle
 
   def begin_cycle(region_id, identity_id, context, tick, opts \\ [])
+
+  def begin_cycle(region_id, identity_id, context, tick, opts)
       when is_map(context) and is_integer(tick) do
     lifecycle = Keyword.get(opts, :lifecycle_server, RegionActivationLifecycle)
 
