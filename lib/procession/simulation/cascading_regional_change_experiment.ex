@@ -562,8 +562,8 @@ defmodule Procession.Simulation.CascadingRegionalChangeExperiment do
   defp energy_changes(traces) do
     traces
     |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.reduce({0, 0}, fn [before, after], {down, up} ->
-      Enum.reduce(after.commitments, {down, up}, fn {identity, commitment}, {d, u} ->
+    |> Enum.reduce({0, 0}, fn [before, later], {down, up} ->
+      Enum.reduce(later.commitments, {down, up}, fn {identity, commitment}, {d, u} ->
         previous = get_in(before.commitments, [identity, :energy])
         current = Map.get(commitment, :energy)
 
