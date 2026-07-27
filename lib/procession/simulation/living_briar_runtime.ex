@@ -1,5 +1,5 @@
 defmodule Procession.Simulation.LivingBriarRuntime do
-  @moduledoc """Stateful owner for the canonical Living Briar simulation."""
+  @moduledoc "Stateful owner for the canonical Living Briar simulation."
 
   use GenServer
 
@@ -35,7 +35,6 @@ defmodule Procession.Simulation.LivingBriarRuntime do
   def set_player_location(runtime, player_id, location_id),
     do: GenServer.call(runtime, {:set_player_location, player_id, location_id})
   def stop(runtime), do: GenServer.stop(runtime, :normal)
-
   def region_for_location(location_id), do: Map.get(@location_regions, location_id)
 
   @impl true
