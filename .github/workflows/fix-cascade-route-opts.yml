@@ -1,15 +1,16 @@
 name: Fix Cascade Route Options
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - agent/cascading-regional-change
 
 permissions:
   contents: write
 
 jobs:
   fix:
-    if: github.head_ref == 'agent/cascading-regional-change'
+    if: ${{ !contains(github.event.head_commit.message, 'Use valid cascading route options') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
