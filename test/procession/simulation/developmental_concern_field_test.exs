@@ -82,7 +82,8 @@ defmodule Procession.Simulation.DevelopmentalConcernFieldTest do
         {:signal, {:body_energy, :high}, 1.0}
       ])
 
-    restored = loop |> DevelopmentalSensorimotorLoop.snapshot() |> DevelopmentalSensorimotorLoop.new()
+    snapshot = DevelopmentalSensorimotorLoop.snapshot(loop)
+    restored = DevelopmentalSensorimotorLoop.new(snapshot: snapshot)
 
     assert Enum.any?(
              DevelopmentalConcernField.associated_cues(restored.concerns, :energy_deficit),
