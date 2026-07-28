@@ -31,7 +31,7 @@ defmodule Procession.Simulation.DevelopmentalConcernField do
     metrics = %{
       active_pressures: Enum.count(pressures, fn {_key, value} -> value >= @minimum_pressure end),
       association_count: map_size(associations),
-      recalled_count: length(recalled),
+      recalled_count: div(length(recalled), 2),
       relief: relief_metrics(state.pressures, pressures)
     }
 
@@ -111,8 +111,13 @@ defmodule Procession.Simulation.DevelopmentalConcernField do
       end)
       |> Enum.sort_by(fn {cue, weight} -> {-weight, cue} end)
       |> Enum.take(max(limit, 0))
-      |> Enum.map(fn {cue, weight} ->
-        {:signal, {:recalled_relief_cue, concern, cue}, min(1.5, pressure * weight)}
+      |> Enum.flat_map(fn {cue, weight} ->
+        magnitude = min(1.5, pressure * weight)
+
+        [
+          {:signal, cue, magnitude},
+          {:signal, {:recalled_relief_cue, concern, cue}, magnitude}
+        ]
       end)
     end)
   end
