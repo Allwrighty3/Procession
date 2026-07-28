@@ -8,12 +8,14 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   the resulting transition.
   """
 
+  alias Procession.Simulation.DevelopmentalConcernField
   alias Procession.Simulation.DevelopmentalMindSnapshot
   alias Procession.Simulation.DevelopmentalMotorBody
   alias Procession.Simulation.DevelopmentalSensorimotorField
 
   defstruct field: nil,
             body: nil,
+            concerns: nil,
             position: {0, 0},
             config: [],
             pending_output: nil,
@@ -41,18 +43,32 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     %__MODULE__{
       field: DevelopmentalSensorimotorField.new(config),
       body: DevelopmentalMotorBody.new(Keyword.get(opts, :body_opts, [])),
+      concerns: DevelopmentalConcernField.new(),
       position: Keyword.get(opts, :position, {0, 0}),
       config: config
     }
   end
 
   def sense(%__MODULE__{} = loop, features, opts \\ []) when is_list(features) do
-    %{loop | field: DevelopmentalSensorimotorField.sense(loop.field, features, effective_opts(loop, opts))}
+    effective = effective_opts(loop, opts)
+    concerns = loop.concerns || DevelopmentalConcernField.new()
+    {concerns, augmented} = DevelopmentalConcernField.observe(concerns, features, effective)
+
+    %{
+      loop
+      | concerns: concerns,
+        field: DevelopmentalSensorimotorField.sense(loop.field, augmented, effective)
+    }
   end
 
   def emit(loop, tick, opts \\ [])
-  def emit(%__MODULE__{pending_output: pending}, _tick, _opts) when not is_nil(pending), do: raise(ArgumentError, "cannot emit another motor output before feedback closes the pending output")
-  def emit(%__MODULE__{last_tick: last_tick}, tick, _opts) when is_integer(last_tick) and is_integer(tick) and tick <= last_tick, do: raise(ArgumentError, "motor ticks must increase monotonically")
+
+  def emit(%__MODULE__{pending_output: pending}, _tick, _opts) when not is_nil(pending),
+    do: raise(ArgumentError, "cannot emit another motor output before feedback closes the pending output")
+
+  def emit(%__MODULE__{last_tick: last_tick}, tick, _opts)
+      when is_integer(last_tick) and is_integer(tick) and tick <= last_tick,
+      do: raise(ArgumentError, "motor ticks must increase monotonically")
 
   def emit(%__MODULE__{} = loop, tick, opts) when is_integer(tick) do
     effective_opts = effective_opts(loop, opts)
@@ -62,14 +78,27 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
     pattern = select_pattern(patterns, scores, tick, seed, effective_opts)
     {body, outcome} = DevelopmentalMotorBody.attempt(loop.body, pattern, loop.position, tick, effective_opts)
     position = DevelopmentalMotorBody.apply_displacement(loop.position, outcome)
-    updated = %{loop | body: body, position: position, pending_output: pattern, last_outcome: outcome, last_tick: tick, cycles: loop.cycles + 1}
+
+    updated = %{
+      loop
+      | body: body,
+        position: position,
+        pending_output: pattern,
+        last_outcome: outcome,
+        last_tick: tick,
+        cycles: loop.cycles + 1
+    }
+
     {updated, Map.put(outcome, :position, position)}
   end
 
   def feedback(loop, features, coherence, opts \\ [])
-  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts), do: raise(ArgumentError, "cannot apply feedback without a pending motor output")
 
-  def feedback(%__MODULE__{} = loop, features, coherence, opts) when is_list(features) and is_number(coherence) do
+  def feedback(%__MODULE__{pending_output: nil}, _features, _coherence, _opts),
+    do: raise(ArgumentError, "cannot apply feedback without a pending motor output")
+
+  def feedback(%__MODULE__{} = loop, features, coherence, opts)
+      when is_list(features) and is_number(coherence) do
     effective_opts = effective_opts(loop, opts)
     field = DevelopmentalSensorimotorField.record_output(loop.field, loop.pending_output, coherence, effective_opts)
     field = DevelopmentalSensorimotorField.sense(field, features, effective_opts)
@@ -77,7 +106,9 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
   end
 
   def cycle(loop, features, tick, feedback_fun, opts \\ [])
-  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts) when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
+
+  def cycle(%__MODULE__{} = loop, features, tick, feedback_fun, opts)
+      when is_list(features) and is_integer(tick) and is_function(feedback_fun, 2) do
     sensed = sense(loop, features, opts)
     {emitted, outcome} = emit(sensed, tick, opts)
     {consequence_features, coherence} = feedback_fun.(outcome, emitted.position)
@@ -94,7 +125,8 @@ defmodule Procession.Simulation.DevelopmentalSensorimotorLoop do
       active_sensory_nodes: map_size(loop.field.sensory.activity),
       learned_output_edges: map_size(loop.field.output_edges),
       motor_attempts: loop.body.attempts,
-      salience: DevelopmentalSensorimotorField.salience_metrics(loop.field)
+      salience: DevelopmentalSensorimotorField.salience_metrics(loop.field),
+      concerns: DevelopmentalConcernField.metrics(loop.concerns || DevelopmentalConcernField.new())
     }
   end
 
